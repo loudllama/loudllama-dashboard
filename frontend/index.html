@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LoudLlama Dashboard</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23ffd166'/%3E%3Ccircle cx='32' cy='32' r='16' fill='%23ff9d4d'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="vendor/gridstack/gridstack.min.css" />
+  <link rel="stylesheet" href="css/app.css" />
+  <link rel="stylesheet" href="widgets/weather/weather.css" />
+  <link rel="stylesheet" href="widgets/frigate/frigate.css" />
+</head>
+<body>
+  <div id="llw-background"></div>
+
+  <header id="llw-toolbar">
+    <div class="llw-toolbar__brand">LoudLlama Dashboard</div>
+    <div class="llw-toolbar__actions">
+      <label class="llw-bg-upload" id="llw-bg-label-wrap">
+        <span id="llw-bg-label">Background</span>
+        <input type="file" id="llw-bg-file" accept="image/*" />
+      </label>
+      <div class="llw-add-widget-wrap">
+        <button id="llw-add-widget" type="button">+ Add widget</button>
+        <div id="llw-add-widget-menu" class="llw-menu"></div>
+      </div>
+      <button id="llw-edit-toggle" type="button">Edit</button>
+    </div>
+  </header>
+
+  <main id="llw-loading">Loading…</main>
+
+  <div class="grid-stack" id="llw-grid"></div>
+
+  <script src="vendor/gridstack/gridstack-all.js"></script>
+  <script src="js/i18n.js"></script>
+  <script src="js/app.js"></script>
+  <script src="widgets/weather/weather.js"></script>
+  <script src="widgets/frigate/frigate.js"></script>
+</body>
+</html>

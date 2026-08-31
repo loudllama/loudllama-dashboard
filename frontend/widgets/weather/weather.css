@@ -1,0 +1,334 @@
+/* Weather widget - visuals ------------------------------------------------ */
+
+.llw-weather {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: inherit;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  font-family: inherit;
+}
+
+.llw-weather__bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  transition: background 0.8s ease;
+  background: linear-gradient(160deg, #4a6fa5, #33475f);
+}
+
+/* One gradient per HA weather condition slug */
+.llw-bg-sunny { background: linear-gradient(160deg, #ffd580, #ff9d4d 55%, #ff7a3c); }
+.llw-bg-clear-night { background: linear-gradient(160deg, #0f2149, #1b2f63 55%, #08122b); }
+.llw-bg-partlycloudy { background: linear-gradient(160deg, #7fb3e0, #5a7fa8 55%, #3f5b7a); }
+.llw-bg-cloudy { background: linear-gradient(160deg, #8896a3, #64717d 55%, #4a545c); }
+.llw-bg-fog { background: linear-gradient(160deg, #b7bfc4, #98a1a8 55%, #7d868d); }
+.llw-bg-rainy { background: linear-gradient(160deg, #5c7a8a, #3e5866 55%, #2a3d47); }
+.llw-bg-pouring { background: linear-gradient(160deg, #47616f, #2e434e 55%, #1b2a32); }
+.llw-bg-lightning { background: linear-gradient(160deg, #4a4560, #2b2740 55%, #17141f); }
+.llw-bg-lightning-rainy { background: linear-gradient(160deg, #40495c, #262d3c 55%, #14181f); }
+.llw-bg-snowy { background: linear-gradient(160deg, #d7e4ee, #aebfce 55%, #8fa3b5); }
+.llw-bg-snowy-rainy { background: linear-gradient(160deg, #a9bcc9, #8399a8 55%, #62788a); }
+.llw-bg-hail { background: linear-gradient(160deg, #9fb0bd, #798c9b 55%, #56656f); }
+.llw-bg-windy, .llw-bg-windy-variant { background: linear-gradient(160deg, #7fa6a0, #557f79 55%, #395a56); }
+.llw-bg-exceptional { background: linear-gradient(160deg, #6b2f3a, #421c24 55%, #240f13); }
+.llw-bg-unknown { background: linear-gradient(160deg, #55627a, #3a4457 55%, #262d3a); }
+
+.llw-weather__fx {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.llw-weather__content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 0.9rem 1rem 0.7rem;
+  gap: 0.35rem;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+
+.llw-weather__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  /* Extra right padding keeps the gear button clear of the top-right
+     "remove widget" (x) button that app.js overlays in edit mode - GridStack
+     resize handles only run along the bottom/side edges (see `resizable:
+     {handles: 'e, se, s, sw, w'}` in app.js), so the top edge stays free for
+     widget-specific controls as long as they don't collide with each other. */
+  padding-right: 30px;
+}
+
+.llw-weather__title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+
+.llw-weather__gear {
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.18);
+  border: none;
+  color: #fff;
+  border-radius: 999px;
+  width: 26px;
+  height: 26px;
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+}
+body.llw-edit-mode .llw-weather__gear { display: inline-flex; }
+.llw-weather__gear:hover { background: rgba(255, 255, 255, 0.3); }
+
+.llw-weather__main {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1;
+}
+
+.llw-weather__icon { width: 56px; height: 56px; flex-shrink: 0; }
+.llw-weather__icon svg { width: 100%; height: 100%; display: block; }
+
+.llw-weather__temp { font-size: 2.1rem; font-weight: 700; line-height: 1; }
+.llw-weather__condition { font-size: 0.85rem; opacity: 0.9; margin-top: 0.15rem; }
+
+.llw-weather__meta {
+  display: flex;
+  gap: 0.9rem;
+  font-size: 0.75rem;
+  opacity: 0.9;
+}
+.llw-weather__meta span { display: flex; align-items: center; gap: 0.25rem; }
+
+.llw-weather__forecast {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.15rem;
+  overflow: hidden;
+}
+.llw-weather__forecast-item {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  font-size: 0.68rem;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 0.3rem 0.15rem;
+}
+.llw-weather__forecast-item .llw-fc-icon { width: 22px; height: 22px; margin: 0 auto 2px; }
+.llw-weather__forecast-item .llw-fc-icon svg { width: 100%; height: 100%; }
+.llw-weather__forecast-item .llw-fc-temp { font-weight: 600; }
+
+.llw-weather__empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 0.85rem;
+  opacity: 0.85;
+  padding: 0.5rem;
+}
+
+.llw-weather__settings {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  background: rgba(20, 24, 32, 0.85);
+  backdrop-filter: blur(2px);
+  display: none;
+  flex-direction: column;
+  gap: 0.5rem;
+  /* Extra bottom padding keeps the "done" button clear of GridStack's
+     bottom resize-handle strip (10px tall, see gridstack.min.css
+     .ui-resizable-s), which sits along the widget's outer bottom edge in
+     edit mode. */
+  padding: 0.9rem 0.9rem 1.75rem;
+}
+.llw-weather__settings.llw-open { display: flex; }
+.llw-weather__settings select {
+  width: 100%;
+  padding: 0.4rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+.llw-weather__settings select option { color: #111; }
+.llw-weather__settings button {
+  align-self: flex-end;
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: #fff;
+  padding: 0.3rem 0.7rem;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+/* --- animated particle layer ------------------------------------------- */
+
+@keyframes llw-fall {
+  from { transform: translateY(-15%); }
+  to { transform: translateY(130%); }
+}
+@keyframes llw-drift {
+  from { transform: translateX(-25%); }
+  to { transform: translateX(125%); }
+}
+@keyframes llw-twinkle {
+  0%, 100% { opacity: 0.15; }
+  50% { opacity: 0.95; }
+}
+@keyframes llw-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+@keyframes llw-flash {
+  0%, 92%, 100% { opacity: 0; }
+  94%, 96% { opacity: 0.85; }
+}
+@keyframes llw-pulse {
+  0% { transform: scale(0.8); opacity: 0.7; }
+  100% { transform: scale(1.8); opacity: 0; }
+}
+
+.llw-drop {
+  position: absolute;
+  top: -10%;
+  width: 2px;
+  height: 16px;
+  border-radius: 2px;
+  background: linear-gradient(rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.75));
+  animation: llw-fall linear infinite;
+  transform: rotate(12deg);
+}
+
+.llw-flake {
+  position: absolute;
+  top: -6%;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  animation: llw-fall linear infinite;
+}
+
+.llw-hailstone {
+  position: absolute;
+  top: -6%;
+  background: rgba(230, 240, 245, 0.9);
+  border-radius: 2px;
+  animation: llw-fall linear infinite;
+  transform: rotate(20deg);
+}
+
+.llw-cloud {
+  position: absolute;
+  background: rgba(255, 255, 255, 0.55);
+  border-radius: 40px;
+  filter: blur(0.5px);
+  animation: llw-drift linear infinite;
+}
+.llw-cloud::before,
+.llw-cloud::after {
+  content: '';
+  position: absolute;
+  background: inherit;
+  border-radius: 50%;
+}
+
+.llw-star {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  background: #fff;
+  border-radius: 50%;
+  animation: llw-twinkle ease-in-out infinite;
+}
+
+.llw-sun {
+  position: absolute;
+  top: 10%;
+  right: 12%;
+  width: 34%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff6d8, #ffdb7a 60%, rgba(255, 219, 122, 0));
+  box-shadow: 0 0 30px 8px rgba(255, 216, 130, 0.5);
+}
+.llw-sun-rays {
+  position: absolute;
+  inset: 0;
+  animation: llw-spin 40s linear infinite;
+}
+.llw-sun-rays span {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 2px;
+  height: 46%;
+  background: rgba(255, 240, 200, 0.55);
+  transform-origin: 50% 0;
+}
+
+.llw-moon {
+  position: absolute;
+  top: 12%;
+  right: 14%;
+  width: 24%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: #f4f1e6;
+  box-shadow: 10px -4px 0 0 rgba(15, 33, 73, 1) inset, 0 0 20px 4px rgba(244, 241, 230, 0.35);
+}
+
+.llw-fogband {
+  position: absolute;
+  left: -20%;
+  width: 140%;
+  height: 14%;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0));
+  animation: llw-drift linear infinite;
+}
+
+.llw-windstreak {
+  position: absolute;
+  height: 2px;
+  width: 22%;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.7));
+  animation: llw-drift linear infinite;
+  transform: rotate(-6deg);
+}
+
+.llw-flash-overlay {
+  position: absolute;
+  inset: 0;
+  background: #fff;
+  opacity: 0;
+  animation: llw-flash linear infinite;
+}
+
+.llw-alert-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 50%;
+  aspect-ratio: 1;
+  margin: -25% 0 0 -25%;
+  border: 2px solid rgba(255, 120, 120, 0.8);
+  border-radius: 50%;
+  animation: llw-pulse 1.8s ease-out infinite;
+}
