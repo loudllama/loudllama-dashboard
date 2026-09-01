@@ -1,6 +1,6 @@
 {
   "name": "loudllama-dashboard-backend",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "description": "Backend for the LoudLlama Dashboard Home Assistant add-on",
   "main": "server.js",

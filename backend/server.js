@@ -65,7 +65,7 @@ function mockHaResponse(pathname) {
     };
   }
   if (pathname === '/states') {
-    return [mockWeatherEntity(), mockLightEntity(), ...mockCameraEntities()];
+    return [mockWeatherEntity(), mockLightEntity(), ...mockCameraEntities(), ...Object.values(ROOM_MOCK_ENTITIES)];
   }
   if (pathname.startsWith('/states/')) {
     const entityId = decodeURIComponent(pathname.split('/states/')[1]);
@@ -73,9 +73,67 @@ function mockHaResponse(pathname) {
     if (entityId === 'light.demo') return mockLightEntity();
     const camera = mockCameraEntities().find((c) => c.entity_id === entityId);
     if (camera) return camera;
+    if (ROOM_MOCK_ENTITIES[entityId]) return ROOM_MOCK_ENTITIES[entityId];
     return { entity_id: entityId, state: 'unknown', attributes: {} };
   }
   throw new Error(`No mock handler for ${pathname}`);
+}
+
+// A small, *mutable* set of mock entities covering the domains the Room
+// widget knows how to group/control (lights, switches, climate, sensors,
+// a security sensor, media player, cover, lock). Unlike the other mocks
+// above these persist across requests and are mutated by
+// POST /api/hass/service/... so toggling things in mock mode actually
+// behaves like a live Home Assistant would.
+const ROOM_MOCK_ENTITIES = {
+  'light.living_room_ceiling': { entity_id: 'light.living_room_ceiling', state: 'on', attributes: { friendly_name: 'Loftlampe', brightness: 180 } },
+  'light.living_room_lamp': { entity_id: 'light.living_room_lamp', state: 'off', attributes: { friendly_name: 'Gulvlampe', brightness: null } },
+  'switch.living_room_tv': { entity_id: 'switch.living_room_tv', state: 'off', attributes: { friendly_name: 'TV-stikkontakt' } },
+  'sensor.living_room_temperature': { entity_id: 'sensor.living_room_temperature', state: '21.4', attributes: { friendly_name: 'Temperatur', unit_of_measurement: '°C', device_class: 'temperature' } },
+  'sensor.living_room_humidity': { entity_id: 'sensor.living_room_humidity', state: '46', attributes: { friendly_name: 'Luftfugtighed', unit_of_measurement: '%', device_class: 'humidity' } },
+  'binary_sensor.living_room_motion': { entity_id: 'binary_sensor.living_room_motion', state: 'off', attributes: { friendly_name: 'Bevægelse', device_class: 'motion' } },
+  'binary_sensor.living_room_window': { entity_id: 'binary_sensor.living_room_window', state: 'off', attributes: { friendly_name: 'Vindue', device_class: 'window' } },
+  'media_player.living_room_speaker': { entity_id: 'media_player.living_room_speaker', state: 'paused', attributes: { friendly_name: 'Stue-højtaler', volume_level: 0.4 } },
+  'climate.living_room': { entity_id: 'climate.living_room', state: 'heat', attributes: { friendly_name: 'Termostat', current_temperature: 21.4, temperature: 22, hvac_action: 'heating' } },
+  'cover.living_room_blinds': { entity_id: 'cover.living_room_blinds', state: 'closed', attributes: { friendly_name: 'Persienner' } },
+  'lock.front_door': { entity_id: 'lock.front_door', state: 'locked', attributes: { friendly_name: 'Hoveddør' } },
+};
+
+// Mutates ROOM_MOCK_ENTITIES to roughly emulate what the real HA service
+// would do, so the Room widget's optimistic UI + poll-to-confirm flow has
+// something real to observe in mock mode.
+function applyMockService(domain, service, payload) {
+  const ids = [].concat(payload.entity_id || []).filter(Boolean);
+  ids.forEach((id) => {
+    const entity = ROOM_MOCK_ENTITIES[id];
+    if (!entity) return;
+    if (domain === 'light') {
+      if (service === 'turn_on') {
+        entity.state = 'on';
+        if (payload.brightness_pct !== undefined) entity.attributes.brightness = Math.round((payload.brightness_pct / 100) * 255);
+      } else if (service === 'turn_off') {
+        entity.state = 'off';
+      }
+    } else if (domain === 'switch' || domain === 'fan' || domain === 'input_boolean') {
+      if (service === 'turn_on') entity.state = 'on';
+      if (service === 'turn_off') entity.state = 'off';
+    } else if (domain === 'cover') {
+      if (service === 'open_cover') entity.state = 'open';
+      if (service === 'close_cover') entity.state = 'closed';
+      if (service === 'stop_cover') entity.state = 'stopped';
+    } else if (domain === 'lock') {
+      if (service === 'lock') entity.state = 'locked';
+      if (service === 'unlock') entity.state = 'unlocked';
+    } else if (domain === 'climate' && service === 'set_temperature' && payload.temperature !== undefined) {
+      entity.attributes.temperature = payload.temperature;
+    } else if (domain === 'media_player') {
+      if (service === 'media_play_pause') entity.state = entity.state === 'playing' ? 'paused' : 'playing';
+      if (service === 'volume_set' && payload.volume_level !== undefined) entity.attributes.volume_level = payload.volume_level;
+    } else if (domain === 'vacuum') {
+      if (service === 'start') entity.state = 'cleaning';
+      if (service === 'stop') entity.state = 'docked';
+    }
+  });
 }
 
 function mockCameraEntities() {
@@ -155,6 +213,24 @@ const WIDGETS = [
     description: {
       da: 'Mini-grid med kamera-thumbnails fra Frigate/Home Assistant. Klik på et kamera for at åbne det i fuldskærm.',
       en: 'Mini-grid of Frigate/Home Assistant camera thumbnails. Click a camera to open it fullscreen.',
+    },
+  },
+  {
+    id: 'room',
+    version: '1.0.0',
+    icon: 'sofa',
+    defaultSize: { w: 3, h: 3 },
+    minSize: { w: 2, h: 2 },
+    name: {
+      da: 'Værelse',
+      en: 'Room',
+      de: 'Raum',
+      sv: 'Rum',
+      no: 'Rom',
+    },
+    description: {
+      da: 'Et værelse ad gangen: vælg entiteter, de grupperes automatisk (lys, stikkontakter, klima, sensorer, sikkerhed, medier, m.m.). Klik for fuldskærmsstyring.',
+      en: 'One room at a time: pick entities and they are auto-grouped (lights, switches, climate, sensors, security, media, etc). Click for fullscreen control.',
     },
   },
 ];
@@ -272,10 +348,48 @@ app.get('/api/hass/config', async (req, res) => {
 app.get('/api/hass/states', async (req, res) => {
   try {
     const states = await haFetch('/states');
-    const { domain } = req.query;
-    res.json(domain ? states.filter((s) => s.entity_id.startsWith(`${domain}.`)) : states);
+    const { domain, ids } = req.query;
+    let result = states;
+    if (ids) {
+      const idSet = new Set(String(ids).split(',').map((s) => s.trim()).filter(Boolean));
+      result = states.filter((s) => idSet.has(s.entity_id));
+    } else if (domain) {
+      result = states.filter((s) => s.entity_id.startsWith(`${domain}.`));
+    }
+    res.json(result);
   } catch (err) {
     console.error('[loudllama] /api/hass/states failed:', err.message);
+    res.status(502).json({ error: 'ha_unreachable' });
+  }
+});
+
+// Calls a Home Assistant service (e.g. light.turn_on, cover.close_cover).
+// Used by the Room widget to make lights/switches/climate/covers/media
+// players/locks actually controllable, not just readouts.
+app.post('/api/hass/service/:domain/:service', async (req, res) => {
+  const { domain, service } = req.params;
+  const payload = req.body || {};
+  if (MOCK_MODE) {
+    applyMockService(domain, service, payload);
+    return res.json({ ok: true, mock: true });
+  }
+  try {
+    const upstream = await fetch(`${HA_API_BASE}/services/${domain}/${service}`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${SUPERVISOR_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+    if (!upstream.ok) {
+      const detail = await upstream.text().catch(() => '');
+      console.error(`[loudllama] service ${domain}.${service} -> ${upstream.status}: ${detail}`);
+      return res.status(502).json({ error: 'ha_service_failed' });
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(`[loudllama] service ${domain}.${service} failed:`, err.message);
     res.status(502).json({ error: 'ha_unreachable' });
   }
 });

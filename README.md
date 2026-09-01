@@ -2,10 +2,11 @@
 
 Et Home Assistant add-on til at bygge dit eget frit tilpasselige, iPad-agtige dashboard: flyt og størrelsesændr widgets frit, skift baggrundsbillede, og udvid med flere widgets over tid.
 
-Denne udgave indeholder dashboard-skelettet plus to widgets:
+Denne udgave indeholder dashboard-skelettet plus tre widgets:
 
 - **Vejr** – tilpasser automatisk sprog til Home Assistant og viser en baggrund/animation der matcher det aktuelle vejr.
 - **Kameraer (Frigate)** – mini-grid med kamera-thumbnails (opdateres automatisk), klik på et kamera for at åbne det i fuldskærm med live-stream.
+- **Værelse** – ét værelse pr. widget. Vælg entiteter, og de grupperes automatisk (lys, stikkontakter, klima, gardiner, sensorer, sikkerhed, medier m.m.). Klik for en afrundet pop-up med reel styring — tænd/sluk/dæmp lys, gardiner op/ned, temperatur, lås/lås op, og mere.
 
 ## Installation (lokalt add-on)
 

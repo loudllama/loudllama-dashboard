@@ -44,15 +44,22 @@
   }
 
   function serializeLayout() {
-    const widgets = grid.save(false).map((node) => ({
-      id: node.id,
-      type: node.el.dataset.widgetType,
-      x: node.x,
-      y: node.y,
-      w: node.w,
-      h: node.h,
-      config: JSON.parse(node.el.dataset.widgetConfig || '{}'),
-    }));
+    // grid.save() can momentarily include a stale node for an item that was
+    // just removed (its .el already gone) when a debounced save fires right
+    // after removeWidget() - skip anything that isn't a real, still-mounted
+    // widget element instead of crashing.
+    const widgets = grid
+      .save(false)
+      .filter((node) => node.el && node.el.dataset && node.el.dataset.widgetType)
+      .map((node) => ({
+        id: node.id,
+        type: node.el.dataset.widgetType,
+        x: node.x,
+        y: node.y,
+        w: node.w,
+        h: node.h,
+        config: JSON.parse(node.el.dataset.widgetConfig || '{}'),
+      }));
     return { widgets };
   }
 

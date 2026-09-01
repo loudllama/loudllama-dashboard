@@ -1,5 +1,5 @@
 name: "LoudLlama Dashboard"
-version: "0.2.0"
+version: "0.3.0"
 slug: "loudllama_dashboard"
 description: "Byg dit eget frit tilpasselige, iPad-agtige dashboard i Home Assistant med flytbare widgets"
 url: "https://github.com/yourusername/loudllama-dashboard"
