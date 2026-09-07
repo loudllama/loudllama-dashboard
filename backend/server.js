@@ -19,6 +19,7 @@ const DATA_DIR = process.env.DATA_DIR && fs.existsSync(path.dirname(process.env.
 const WWW_DIR = path.join(DATA_DIR, 'www');
 const LAYOUT_FILE = path.join(DATA_DIR, 'layout.json');
 const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
+const INSTALLED_WIDGETS_FILE = path.join(DATA_DIR, 'widgets.json');
 
 for (const dir of [DATA_DIR, WWW_DIR]) {
   fs.mkdirSync(dir, { recursive: true });
@@ -195,6 +196,9 @@ const WIDGETS = [
     description: {
       da: 'Viser aktuelt vejr fra en HA vejr-entitet, med baggrund der matcher vejret.',
       en: 'Shows current weather from a HA weather entity, with a background that matches the weather.',
+      de: 'Zeigt das aktuelle Wetter einer HA-Wetter-Entität, mit einem zum Wetter passenden Hintergrund.',
+      sv: 'Visar aktuellt väder från en HA väder-entitet, med en bakgrund som matchar vädret.',
+      no: 'Viser gjeldende vær fra en HA vær-enhet, med en bakgrunn som matcher været.',
     },
   },
   {
@@ -213,6 +217,9 @@ const WIDGETS = [
     description: {
       da: 'Mini-grid med kamera-thumbnails fra Frigate/Home Assistant. Klik på et kamera for at åbne det i fuldskærm.',
       en: 'Mini-grid of Frigate/Home Assistant camera thumbnails. Click a camera to open it fullscreen.',
+      de: 'Mini-Raster mit Kamera-Vorschaubildern von Frigate/Home Assistant. Klick auf eine Kamera, um sie im Vollbild zu öffnen.',
+      sv: 'Mini-rutnät med kamerauppspelningsbilder från Frigate/Home Assistant. Klicka på en kamera för att öppna den i helskärm.',
+      no: 'Mini-rutenett med kamera-miniatyrbilder fra Frigate/Home Assistant. Klikk på et kamera for å åpne det i fullskjerm.',
     },
   },
   {
@@ -231,6 +238,9 @@ const WIDGETS = [
     description: {
       da: 'Et værelse ad gangen: vælg entiteter, de grupperes automatisk (lys, stikkontakter, klima, sensorer, sikkerhed, medier, m.m.). Klik for fuldskærmsstyring.',
       en: 'One room at a time: pick entities and they are auto-grouped (lights, switches, climate, sensors, security, media, etc). Click for fullscreen control.',
+      de: 'Ein Zimmer nach dem anderen: Wähle Entitäten aus, sie werden automatisch gruppiert (Licht, Steckdosen, Klima, Sensoren, Sicherheit, Medien usw.). Klick für die Vollbild-Steuerung.',
+      sv: 'Ett rum i taget: välj enheter så grupperas de automatiskt (belysning, uttag, klimat, sensorer, säkerhet, media m.m.). Klicka för styrning i helskärm.',
+      no: 'Ett rom om gangen: velg enheter, så grupperes de automatisk (lys, stikkontakter, klima, sensorer, sikkerhet, media m.m.). Klikk for styring i fullskjerm.',
     },
   },
 ];
@@ -330,9 +340,59 @@ app.post('/api/background', upload.single('background'), (req, res) => {
   res.json(settings);
 });
 
-// --- Widget registry endpoint -------------------------------------------------
+// --- Widget registry + widget store (install/uninstall) ---------------------
+// WIDGETS above lists every widget bundled with the add-on (this ships fixed
+// inside the Docker image - a future update simply adds more entries here).
+// Which of those are actually *active* on this user's dashboard is a
+// separate, persisted choice ("installed"), so a fresh install/update never
+// clutters the dashboard with widgets nobody asked for, and users are never
+// forced to keep ones they don't use.
 app.get('/api/widgets', (req, res) => {
   res.json(WIDGETS);
+});
+
+function readInstalledWidgetIds() {
+  const knownIds = WIDGETS.map((w) => w.id);
+  if (fs.existsSync(INSTALLED_WIDGETS_FILE)) {
+    try {
+      const data = JSON.parse(fs.readFileSync(INSTALLED_WIDGETS_FILE, 'utf8'));
+      if (Array.isArray(data.installed)) {
+        return data.installed.filter((id) => knownIds.includes(id));
+      }
+    } catch (err) {
+      console.error('[loudllama] Failed to read widgets.json, defaulting to all installed:', err);
+    }
+  }
+  // First run (no widgets.json yet): everything bundled with the add-on
+  // starts installed, so upgrades and fresh installs behave exactly like
+  // before the widget store existed. Users can then trim it down.
+  return knownIds;
+}
+
+function writeInstalledWidgetIds(ids) {
+  const knownIds = WIDGETS.map((w) => w.id);
+  const clean = Array.from(new Set(Array.isArray(ids) ? ids : [])).filter((id) => knownIds.includes(id));
+  fs.writeFileSync(INSTALLED_WIDGETS_FILE, JSON.stringify({ installed: clean }, null, 2));
+  return clean;
+}
+
+app.get('/api/widgets/installed', (req, res) => {
+  try {
+    res.json({ installed: readInstalledWidgetIds() });
+  } catch (err) {
+    console.error('[loudllama] Failed to resolve installed widgets:', err);
+    res.status(500).json({ error: 'widgets_read_failed' });
+  }
+});
+
+app.post('/api/widgets/installed', (req, res) => {
+  try {
+    const installed = writeInstalledWidgetIds(req.body && req.body.installed);
+    res.json({ installed });
+  } catch (err) {
+    console.error('[loudllama] Failed to save installed widgets:', err);
+    res.status(500).json({ error: 'widgets_write_failed' });
+  }
 });
 
 // --- Home Assistant proxy -----------------------------------------------------

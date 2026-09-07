@@ -1,22 +1,30 @@
 # LoudLlama Dashboard
 
-Et Home Assistant add-on til at bygge dit eget frit tilpasselige, iPad-agtige dashboard: flyt og størrelsesændr widgets frit, skift baggrundsbillede, og udvid med flere widgets over tid.
+A Home Assistant add-on for building your own freely customizable, iPad-style dashboard: move and resize widgets, change the background image, and pick exactly which widgets you want from the built-in widget store.
 
-Denne udgave indeholder dashboard-skelettet plus tre widgets:
+This release includes the dashboard core plus three widgets, all available through the widget store:
 
-- **Vejr** – tilpasser automatisk sprog til Home Assistant og viser en baggrund/animation der matcher det aktuelle vejr.
-- **Kameraer (Frigate)** – mini-grid med kamera-thumbnails (opdateres automatisk), klik på et kamera for at åbne det i fuldskærm med live-stream.
-- **Værelse** – ét værelse pr. widget. Vælg entiteter, og de grupperes automatisk (lys, stikkontakter, klima, gardiner, sensorer, sikkerhed, medier m.m.). Klik for en afrundet pop-up med reel styring — tænd/sluk/dæmp lys, gardiner op/ned, temperatur, lås/lås op, og mere.
+- **Weather** – automatically follows Home Assistant's language and shows a background/animation that matches the current weather.
+- **Cameras (Frigate)** – a mini-grid of camera thumbnails (auto-refreshing), click a camera to open it fullscreen with a live stream.
+- **Room** – one room per widget. Pick entities and they're auto-grouped (lights, switches, climate, blinds, sensors, security, media, etc). Click for a rounded pop-up with real control — turn lights on/off/dim, blinds up/down, temperature, lock/unlock, and more.
 
-## Installation (lokalt add-on)
+## Widget store
 
-1. Kopiér mappen `loudllama_dashboard` ind i din Home Assistant-installations `addons/local/` mappe, så du får `addons/local/loudllama_dashboard/`.
-   - Har du Home Assistant OS/Supervised: brug Samba/SSH-tilføjelsen, eller `docker cp`, til at lægge mappen derind.
-2. I Home Assistant: **Indstillinger → Add-ons → Add-on Store → ⋮ (menu) → Tjek for opdateringer**, eller genindlæs siden — "LoudLlama Dashboard" dukker op under **Lokale add-ons**.
-3. Klik på add-on'et → **Installer**. Første build kan tage et par minutter (Docker-image bygges på din enhed).
-4. Start add-on'et. Det åbner sig automatisk i sidebaren via Ingress (ikonet i venstre menu).
+Not every dashboard needs every widget. Open **Widgets** in the toolbar (edit mode) to see every widget bundled with the add-on, with a name, description, and a switch to add or remove it. Only installed widgets are loaded and show up under "+ Add widget" — removing one from the store doesn't delete anything you've already placed on your dashboard, it just stops offering it until you add it back. Future add-on updates that ship new widgets show up here automatically — nothing to install manually, and nothing forced on you either.
 
-## Udvikling / lokal test uden Home Assistant
+## Language
+
+The dashboard automatically follows Home Assistant's configured language (**Settings → System → General → Language**). Currently supported: English, Danish, German, Swedish, Norwegian — other languages fall back to English. This applies to the whole UI, including the widget store.
+
+## Installation (local add-on)
+
+1. Copy the `loudllama_dashboard` folder into your Home Assistant installation's `addons/local/` folder, so you end up with `addons/local/loudllama_dashboard/`.
+   - Home Assistant OS/Supervised: use the Samba/SSH add-on, or `docker cp`, to place the folder there.
+2. In Home Assistant: **Settings → Add-ons → Add-on Store → ⋮ (menu) → Check for updates**, or reload the page — "LoudLlama Dashboard" appears under **Local add-ons**.
+3. Click the add-on → **Install**. The first build can take a couple of minutes (the Docker image is built on your device).
+4. Start the add-on. It opens automatically in the sidebar via Ingress (the icon in the left-hand menu).
+
+## Development / local testing without Home Assistant
 
 ```bash
 cd backend
@@ -24,6 +32,6 @@ npm install
 npm start
 ```
 
-Åbn `http://localhost:8099`. Uden en rigtig Home Assistant-forbindelse (dvs. ingen `SUPERVISOR_TOKEN`) kører backend'en automatisk i "mock mode" med en fiktiv `weather.demo`-entitet, så hele dashboardet (inkl. vejr-widgeten, sprog og baggrundsgrafik) kan testes isoleret.
+Open `http://localhost:8099`. Without a real Home Assistant connection (i.e. no `SUPERVISOR_TOKEN`) the backend automatically runs in "mock mode" with a fictional `weather.demo` entity and a small set of mock room entities, so the whole dashboard (weather widget, room widget, language, background graphics, widget store) can be tested in isolation.
 
-Se `DOCS.md` for flere detaljer om widget-systemet og hvordan man tilføjer flere widgets.
+See `DOCS.md` for more details on the widget system, the widget store, and how to add more widgets.

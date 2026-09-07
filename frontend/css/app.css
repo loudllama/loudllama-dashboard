@@ -163,6 +163,34 @@ body.llw-edit-mode .grid-stack-item-content.llw-widget {
   opacity: 0.7;
 }
 
+.llw-error--not-installed {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0.5rem;
+  opacity: 1;
+}
+.llw-error__title { opacity: 0.75; }
+.llw-error__store-link {
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: #f4f5f7;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+.llw-error__store-link:hover { background: rgba(255, 255, 255, 0.2); }
+
+.llw-menu-item--empty {
+  opacity: 0.75;
+  font-style: italic;
+  white-space: normal;
+  max-width: 220px;
+}
+
 @media (max-width: 640px) {
   .llw-toolbar__brand { font-size: 0.9rem; }
   .llw-toolbar__actions button, .llw-bg-upload { padding: 0.35rem 0.6rem; font-size: 0.78rem; }
