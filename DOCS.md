@@ -68,18 +68,27 @@ When you save, the entities are automatically sorted into these groups (the same
 
 The compact view on the dashboard itself shows the room name, temperature if available, and small count badges per group. The background gets a unique, stable color based on the room's name and lights up when at least one light in the room is on.
 
-Clicking the room (outside edit mode) opens a rounded pop-up with full control:
+Clicking the room (outside edit mode) opens a rounded pop-up with full control. Lights, thermostats (climate), and speakers (media players) each get their own small widget tile — the same Light/Thermostat/Speaker widgets described below — on a second, independent grid inside the pop-up, so they can be dragged and resized relative to each other (an **Arrange** button in the pop-up's header toggles that mode, the same way edit mode does on the main dashboard). Everything else is shown as a plain control row underneath:
 
-- **Lights:** on/off switch, and a dimmer if the light supports it.
 - **Switches/fans:** on/off switch.
 - **Blinds:** up/stop/down buttons.
-- **Climate:** +/− on target temperature.
-- **Speakers:** play/pause + volume.
 - **Robot vacuum:** start/stop.
 - **Door locks:** lock/unlock.
 - **Sensors and security:** shown read-only (value or status badge respectively).
 
+Which sub-widgets appear is derived automatically from the room's entity list — there's no separate step to add or remove them. Add a light to the room (via the gear icon's entity picker) and a Light tile appears in the pop-up; remove it and the tile goes away, same as any other entity in the room. A room saved before this feature existed gets its sub-widgets derived the first time it's opened, with nothing lost and nothing to redo by hand. If a sub-widget's type isn't installed yet (see "Widget store" above), the room installs it automatically the moment it needs it — a room full of lights won't quietly show broken tiles just because nobody happened to open the store.
+
 The gear icon (only visible in edit mode) reopens the name + entity picker, so you can always adjust the room later.
+
+## Light, Thermostat, and Speaker widgets
+
+Three small single-entity widgets, usable on their own directly on the main dashboard, or nested inside a Room (see above):
+
+- **Light:** on/off toggle, plus a brightness slider when the light supports dimming.
+- **Thermostat:** current temperature and a target temperature with +/− stepper (0.5° steps).
+- **Speaker:** play/pause, a volume slider, and the current track's title/artist when available.
+
+Each has its own entity picker (gear icon) scoped to the matching domain (`light.*`, `climate.*`, `media_player.*`).
 
 ## Adding more widgets
 
@@ -91,6 +100,8 @@ To make a new widget show up in the widget store, two small additions are needed
 2. An entry in `frontend/js/widget-catalog.js` mapping that same `id` to its `js`/`css` file paths — this is what the store (and the dashboard on boot) uses to load the widget's code once it's installed.
 
 Everything else — listing it in the store, lazy-loading it on install, restricting "+ Add widget" to installed widgets — is automatic from there.
+
+**Nesting inside another widget:** any widget built this way can be mounted either at the top level or inside another "container" widget, because `mount(el, { config, saveConfig })` only ever needs a plain element and a config/saveConfig pair — it has no idea whether `el` sits on the main dashboard or inside another widget's pop-up. Room is the only container widget so far (see above): it runs its own small GridStack grid inside its pop-up and calls each sub-widget's `mount()` against a tile on that grid, exactly the way `app.js` does for the main dashboard. A new container widget can reuse the same pattern. Two things are easy to get wrong when doing this, both because GridStack's `grid.save()` always strips the `.el` reference from whatever it returns (by design — it's meant to produce plain, serializable data): don't rely on it (or on matching by id afterwards) to find out what actually moved or resized — read each item's own `el.gridstackNode` instead, which GridStack keeps live and current; and a grid with a column count other than 12 (the default) needs `gridstack-extra.css` loaded on the page, or every item in it renders at zero width.
 
 ## Troubleshooting
 

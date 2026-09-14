@@ -84,6 +84,7 @@
         noEntitiesFound: 'No entities found in Home Assistant',
         noEntitiesSelected: 'No entities added yet',
         tapToOpen: 'Tap to open',
+        arrange: 'Arrange',
         groups: {
           light: 'Lights',
           switch: 'Switches',
@@ -125,6 +126,21 @@
           start: 'Start',
           run: 'Run',
         },
+      },
+      light: {
+        chooseEntity: 'Choose a light',
+        noEntity: 'No light selected',
+        noEntities: 'No light entities found in Home Assistant',
+      },
+      climate: {
+        chooseEntity: 'Choose a thermostat',
+        noEntity: 'No thermostat selected',
+        noEntities: 'No climate entities found in Home Assistant',
+      },
+      media: {
+        chooseEntity: 'Choose a speaker',
+        noEntity: 'No speaker selected',
+        noEntities: 'No media player entities found in Home Assistant',
       },
     },
     da: {
@@ -202,6 +218,7 @@
         noEntitiesFound: 'Fandt ingen enheder i Home Assistant',
         noEntitiesSelected: 'Ingen enheder tilføjet endnu',
         tapToOpen: 'Tryk for at åbne',
+        arrange: 'Arranger',
         groups: {
           light: 'Lys',
           switch: 'Stikkontakter',
@@ -243,6 +260,21 @@
           start: 'Start',
           run: 'Kør',
         },
+      },
+      light: {
+        chooseEntity: 'Vælg et lys',
+        noEntity: 'Intet lys valgt',
+        noEntities: 'Fandt ingen lys-entiteter i Home Assistant',
+      },
+      climate: {
+        chooseEntity: 'Vælg en termostat',
+        noEntity: 'Ingen termostat valgt',
+        noEntities: 'Fandt ingen klima-entiteter i Home Assistant',
+      },
+      media: {
+        chooseEntity: 'Vælg en højtaler',
+        noEntity: 'Ingen højtaler valgt',
+        noEntities: 'Fandt ingen medieafspiller-entiteter i Home Assistant',
       },
     },
     de: {
@@ -320,6 +352,7 @@
         noEntitiesFound: 'Keine Entitäten gefunden',
         noEntitiesSelected: 'Noch keine Entitäten hinzugefügt',
         tapToOpen: 'Tippen zum Öffnen',
+        arrange: 'Anordnen',
         groups: {
           light: 'Licht',
           switch: 'Steckdosen',
@@ -361,6 +394,21 @@
           start: 'Start',
           run: 'Ausführen',
         },
+      },
+      light: {
+        chooseEntity: 'Licht wählen',
+        noEntity: 'Kein Licht ausgewählt',
+        noEntities: 'Keine Licht-Entitäten gefunden',
+      },
+      climate: {
+        chooseEntity: 'Thermostat wählen',
+        noEntity: 'Kein Thermostat ausgewählt',
+        noEntities: 'Keine Klima-Entitäten gefunden',
+      },
+      media: {
+        chooseEntity: 'Lautsprecher wählen',
+        noEntity: 'Kein Lautsprecher ausgewählt',
+        noEntities: 'Keine Media-Player-Entitäten gefunden',
       },
     },
     sv: {
@@ -438,6 +486,7 @@
         noEntitiesFound: 'Hittade inga enheter',
         noEntitiesSelected: 'Inga enheter tillagda än',
         tapToOpen: 'Tryck för att öppna',
+        arrange: 'Ordna',
         groups: {
           light: 'Belysning',
           switch: 'Uttag',
@@ -479,6 +528,21 @@
           start: 'Starta',
           run: 'Kör',
         },
+      },
+      light: {
+        chooseEntity: 'Välj en lampa',
+        noEntity: 'Ingen lampa vald',
+        noEntities: 'Hittade inga ljus-entiteter',
+      },
+      climate: {
+        chooseEntity: 'Välj en termostat',
+        noEntity: 'Ingen termostat vald',
+        noEntities: 'Hittade inga klimat-entiteter',
+      },
+      media: {
+        chooseEntity: 'Välj en högtalare',
+        noEntity: 'Ingen högtalare vald',
+        noEntities: 'Hittade inga mediespelar-entiteter',
       },
     },
     no: {
@@ -556,6 +620,7 @@
         noEntitiesFound: 'Fant ingen enheter',
         noEntitiesSelected: 'Ingen enheter lagt til ennå',
         tapToOpen: 'Trykk for å åpne',
+        arrange: 'Ordne',
         groups: {
           light: 'Lys',
           switch: 'Stikkontakter',
@@ -597,6 +662,21 @@
           start: 'Start',
           run: 'Kjør',
         },
+      },
+      light: {
+        chooseEntity: 'Velg et lys',
+        noEntity: 'Ingen lys valgt',
+        noEntities: 'Fant ingen lys-enheter',
+      },
+      climate: {
+        chooseEntity: 'Velg en termostat',
+        noEntity: 'Ingen termostat valgt',
+        noEntities: 'Fant ingen klima-enheter',
+      },
+      media: {
+        chooseEntity: 'Velg en høyttaler',
+        noEntity: 'Ingen høyttaler valgt',
+        noEntities: 'Fant ingen mediespiller-enheter',
       },
     },
   };

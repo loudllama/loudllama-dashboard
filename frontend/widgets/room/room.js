@@ -74,18 +74,83 @@
     return (entity && entity.attributes && entity.attributes.friendly_name) || (entity && entity.entity_id) || '';
   }
 
+  // --- Sub-widgets (nested grid) ---------------------------------------------
+  // Light/climate/media entities in a room don't just get a plain control
+  // row like everything else - they get mounted as their own real widgets
+  // (frontend/widgets/light, /climate, /media) inside a small GridStack grid
+  // of their own, right inside the fullscreen popup. Because a widget only
+  // ever needs a DOM element + {config, saveConfig} to mount, the exact same
+  // Light/Climate/Media widget code runs here as on the main dashboard - it
+  // has no idea it's nested. This is what turns a Room widget into more of
+  // a "group of widgets" than a single tile.
+  const SUBWIDGET_TYPE_BY_DOMAIN = { light: 'light', climate: 'climate', media_player: 'media' };
+  const SUBGRID_COLUMNS = 4;
+  const SUBGRID_CELL_HEIGHT = 78;
+
   // --- Widget lifecycle -------------------------------------------------------
   function mount(el, { config, saveConfig }) {
     let cfg = {
       name: config.name || '',
       entities: Array.isArray(config.entities) ? config.entities.slice() : [],
+      // {id, type, x, y, w, h, config} per light/climate/media_player entity
+      // - kept in sync with `entities` by syncSubWidgets(). Older saved
+      // rooms (from before this existed) just get it derived the first time
+      // they're opened, so upgrading never loses anything.
+      subWidgets: Array.isArray(config.subWidgets) ? config.subWidgets.slice() : null,
     };
     let liveEntities = {}; // entity_id -> live HA entity
     let pollTimer = null;
     let destroyed = false;
     let activeModal = null;
+    let subGrid = null;
+    let subWidgetCleanups = [];
+    let arranging = false;
+    let saveTimer = null;
     let editorDraftName = '';
     let editorDraftEntities = [];
+
+    function scheduleSaveRoom() {
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(() => saveConfig(cfg), 500);
+    }
+
+    // Adds/removes sub-widget entries so they match cfg.entities 1:1 for the
+    // domains that have a dedicated widget. Never touches x/y/w/h on an
+    // entry that already exists, so rearranging in the popup sticks.
+    function syncSubWidgets() {
+      if (!Array.isArray(cfg.subWidgets)) cfg.subWidgets = [];
+      const wanted = new Set();
+      cfg.entities.forEach((id) => {
+        const type = SUBWIDGET_TYPE_BY_DOMAIN[domainOf(id)];
+        if (!type) return;
+        wanted.add(id);
+        if (!cfg.subWidgets.some((w) => w.config && w.config.entity_id === id)) {
+          cfg.subWidgets.push({
+            id: `${type}-${id.replace(/[^a-z0-9_]/gi, '')}-${Date.now().toString(36)}`,
+            type,
+            w: 2,
+            h: 2,
+            config: { entity_id: id },
+          });
+        }
+      });
+      cfg.subWidgets = cfg.subWidgets.filter((w) => w.config && wanted.has(w.config.entity_id));
+    }
+
+    // Sub-widget types (light/climate/media) are only actually usable once
+    // their script has loaded - and, so they survive a page reload, once
+    // they're marked "installed" the same way the widget store would (see
+    // LL.ensureWidgetInstalled in app.js). A room full of lights shouldn't
+    // silently break just because nobody happened to open the widget store.
+    function ensureSubWidgetTypesLoaded() {
+      const types = Array.from(new Set(cfg.subWidgets.map((w) => w.type)));
+      return Promise.all(
+        types.map((type) => {
+          const entry = (LL.widgetCatalog || []).find((w) => w.id === type);
+          return Promise.all([LL.loadWidgetAssets(entry), LL.ensureWidgetInstalled(type)]);
+        })
+      );
+    }
 
     el.classList.add('llw-widget-room');
     el.innerHTML = `
@@ -222,8 +287,9 @@
       searchEl.addEventListener('input', () => renderList(searchEl.value));
       editorEl.querySelector('.llw-room__back').addEventListener('click', renderEditorStep1);
       editorEl.querySelector('.llw-room__save').addEventListener('click', () => {
-        cfg = { name: editorDraftName, entities: editorDraftEntities.slice() };
-        saveConfig(cfg);
+        cfg = { name: editorDraftName, entities: editorDraftEntities.slice(), subWidgets: cfg.subWidgets || [] };
+        syncSubWidgets();
+        ensureSubWidgetTypesLoaded().then(() => saveConfig(cfg));
         closeEditor();
         renderCompact();
         startPolling();
@@ -497,16 +563,22 @@
         </div>`;
     }
 
+    // Light/climate/media entities are rendered as real sub-widgets in the
+    // nested grid instead (see mountSubWidgets) - this only covers the
+    // remaining domains (switches, covers, fans, locks, sensors, security,
+    // scenes/scripts, ...), same simple row list as before.
     function renderModalGroups() {
       if (!activeModal) return;
-      const body = activeModal.querySelector('.llw-room-modal__body');
+      const other = activeModal.querySelector('.llw-room-modal__other');
+      if (!other) return;
       const byGroup = {};
       cfg.entities.forEach((id) => {
+        const g = categorize(liveEntities[id] || { entity_id: id, attributes: {} });
+        if (SUBWIDGET_TYPE_BY_DOMAIN[domainOf(id)]) return; // has its own sub-widget above
         const e = liveEntities[id] || { entity_id: id, state: 'unknown', attributes: {} };
-        const g = categorize(e);
         (byGroup[g] = byGroup[g] || []).push(e);
       });
-      body.innerHTML = GROUP_ORDER.filter((g) => byGroup[g] && byGroup[g].length)
+      other.innerHTML = GROUP_ORDER.filter((g) => byGroup[g] && byGroup[g].length)
         .map(
           (g) => `
           <div class="llw-room-modal__group">
@@ -598,42 +670,155 @@
     function closeModal() {
       if (!activeModal) return;
       document.removeEventListener('keydown', onModalKeydown);
+      subWidgetCleanups.forEach((fn) => { try { fn(); } catch (err) { /* ignore */ } });
+      subWidgetCleanups = [];
+      if (subGrid) {
+        try { subGrid.destroy(false); } catch (err) { /* ignore */ }
+        subGrid = null;
+      }
       activeModal.remove();
       activeModal = null;
+      arranging = false;
     }
     function onModalKeydown(ev) {
       if (ev.key === 'Escape') closeModal();
     }
 
+    // Mounts every entry in cfg.subWidgets into the popup's own small
+    // GridStack grid - each one via the *exact same* mount(el, {config,
+    // saveConfig}) contract app.js uses for top-level widgets, so
+    // Light/Climate/Media behave identically whether they're standalone on
+    // the dashboard or nested in here.
+    function mountSubWidgets(subGridEl) {
+      subGrid = GridStack.init(
+        {
+          column: SUBGRID_COLUMNS,
+          cellHeight: SUBGRID_CELL_HEIGHT,
+          margin: 6,
+          float: true,
+          disableOneColumnMode: true,
+          resizable: { handles: 'e, se, s, sw, w' },
+        },
+        subGridEl
+      );
+      subGrid.disable(); // starts in view mode, like the main dashboard
+
+      cfg.subWidgets.forEach((sw) => {
+        const def = LL.widgetTypes[sw.type];
+        const tileEl = document.createElement('div');
+        tileEl.className = 'grid-stack-item';
+        tileEl.setAttribute('gs-id', sw.id);
+        tileEl.setAttribute('gs-w', sw.w || 2);
+        tileEl.setAttribute('gs-h', sw.h || 2);
+        if (sw.x !== undefined && sw.y !== undefined) {
+          tileEl.setAttribute('gs-x', sw.x);
+          tileEl.setAttribute('gs-y', sw.y);
+        } else {
+          tileEl.setAttribute('gs-auto-position', 'true');
+        }
+        tileEl.innerHTML = `<div class="grid-stack-item-content llw-widget llw-room-subwidget"><div class="llw-body"></div></div>`;
+        subGrid.addWidget(tileEl);
+
+        const bodyEl = tileEl.querySelector('.llw-body');
+        if (def) {
+          def.mount(bodyEl, {
+            config: sw.config || {},
+            saveConfig(newConfig) {
+              sw.config = newConfig;
+              scheduleSaveRoom();
+            },
+          });
+          if (typeof bodyEl._llwCleanup === 'function') subWidgetCleanups.push(bodyEl._llwCleanup);
+        } else {
+          bodyEl.innerHTML = `<div class="llw-error">${t('app', 'widgetNotInstalled')}</div>`;
+        }
+      });
+
+      subGrid.on('change', () => {
+        // Not using subGrid.save() here: GridStack always strips `.el` off
+        // every node it returns (see gridstack.js save(), unconditional
+        // `delete n.el`), so matching against node.id/node.el can never
+        // work - this used to silently no-op every resize/drag, leaving
+        // cfg.subWidgets' x/y/w/h frozen at their initial values forever.
+        // Reading each live item's own `.gridstackNode` (kept current by
+        // GridStack on every move/resize) is what app.js's serializeLayout
+        // does for the same reason - same fix, same root cause.
+        Array.from(subGrid.el.children).forEach((el) => {
+          if (!el.classList.contains('grid-stack-item') || !el.gridstackNode) return;
+          const node = el.gridstackNode;
+          const sw = cfg.subWidgets.find((s) => s.id === node.id);
+          if (sw) {
+            sw.x = node.x;
+            sw.y = node.y;
+            sw.w = node.w;
+            sw.h = node.h;
+          }
+        });
+        scheduleSaveRoom();
+      });
+    }
+
+    function setArranging(on) {
+      arranging = on;
+      if (!activeModal) return;
+      activeModal.classList.toggle('llw-room-modal--arranging', arranging);
+      const btn = activeModal.querySelector('.llw-room-modal__arrange');
+      if (btn) btn.classList.toggle('is-active', arranging);
+      if (subGrid) arranging ? subGrid.enable() : subGrid.disable();
+    }
+
     function openModal() {
       closeModal();
+      const hasSubWidgets = cfg.subWidgets.length > 0;
       const modal = document.createElement('div');
       modal.className = 'llw-room-modal';
       modal.innerHTML = `
         <div class="llw-room-modal__card">
           <div class="llw-room-modal__head">
             <span class="llw-room-modal__title">${escapeHtml(cfg.name)}</span>
-            <button type="button" class="llw-room-modal__close" aria-label="${t('room', 'close')}">×</button>
+            <div class="llw-room-modal__head-actions">
+              ${hasSubWidgets ? `<button type="button" class="llw-room-modal__arrange" title="${t('room', 'arrange')}" aria-label="${t('room', 'arrange')}">✥</button>` : ''}
+              <button type="button" class="llw-room-modal__close" aria-label="${t('room', 'close')}">×</button>
+            </div>
           </div>
-          <div class="llw-room-modal__body"></div>
+          <div class="llw-room-modal__body">
+            ${hasSubWidgets ? '<div class="grid-stack llw-room-modal__subgrid"></div>' : ''}
+            <div class="llw-room-modal__other"></div>
+          </div>
         </div>
       `;
       modal.addEventListener('click', (ev) => {
         if (ev.target === modal) closeModal();
       });
       modal.querySelector('.llw-room-modal__close').addEventListener('click', closeModal);
-      const body = modal.querySelector('.llw-room-modal__body');
-      body.addEventListener('click', handleModalClick);
-      body.addEventListener('input', handleModalInput);
-      body.addEventListener('change', handleModalChange);
+      const arrangeBtn = modal.querySelector('.llw-room-modal__arrange');
+      if (arrangeBtn) arrangeBtn.addEventListener('click', () => setArranging(!arranging));
+      const other = modal.querySelector('.llw-room-modal__other');
+      other.addEventListener('click', handleModalClick);
+      other.addEventListener('input', handleModalInput);
+      other.addEventListener('change', handleModalChange);
       document.body.appendChild(modal);
       document.addEventListener('keydown', onModalKeydown);
       activeModal = modal;
+
+      const subGridEl = modal.querySelector('.llw-room-modal__subgrid');
+      if (subGridEl) mountSubWidgets(subGridEl);
+
       renderModalGroups();
       fetchLiveEntities().then(() => renderModalGroups());
     }
 
     // --- Boot ------------------------------------------------------------------
+    // cfg.subWidgets is null for a brand-new room, or for one saved before
+    // sub-widgets existed - either way, derive it from cfg.entities once and
+    // persist it, so upgrading never breaks an existing room.
+    const isMigration = cfg.subWidgets === null && cfg.entities.length > 0;
+    if (cfg.subWidgets === null) cfg.subWidgets = [];
+    syncSubWidgets();
+    ensureSubWidgetTypesLoaded().then(() => {
+      if (isMigration && !destroyed) saveConfig(cfg);
+    });
+
     if (!cfg.name || !cfg.entities.length) {
       editorDraftName = cfg.name;
       editorDraftEntities = cfg.entities.slice();

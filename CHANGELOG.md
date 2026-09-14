@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.5.0
+
+- New: **nested widgets inside Room**. A Room can now contain its own small widgets instead of a flat list of controls — add a light, thermostat, or speaker to a room and it shows up as its own Light/Thermostat/Speaker tile inside that room's pop-up, on a second, independent drag-and-resize grid. Room becomes more of a "group widget": rearrange and resize the tiles inside it (an "Arrange" button in the pop-up header toggles that mode) independently of the main dashboard's layout.
+- New standalone widgets: **Light** (on/off + brightness), **Thermostat** (current temperature, target with +/- stepper), **Speaker** (play/pause, volume, track info). Each also works on its own, directly on the main dashboard, not only inside a Room.
+- Which sub-widget a room shows is derived automatically from the entities you already picked for that room — add a light to a room's entity list and a Light tile appears inside it; remove it and the tile goes away. There's no separate "add sub-widget" step to learn.
+- Existing rooms (saved before this version) are upgraded automatically the first time you open them — their lights/thermostats/speakers become sub-widgets immediately, nothing is lost, and nothing needs to be redone by hand.
+- A room that uses a sub-widget type installs it (in the sense of the widget store from 0.4.0) automatically, so a room full of lights doesn't quietly break for someone who never happened to open the store themselves.
+- Fix: saving the dashboard's layout (and, the same way, saving a room's sub-widget arrangement) could silently write an **empty** layout to disk under some timings — most reliably right after the page loaded, or right after a sub-widget resize. The 0.3.0 fix for a related crash (see below) filtered saved widgets by a `.el` field that GridStack always strips from what `grid.save()` returns, which — instead of only skip­ping the occasional stale entry it was meant to handle — silently filtered out every entry, every time. Saving now reads each widget's live element directly instead of relying on `.save()` for that, so this can't happen again.
+- Fix: the nested grid inside a Room's pop-up rendered completely blank (though the widgets *were* there in the page, invisibly, at zero width) because GridStack needs an extra stylesheet (`gridstack-extra.css`) for a grid that isn't the default 12 columns, which wasn't loaded. It's now included alongside GridStack's own CSS.
+
 ## 0.4.0
 
 - New: **Widget store**. A "Widgets" button in the toolbar (edit mode) opens a store listing every widget bundled with the add-on, each with an icon, localized name/description, and an on/off switch. Installing a widget loads its code and makes it usable immediately (no reload); uninstalling removes it from "+ Add widget" without touching widgets of that type already placed on your dashboard. New widgets shipped in future updates appear in the store automatically.

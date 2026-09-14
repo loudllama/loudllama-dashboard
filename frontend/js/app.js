@@ -47,6 +47,26 @@
     });
   };
 
+  // Used by container widgets (currently just Room - see
+  // widgets/room/room.js) that can mount *other* widgets inside themselves:
+  // if a room uses e.g. a Light entity, the Light widget needs to actually
+  // be installed (not just loaded for this one session), or it would show
+  // as a broken "not installed" placeholder the next time the page loads.
+  // No-ops once the id is already installed.
+  LL.ensureWidgetInstalled = async function ensureWidgetInstalled(id) {
+    if (LL.installedWidgetIds.includes(id)) return;
+    const next = LL.installedWidgetIds.concat(id);
+    LL.installedWidgetIds = next;
+    try {
+      await LL.api.post('api/widgets/installed', { installed: next });
+    } catch (err) {
+      console.error('[loudllama] Failed to persist auto-installed widget', id, err);
+    }
+    const entry = (LL.widgetCatalog || []).find((w) => w.id === id);
+    await LL.loadWidgetAssets(entry);
+    LL.refreshAddWidgetMenu && LL.refreshAddWidgetMenu();
+  };
+
   // Loads JS/CSS for every currently-installed widget. Called once at boot;
   // the widget store also calls LL.loadWidgetAssets directly when a widget
   // is installed mid-session so it becomes usable immediately.
@@ -94,22 +114,29 @@
   }
 
   function serializeLayout() {
-    // grid.save() can momentarily include a stale node for an item that was
-    // just removed (its .el already gone) when a debounced save fires right
-    // after removeWidget() - skip anything that isn't a real, still-mounted
-    // widget element instead of crashing.
-    const widgets = grid
-      .save(false)
-      .filter((node) => node.el && node.el.dataset && node.el.dataset.widgetType)
-      .map((node) => ({
-        id: node.id,
-        type: node.el.dataset.widgetType,
-        x: node.x,
-        y: node.y,
-        w: node.w,
-        h: node.h,
-        config: JSON.parse(node.el.dataset.widgetConfig || '{}'),
-      }));
+    // Deliberately NOT using grid.save() here: GridStack always strips
+    // `.el` off of every node it returns (see gridstack.js's save(), which
+    // unconditionally does `delete n.el`), so a save-based approach can
+    // never recover which DOM element - and therefore which widgetType/
+    // widgetConfig - a saved node belongs to. Reading straight from the
+    // live `.grid-stack-item` elements (and their attached `.gridstackNode`,
+    // which GridStack keeps current on every move/resize) sidesteps that
+    // entirely, and skipping anything without a widgetType still guards
+    // against a stale/detached element lingering right after removeWidget().
+    const widgets = Array.from(grid.el.children)
+      .filter((el) => el.classList.contains('grid-stack-item') && el.dataset && el.dataset.widgetType && el.gridstackNode)
+      .map((el) => {
+        const node = el.gridstackNode;
+        return {
+          id: node.id,
+          type: el.dataset.widgetType,
+          x: node.x,
+          y: node.y,
+          w: node.w,
+          h: node.h,
+          config: JSON.parse(el.dataset.widgetConfig || '{}'),
+        };
+      });
     return { widgets };
   }
 

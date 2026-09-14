@@ -1,0 +1,126 @@
+.llw-light {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  font-family: inherit;
+  padding: 0.7rem 0.8rem 0.6rem;
+  transition: background 0.3s ease;
+}
+.llw-light--on {
+  background: radial-gradient(circle at 50% 15%, rgba(255, 209, 102, 0.2), transparent 70%);
+}
+
+.llw-light__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+  /* Clears the outer "remove widget" (x) button when this tile sits on the
+     main dashboard - see the same note in weather.css. Harmless when
+     nested inside a Room widget, which has no such button. */
+  padding-right: 30px;
+}
+
+.llw-light__name {
+  font-size: 0.78rem;
+  font-weight: 600;
+  opacity: 0.8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.llw-light__gear {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  cursor: pointer;
+  font-size: 0.85rem;
+  line-height: 1;
+}
+.llw-light__gear:hover { background: rgba(255, 255, 255, 0.18); }
+
+.llw-light__body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  min-height: 0;
+}
+
+.llw-light__empty {
+  font-size: 0.75rem;
+  opacity: 0.55;
+  text-align: center;
+  padding: 0 0.4rem;
+}
+
+.llw-light__toggle {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.05);
+  cursor: pointer;
+  font-size: 1.4rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  filter: grayscale(1) opacity(0.5);
+  transition: all 0.2s ease;
+}
+.llw-light__toggle.is-on {
+  border-color: #ffd166;
+  background: rgba(255, 209, 102, 0.18);
+  filter: none;
+  box-shadow: 0 0 18px rgba(255, 209, 102, 0.4);
+}
+
+.llw-light__slider {
+  width: 82%;
+  accent-color: #ffd166;
+}
+
+.llw-light__settings {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  background: rgba(20, 24, 32, 0.9);
+  backdrop-filter: blur(2px);
+  display: none;
+  flex-direction: column;
+  gap: 0.5rem;
+  border-radius: inherit;
+  /* See weather.css: keeps the "done" button clear of GridStack's bottom
+     resize handle. */
+  padding: 0.8rem 0.8rem 1.6rem;
+}
+.llw-light__settings.llw-open { display: flex; }
+.llw-light__settings label { font-size: 0.72rem; opacity: 0.7; }
+.llw-light__select {
+  width: 100%;
+  padding: 0.4rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+.llw-light__select option { color: #111; }
+.llw-light__close {
+  align-self: flex-end;
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: #fff;
+  padding: 0.3rem 0.7rem;
+  border-radius: 6px;
+  cursor: pointer;
+}

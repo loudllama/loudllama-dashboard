@@ -1,0 +1,122 @@
+.llw-climate {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  font-family: inherit;
+  padding: 0.7rem 0.8rem 0.6rem;
+  background: radial-gradient(circle at 50% 15%, rgba(255, 122, 60, 0.1), transparent 70%);
+}
+
+.llw-climate__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+  padding-right: 30px;
+}
+
+.llw-climate__name {
+  font-size: 0.78rem;
+  font-weight: 600;
+  opacity: 0.8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.llw-climate__gear {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  cursor: pointer;
+  font-size: 0.85rem;
+  line-height: 1;
+}
+.llw-climate__gear:hover { background: rgba(255, 255, 255, 0.18); }
+
+.llw-climate__body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 0;
+}
+
+.llw-climate__empty {
+  font-size: 0.75rem;
+  opacity: 0.55;
+  text-align: center;
+  padding: 0 0.4rem;
+}
+
+.llw-climate__current {
+  font-size: 1.5rem;
+  font-weight: 700;
+  opacity: 0.9;
+}
+
+.llw-climate__stepper {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.llw-climate__stepper button {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-size: 1.05rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.llw-climate__stepper button:hover { background: rgba(255, 255, 255, 0.18); }
+.llw-climate__target {
+  min-width: 3.2em;
+  text-align: center;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.llw-climate__settings {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  background: rgba(20, 24, 32, 0.9);
+  backdrop-filter: blur(2px);
+  display: none;
+  flex-direction: column;
+  gap: 0.5rem;
+  border-radius: inherit;
+  padding: 0.8rem 0.8rem 1.6rem;
+}
+.llw-climate__settings.llw-open { display: flex; }
+.llw-climate__settings label { font-size: 0.72rem; opacity: 0.7; }
+.llw-climate__select {
+  width: 100%;
+  padding: 0.4rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+.llw-climate__select option { color: #111; }
+.llw-climate__close {
+  align-self: flex-end;
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: #fff;
+  padding: 0.3rem 0.7rem;
+  border-radius: 6px;
+  cursor: pointer;
+}

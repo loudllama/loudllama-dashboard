@@ -19,5 +19,8 @@
     { id: 'weather', js: 'widgets/weather/weather.js', css: 'widgets/weather/weather.css' },
     { id: 'frigate', js: 'widgets/frigate/frigate.js', css: 'widgets/frigate/frigate.css' },
     { id: 'room', js: 'widgets/room/room.js', css: 'widgets/room/room.css' },
+    { id: 'light', js: 'widgets/light/light.js', css: 'widgets/light/light.css' },
+    { id: 'climate', js: 'widgets/climate/climate.js', css: 'widgets/climate/climate.css' },
+    { id: 'media', js: 'widgets/media/media.js', css: 'widgets/media/media.css' },
   ];
 })();

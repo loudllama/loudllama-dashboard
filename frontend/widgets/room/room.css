@@ -278,7 +278,15 @@ body.llw-edit-mode .llw-room__gear { display: inline-flex; }
   font-weight: 700;
 }
 
-.llw-room-modal__close {
+.llw-room-modal__head-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.llw-room-modal__close,
+.llw-room-modal__arrange {
   background: rgba(255, 255, 255, 0.12);
   border: none;
   color: #fff;
@@ -290,7 +298,15 @@ body.llw-edit-mode .llw-room__gear { display: inline-flex; }
   cursor: pointer;
   flex-shrink: 0;
 }
-.llw-room-modal__close:hover { background: rgba(255, 255, 255, 0.24); }
+.llw-room-modal__close:hover,
+.llw-room-modal__arrange:hover { background: rgba(255, 255, 255, 0.24); }
+.llw-room-modal__arrange {
+  font-size: 1rem;
+}
+.llw-room-modal__arrange.is-active {
+  background: #ffd166;
+  color: #1b1f27;
+}
 
 .llw-room-modal__body {
   padding: 0 1.4rem 1.5rem;
@@ -299,6 +315,27 @@ body.llw-edit-mode .llw-room__gear { display: inline-flex; }
   gap: 1.15rem;
 }
 
+/* --- Nested sub-widget grid (light/climate/media) ------------------------ */
+
+.llw-room-modal__subgrid {
+  margin: 0 -0.3rem;
+  min-height: 90px;
+}
+.llw-room-modal__subgrid .grid-stack-item-content.llw-room-subwidget {
+  border-radius: 14px;
+}
+.llw-room-modal__subgrid + .llw-room-modal__other:not(:empty) {
+  padding-top: 0.9rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+/* Sub-widgets never show the outer dashboard's remove (x) button (there
+   isn't one here - removing one means unchecking its entity in step 2 of
+   the room editor), but they do pick up drag/resize handles while
+   arranging, same visual language as the main dashboard's edit mode. */
+.llw-room-modal--arranging .llw-room-modal__subgrid .grid-stack-item-content.llw-room-subwidget {
+  outline: 2px dashed rgba(255, 255, 255, 0.35);
+  outline-offset: 2px;
+}
 .llw-room-modal__group-label {
   font-size: 0.7rem;
   font-weight: 700;

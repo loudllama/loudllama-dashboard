@@ -2,11 +2,12 @@
 
 A Home Assistant add-on for building your own freely customizable, iPad-style dashboard: move and resize widgets, change the background image, and pick exactly which widgets you want from the built-in widget store.
 
-This release includes the dashboard core plus three widgets, all available through the widget store:
+This release includes the dashboard core plus six widgets, all available through the widget store:
 
 - **Weather** – automatically follows Home Assistant's language and shows a background/animation that matches the current weather.
 - **Cameras (Frigate)** – a mini-grid of camera thumbnails (auto-refreshing), click a camera to open it fullscreen with a live stream.
-- **Room** – one room per widget. Pick entities and they're auto-grouped (lights, switches, climate, blinds, sensors, security, media, etc). Click for a rounded pop-up with real control — turn lights on/off/dim, blinds up/down, temperature, lock/unlock, and more.
+- **Room** – one room per widget, and more of a "group widget": pick entities and they're auto-grouped (lights, switches, climate, blinds, sensors, security, media, etc). A light, thermostat, or speaker in the room shows up as its own small Light/Thermostat/Speaker tile inside the room's pop-up — on their own little drag-and-resize grid, arranged independently from the main dashboard. Everything else (switches, blinds, locks, sensors, scenes) is still shown as a plain control row below them.
+- **Light**, **Thermostat**, **Speaker** – on/off + dimming, target temperature, and play/pause + volume for a single entity. These work standalone on the main dashboard too, not just nested inside a Room.
 
 ## Widget store
 
