@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.5.0
+## 0.9.1
 
 - New: **nested widgets inside Room**. A Room can now contain its own small widgets instead of a flat list of controls — add a light, thermostat, or speaker to a room and it shows up as its own Light/Thermostat/Speaker tile inside that room's pop-up, on a second, independent drag-and-resize grid. Room becomes more of a "group widget": rearrange and resize the tiles inside it (an "Arrange" button in the pop-up header toggles that mode) independently of the main dashboard's layout.
 - New standalone widgets: **Light** (on/off + brightness), **Thermostat** (current temperature, target with +/- stepper), **Speaker** (play/pause, volume, track info). Each also works on its own, directly on the main dashboard, not only inside a Room.
