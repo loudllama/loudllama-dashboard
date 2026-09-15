@@ -1,3 +1,3 @@
-backend/node_modules/
-backend/data/
+loudllama_dashboard/backend/node_modules/
+loudllama_dashboard/backend/data/
 *.log

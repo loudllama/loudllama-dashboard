@@ -15,6 +15,15 @@ The add-on has no required setup options. Everything is saved automatically unde
 - `/data/widgets.json` — which widgets are installed (see "Widget store" below)
 - `/data/www/` — uploaded background images
 
+## Updates
+
+Update notifications (and, optionally, fully automatic updates) come from Home Assistant's own Supervisor — not from anything inside the add-on itself — and only work if the add-on was installed **as a repository** rather than copied into `addons/local/` (see "Installation" in `README.md`). With that in place:
+
+- Supervisor periodically checks this repository for a newer `version` in `config.yaml`, and shows an **Update available** badge on the add-on plus a notification, with the changelog from `CHANGELOG.md` shown before you confirm.
+- Updating is one click (**Update** on the add-on's page) — Supervisor rebuilds the Docker image from the new code and restarts the add-on. `/data` (your layout, settings, installed widgets) is untouched by an update.
+- If you'd rather not click anything, the add-on's page has an **Auto update** toggle: turn it on and Supervisor installs new versions itself as soon as it sees them, with no prompt.
+- A "local" add-on (copied into `addons/local/`) doesn't get any of this — Home Assistant has no repository to check against, so there's never an update notification and files have to be replaced by hand.
+
 ## Widget store
 
 Every widget that ships with the add-on is listed in the widget store (the **Widgets** button in the toolbar, visible in edit mode), each with an icon, a name, a short description, and an on/off switch:
@@ -102,6 +111,16 @@ To make a new widget show up in the widget store, two small additions are needed
 Everything else — listing it in the store, lazy-loading it on install, restricting "+ Add widget" to installed widgets — is automatic from there.
 
 **Nesting inside another widget:** any widget built this way can be mounted either at the top level or inside another "container" widget, because `mount(el, { config, saveConfig })` only ever needs a plain element and a config/saveConfig pair — it has no idea whether `el` sits on the main dashboard or inside another widget's pop-up. Room is the only container widget so far (see above): it runs its own small GridStack grid inside its pop-up and calls each sub-widget's `mount()` against a tile on that grid, exactly the way `app.js` does for the main dashboard. A new container widget can reuse the same pattern. Two things are easy to get wrong when doing this, both because GridStack's `grid.save()` always strips the `.el` reference from whatever it returns (by design — it's meant to produce plain, serializable data): don't rely on it (or on matching by id afterwards) to find out what actually moved or resized — read each item's own `el.gridstackNode` instead, which GridStack keeps live and current; and a grid with a column count other than 12 (the default) needs `gridstack-extra.css` loaded on the page, or every item in it renders at zero width.
+
+## Releasing a new version
+
+For an update notification to show up in anyone's Home Assistant (see "Updates" above), a release needs three things, all committed and pushed to this repository's `main` branch:
+
+1. Bump `version` in `loudllama_dashboard/config.yaml` — this is the number Supervisor compares against.
+2. Bump `version` in `loudllama_dashboard/backend/package.json` (and run `npm install` there so `package-lock.json` picks it up) to match.
+3. Add a new entry at the top of `loudllama_dashboard/CHANGELOG.md` — this is what people see in the "what's new" view before they click Update.
+
+Supervisor picks up the new version on its own next periodic check, or immediately if someone clicks **⋮ → Check for updates** on the add-on store page.
 
 ## Troubleshooting
 

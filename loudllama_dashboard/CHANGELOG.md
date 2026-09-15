@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.2
+
+- New: **update notifications from Home Assistant**. The add-on is now structured as a proper Home Assistant add-on *repository* (a `repository.yaml` at the repo root, with the add-on itself in its own `loudllama_dashboard/` folder) instead of a single folder meant to be copied into `addons/local/`. Installed by adding this repository's URL in Home Assistant (**Settings → Add-ons → Add-on Store → ⋮ → Repositories**), Home Assistant's own Supervisor takes it from there: it checks this repository for new versions on its own, shows an **Update available** notification with the changelog, and updates in one click — or fully automatically if you turn on the add-on's **Auto update** toggle. No custom update-checking code needed; this is the same mechanism every other Home Assistant add-on uses. See `loudllama_dashboard/README.md` for installation and `loudllama_dashboard/DOCS.md` for details (a "Updates" section) and the release checklist for pushing a new version.
+- The old "copy the folder into `addons/local/`" install method still works for local testing, but never gets update notifications — Home Assistant has no repository to check a local add-on against.
+
 ## 0.9.1
 
 - New: **nested widgets inside Room**. A Room can now contain its own small widgets instead of a flat list of controls — add a light, thermostat, or speaker to a room and it shows up as its own Light/Thermostat/Speaker tile inside that room's pop-up, on a second, independent drag-and-resize grid. Room becomes more of a "group widget": rearrange and resize the tiles inside it (an "Arrange" button in the pop-up header toggles that mode) independently of the main dashboard's layout.
