@@ -310,7 +310,16 @@
           selectEl.innerHTML = `<option value="">${t('weather', 'noEntities')}</option>`;
           return;
         }
-        selectEl.innerHTML = entities
+        // Keep an empty placeholder option, selected only when nothing has
+        // been chosen yet. Without it the browser silently pre-selects the
+        // first real entity the moment this list loads (that's not a user
+        // action, so no `change` event fires for it) - and if there's only
+        // one entity to begin with, the user can never trigger `change` at
+        // all: clicking "the only option" re-selects the value that was
+        // already showing, which browsers don't treat as a change. That's
+        // exactly what made a single weather entity impossible to save.
+        const placeholder = `<option value="" ${entityId ? '' : 'selected'}>…</option>`;
+        selectEl.innerHTML = placeholder + entities
           .map((e) => `<option value="${e.entity_id}" ${e.entity_id === entityId ? 'selected' : ''}>${(e.attributes && e.attributes.friendly_name) || e.entity_id}</option>`)
           .join('');
       } catch (err) {

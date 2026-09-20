@@ -72,7 +72,14 @@
           selectEl.innerHTML = `<option value="">${t('light', 'noEntities')}</option>`;
           return;
         }
-        selectEl.innerHTML = entities
+        // See weather.js's loadEntityOptions for why this placeholder has to
+        // stay: without an empty option selected by default, the browser
+        // auto-selects the first real entity as soon as the list loads (no
+        // `change` fires for that), so a user with only one light could
+        // never trigger a save - clicking that one entity looked like a
+        // no-op change to the browser.
+        const placeholder = `<option value="" ${entityId ? '' : 'selected'}>…</option>`;
+        selectEl.innerHTML = placeholder + entities
           .map((e) => `<option value="${e.entity_id}" ${e.entity_id === entityId ? 'selected' : ''}>${(e.attributes && e.attributes.friendly_name) || e.entity_id}</option>`)
           .join('');
       } catch (err) {

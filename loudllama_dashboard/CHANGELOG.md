@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.3
+
+- Fix: selecting an entity in the **Weather**, **Light**, **Thermostat**, or **Speaker** widget's settings could silently do nothing - most reliably when there was only *one* matching entity to choose from. The settings dropdown always ends up showing a real entity as pre-selected the moment the list loads (that's just how a browser's `<select>` behaves, not a user action), so clicking that same, already-shown entity never fired a change - there was nothing to tell the widget to save. This is the exact case a lot of people hit day one: one weather integration, one thermostat. Each of these widgets' dropdowns now starts on a genuine "nothing chosen yet" placeholder, so picking your entity - even when it's the only one listed - is a real change and gets saved.
+
 ## 0.9.2
 
 - New: **update notifications from Home Assistant**. The add-on is now structured as a proper Home Assistant add-on *repository* (a `repository.yaml` at the repo root, with the add-on itself in its own `loudllama_dashboard/` folder) instead of a single folder meant to be copied into `addons/local/`. Installed by adding this repository's URL in Home Assistant (**Settings → Add-ons → Add-on Store → ⋮ → Repositories**), Home Assistant's own Supervisor takes it from there: it checks this repository for new versions on its own, shows an **Update available** notification with the changelog, and updates in one click — or fully automatically if you turn on the add-on's **Auto update** toggle. No custom update-checking code needed; this is the same mechanism every other Home Assistant add-on uses. See `loudllama_dashboard/README.md` for installation and `loudllama_dashboard/DOCS.md` for details (a "Updates" section) and the release checklist for pushing a new version.
