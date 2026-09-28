@@ -18,6 +18,7 @@
         background: 'Background',
         changeBackground: 'Change background image',
         removeWidget: 'Remove widget',
+        renameWidget: 'Click to rename',
         connectionError: 'Could not reach Home Assistant',
         widgetStore: 'Widget store',
         widgetNotInstalled: 'Widget not added',
@@ -142,6 +143,14 @@
         noEntity: 'No speaker selected',
         noEntities: 'No media player entities found in Home Assistant',
       },
+      group: {
+        setupTitle: 'Name your group',
+        namePlaceholder: 'e.g. "Favorites"',
+        save: 'Save',
+        close: 'Close',
+        arrange: 'Arrange',
+        empty: 'This group is empty — use "+ Add widget" to add one.',
+      },
     },
     da: {
       app: {
@@ -152,6 +161,7 @@
         background: 'Baggrund',
         changeBackground: 'Skift baggrundsbillede',
         removeWidget: 'Fjern widget',
+        renameWidget: 'Klik for at omdøbe',
         connectionError: 'Kunne ikke forbinde til Home Assistant',
         widgetStore: 'Widget-butik',
         widgetNotInstalled: 'Widget ikke tilføjet',
@@ -276,6 +286,14 @@
         noEntity: 'Ingen højtaler valgt',
         noEntities: 'Fandt ingen medieafspiller-entiteter i Home Assistant',
       },
+      group: {
+        setupTitle: 'Navngiv gruppen',
+        namePlaceholder: 'fx "Favoritter"',
+        save: 'Gem',
+        close: 'Luk',
+        arrange: 'Arrangér',
+        empty: 'Gruppen er tom — brug "+ Tilføj widget" for at tilføje en.',
+      },
     },
     de: {
       app: {
@@ -286,6 +304,7 @@
         background: 'Hintergrund',
         changeBackground: 'Hintergrundbild ändern',
         removeWidget: 'Widget entfernen',
+        renameWidget: 'Zum Umbenennen klicken',
         connectionError: 'Home Assistant nicht erreichbar',
         widgetStore: 'Widget-Store',
         widgetNotInstalled: 'Widget nicht hinzugefügt',
@@ -410,6 +429,14 @@
         noEntity: 'Kein Lautsprecher ausgewählt',
         noEntities: 'Keine Media-Player-Entitäten gefunden',
       },
+      group: {
+        setupTitle: 'Gruppe benennen',
+        namePlaceholder: 'z. B. "Favoriten"',
+        save: 'Speichern',
+        close: 'Schließen',
+        arrange: 'Anordnen',
+        empty: 'Diese Gruppe ist leer — über „+ Widget hinzufügen" eines hinzufügen.',
+      },
     },
     sv: {
       app: {
@@ -420,6 +447,7 @@
         background: 'Bakgrund',
         changeBackground: 'Byt bakgrundsbild',
         removeWidget: 'Ta bort widget',
+        renameWidget: 'Klicka för att byta namn',
         connectionError: 'Kunde inte nå Home Assistant',
         widgetStore: 'Widget-butik',
         widgetNotInstalled: 'Widgeten är inte tillagd',
@@ -544,6 +572,14 @@
         noEntity: 'Ingen högtalare vald',
         noEntities: 'Hittade inga mediespelar-entiteter',
       },
+      group: {
+        setupTitle: 'Namnge gruppen',
+        namePlaceholder: 't.ex. "Favoriter"',
+        save: 'Spara',
+        close: 'Stäng',
+        arrange: 'Ordna',
+        empty: 'Den här gruppen är tom — använd "+ Lägg till widget" för att lägga till en.',
+      },
     },
     no: {
       app: {
@@ -554,6 +590,7 @@
         background: 'Bakgrunn',
         changeBackground: 'Bytt bakgrunnsbilde',
         removeWidget: 'Fjern widget',
+        renameWidget: 'Klikk for å gi nytt navn',
         connectionError: 'Fikk ikke kontakt med Home Assistant',
         widgetStore: 'Widget-butikk',
         widgetNotInstalled: 'Widget ikke lagt til',
@@ -677,6 +714,14 @@
         chooseEntity: 'Velg en høyttaler',
         noEntity: 'Ingen høyttaler valgt',
         noEntities: 'Fant ingen mediespiller-enheter',
+      },
+      group: {
+        setupTitle: 'Navngi gruppen',
+        namePlaceholder: 'f.eks. "Favoritter"',
+        save: 'Lagre',
+        close: 'Lukk',
+        arrange: 'Arranger',
+        empty: 'Denne gruppen er tom — bruk "+ Legg til widget" for å legge til en.',
       },
     },
   };

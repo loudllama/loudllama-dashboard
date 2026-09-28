@@ -1,0 +1,345 @@
+/* Group widget ------------------------------------------------------------
+   Visual language matches Room's compact tile / fullscreen popup on
+   purpose (same hue-from-name trick, same rounded-card modal) - a Group is
+   basically a Room without the entity picker, so it should look like a
+   sibling of Room, not a different kind of thing. */
+
+.llw-group {
+  --group-hue: 260;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  overflow: hidden;
+  color: #fff;
+}
+
+.llw-group--clickable { cursor: pointer; }
+.llw-group--clickable:hover .llw-group__bg { filter: brightness(1.1); }
+
+.llw-group__bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: radial-gradient(120% 100% at 25% 0%, hsl(var(--group-hue) 45% 22%), hsl(var(--group-hue) 40% 9%) 70%);
+  transition: background 0.7s ease, filter 0.2s ease;
+}
+
+.llw-group__content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 0.85rem 1rem 0.7rem;
+  gap: 0.3rem;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+
+.llw-group__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding-right: 30px; /* keeps gear clear of the top-right remove (x) button */
+}
+
+.llw-group__name {
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.llw-group__gear {
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.16);
+  border: none;
+  color: #fff;
+  border-radius: 999px;
+  width: 26px;
+  height: 26px;
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+}
+body.llw-edit-mode .llw-group__gear { display: inline-flex; }
+.llw-group__gear:hover { background: rgba(255, 255, 255, 0.28); }
+
+.llw-group__glance {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-height: 0;
+}
+
+.llw-group__count {
+  font-size: 1.9rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.llw-group__hint {
+  margin-top: auto;
+  font-size: 0.64rem;
+  opacity: 0.55;
+}
+
+.llw-group__empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  text-align: left;
+  font-size: 0.8rem;
+  opacity: 0.75;
+}
+
+/* --- Name editor (setup + rename) ---------------------------------------- */
+
+.llw-group__editor {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  background: rgba(16, 19, 26, 0.94);
+  backdrop-filter: blur(2px);
+  display: none;
+  flex-direction: column;
+}
+.llw-group__editor.llw-open { display: flex; }
+
+.llw-group__editor-inner {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 1rem 1rem 1.75rem;
+  gap: 0.55rem;
+}
+
+.llw-group__editor-close {
+  position: absolute;
+  top: 0;
+  right: 34px;
+  background: rgba(255, 255, 255, 0.14);
+  border: none;
+  color: #fff;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+.llw-group__editor-close:hover { background: rgba(255, 255, 255, 0.26); }
+
+.llw-group__editor-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  opacity: 0.75;
+  padding-right: 30px;
+}
+
+.llw-group__name-input {
+  width: 100%;
+  padding: 0.55rem 0.7rem;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-size: 0.9rem;
+}
+.llw-group__name-input::placeholder { color: rgba(255, 255, 255, 0.45); }
+.llw-group__name-input.llw-shake { animation: llw-group-shake 0.3s ease; }
+@keyframes llw-group-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+
+.llw-group__editor-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+.llw-group__editor-actions button,
+.llw-group__save {
+  background: #ffd166;
+  color: #1a1200;
+  font-weight: 700;
+  border: none;
+  padding: 0.45rem 0.9rem;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+.llw-group__editor-actions button:hover { background: #ffdd8a; }
+
+/* --- Fullscreen popup ----------------------------------------------------- */
+
+.llw-group-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(8, 10, 14, 0.72);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  animation: llw-fade-in 0.15s ease;
+}
+@keyframes llw-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.llw-group-modal__card {
+  width: 100%;
+  max-width: 640px;
+  max-height: 86vh;
+  overflow-y: auto;
+  background: linear-gradient(180deg, rgba(32, 36, 46, 0.99), rgba(20, 23, 30, 0.99));
+  border-radius: 28px;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.llw-group-modal__head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.3rem 1.4rem 1rem;
+  background: linear-gradient(180deg, rgba(32, 36, 46, 1), rgba(32, 36, 46, 0.88));
+  border-radius: 28px 28px 0 0;
+  gap: 0.75rem;
+}
+
+.llw-group-modal__title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.llw-group-modal__head-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.llw-group-add-wrap { position: relative; }
+
+.llw-group-modal__add {
+  background: rgba(255, 255, 255, 0.14);
+  border: none;
+  color: #fff;
+  padding: 0.5rem 0.85rem;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.llw-group-modal__add:hover { background: rgba(255, 255, 255, 0.26); }
+
+.llw-group-menu {
+  display: none;
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 190px;
+  max-height: 260px;
+  overflow-y: auto;
+  background: #23272f;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+  padding: 0.35rem;
+  z-index: 5;
+}
+.llw-group-menu.llw-open { display: block; }
+.llw-group-menu__item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  color: #f4f5f7;
+  padding: 0.5rem 0.6rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+.llw-group-menu__item:hover { background: rgba(255, 255, 255, 0.08); }
+.llw-group-menu__empty {
+  padding: 0.5rem 0.6rem;
+  font-size: 0.8rem;
+  opacity: 0.7;
+}
+
+.llw-group-modal__close,
+.llw-group-modal__arrange {
+  background: rgba(255, 255, 255, 0.12);
+  border: none;
+  color: #fff;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.llw-group-modal__close:hover,
+.llw-group-modal__arrange:hover { background: rgba(255, 255, 255, 0.24); }
+.llw-group-modal__arrange { font-size: 1rem; }
+.llw-group-modal__arrange.is-active {
+  background: #ffd166;
+  color: #1b1f27;
+}
+
+.llw-group-modal__body {
+  padding: 1rem 1.4rem 1.5rem;
+}
+
+.llw-group-modal__subgrid {
+  margin: 0 -0.3rem;
+  min-height: 90px;
+}
+.llw-group-modal__subgrid .grid-stack-item-content.llw-group-subwidget {
+  border-radius: 14px;
+}
+.llw-group-modal--arranging .llw-group-modal__subgrid .grid-stack-item-content.llw-group-subwidget {
+  outline: 2px dashed rgba(255, 255, 255, 0.35);
+  outline-offset: 2px;
+}
+
+.llw-group-subwidget__remove {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 5;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  font-size: 0.9rem;
+  line-height: 1;
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}

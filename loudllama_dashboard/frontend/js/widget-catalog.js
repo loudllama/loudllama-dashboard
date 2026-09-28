@@ -22,5 +22,6 @@
     { id: 'light', js: 'widgets/light/light.js', css: 'widgets/light/light.css' },
     { id: 'climate', js: 'widgets/climate/climate.js', css: 'widgets/climate/climate.css' },
     { id: 'media', js: 'widgets/media/media.js', css: 'widgets/media/media.css' },
+    { id: 'group', js: 'widgets/group/group.js', css: 'widgets/group/group.css' },
   ];
 })();

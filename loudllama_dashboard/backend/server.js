@@ -20,8 +20,11 @@ const WWW_DIR = path.join(DATA_DIR, 'www');
 const LAYOUT_FILE = path.join(DATA_DIR, 'layout.json');
 const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
 const INSTALLED_WIDGETS_FILE = path.join(DATA_DIR, 'widgets.json');
+// Per-device position overrides (see "Layout persistence" below) - one small
+// JSON file per device that has ever saved a layout.
+const DEVICE_LAYOUTS_DIR = path.join(DATA_DIR, 'device-layouts');
 
-for (const dir of [DATA_DIR, WWW_DIR]) {
+for (const dir of [DATA_DIR, WWW_DIR, DEVICE_LAYOUTS_DIR]) {
   fs.mkdirSync(dir, { recursive: true });
 }
 
@@ -306,6 +309,27 @@ const WIDGETS = [
       no: 'Spill/pause, volum og gjeldende spor for én mediespiller (Sonos og de fleste andre fungerer, siden de vises som vanlige HA media_player-enheter). Dukker automatisk opp inne i en Rom-widget.',
     },
   },
+  {
+    id: 'group',
+    version: '1.0.0',
+    icon: 'view-grid-plus',
+    defaultSize: { w: 4, h: 4 },
+    minSize: { w: 2, h: 2 },
+    name: {
+      da: 'Gruppe',
+      en: 'Group',
+      de: 'Gruppe',
+      sv: 'Grupp',
+      no: 'Gruppe',
+    },
+    description: {
+      da: 'En tom, navngivbar beholder til andre widgets. Giv den et navn, klik ind i den, og tilføj lige de widgets du vil have samlet ét sted - de kan flyttes og størrelsesændres uafhængigt af hovedskærmen.',
+      en: 'An empty, nameable container for other widgets. Give it a name, click into it, and add whichever widgets you want grouped together - they can be moved and resized independently of the main dashboard.',
+      de: 'Ein leerer, benennbarer Container für andere Widgets. Gib ihm einen Namen, klicke hinein und füge die Widgets hinzu, die du zusammen gruppieren möchtest - sie lassen sich unabhängig vom Hauptdashboard verschieben und in der Größe ändern.',
+      sv: 'En tom, namngivningsbar behållare för andra widgets. Ge den ett namn, klicka in i den och lägg till de widgets du vill gruppera tillsammans - de kan flyttas och storleksändras oberoende av huvudpanelen.',
+      no: 'En tom, navngivbar beholder for andre widgets. Gi den et navn, klikk inn i den, og legg til de widgetene du vil samle ett sted - de kan flyttes og endres i størrelse uavhengig av hoveddashbordet.',
+    },
+  },
 ];
 
 // --- App --------------------------------------------------------------------
@@ -333,18 +357,116 @@ app.use(express.static(FRONTEND_DIR));
 app.use('/vendor/gridstack', express.static(path.join(__dirname, 'node_modules', 'gridstack', 'dist')));
 
 // --- Layout persistence ------------------------------------------------------
+// Every device (phone, tablet, wall-mounted panel, ...) that opens the
+// dashboard sees the *same* widgets with the *same* settings (weather
+// entity, chosen cameras, a room's entities, ...) - that part is one shared
+// "definition" list, exactly what used to be the whole of layout.json.
+// Only each widget's *size and position* is remembered separately per
+// device, so one device can be arranged however suits its screen without
+// moving anything around on anyone else's.
+//
+// Two files make this up:
+//   - layout.json                     shared: [{id, type, config, label,
+//                                      x, y, w, h}] - x/y/w/h here are the
+//                                      *default* position, used by any
+//                                      device that hasn't customized this
+//                                      widget's placement yet.
+//   - device-layouts/<deviceId>.json  per device: {positions: {widgetId:
+//                                      {x, y, w, h}}} - only an override,
+//                                      never the widget's own definition.
+//
+// POSTing a layout only ever *upserts* the shared definitions (adds new
+// widgets, updates an existing one's config/label) - it never removes one
+// just because a particular device's payload doesn't happen to mention it.
+// That matters because two devices can have loaded the page at different
+// times and therefore disagree on exactly which widgets exist right now;
+// if a save from the stalest one were allowed to delete whatever it didn't
+// know about, one device resizing an unrelated widget could silently wipe
+// out something another device added minutes earlier. Removing a widget
+// for real goes through its own explicit DELETE endpoint instead, fired
+// the moment someone clicks that widget's own remove button - an
+// unambiguous, deliberate action rather than an inference from a diff.
 const DEFAULT_LAYOUT = {
   widgets: [
     { id: 'weather-1', type: 'weather', x: 0, y: 0, w: 4, h: 4, config: { entity_id: '' } },
   ],
 };
 
+function sanitizeDeviceId(raw) {
+  const cleaned = (typeof raw === 'string' ? raw : '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 64);
+  return cleaned || 'default';
+}
+
+function devicePositionsFile(deviceId) {
+  return path.join(DEVICE_LAYOUTS_DIR, `${deviceId}.json`);
+}
+
+function readSharedLayout() {
+  if (fs.existsSync(LAYOUT_FILE)) {
+    try {
+      const data = JSON.parse(fs.readFileSync(LAYOUT_FILE, 'utf8'));
+      if (Array.isArray(data.widgets)) return data;
+    } catch (err) {
+      console.error('[loudllama] Failed to read layout, using default:', err);
+    }
+  }
+  return JSON.parse(JSON.stringify(DEFAULT_LAYOUT));
+}
+
+function writeSharedLayout(layout) {
+  fs.writeFileSync(LAYOUT_FILE, JSON.stringify(layout, null, 2));
+}
+
+function readDevicePositions(deviceId) {
+  const file = devicePositionsFile(deviceId);
+  if (fs.existsSync(file)) {
+    try {
+      const data = JSON.parse(fs.readFileSync(file, 'utf8'));
+      if (data && typeof data.positions === 'object' && data.positions) return data.positions;
+    } catch (err) {
+      console.error('[loudllama] Failed to read device layout, ignoring:', err);
+    }
+  }
+  return {};
+}
+
+function writeDevicePositions(deviceId, positions) {
+  fs.writeFileSync(devicePositionsFile(deviceId), JSON.stringify({ positions }, null, 2));
+}
+
+// Best-effort cleanup so a deleted widget's leftover position entries don't
+// pile up in every device's file forever. Never blocks the actual delete.
+function pruneWidgetFromAllDevicePositions(widgetId) {
+  let files;
+  try {
+    files = fs.readdirSync(DEVICE_LAYOUTS_DIR).filter((f) => f.endsWith('.json'));
+  } catch (err) {
+    return;
+  }
+  files.forEach((f) => {
+    const full = path.join(DEVICE_LAYOUTS_DIR, f);
+    try {
+      const data = JSON.parse(fs.readFileSync(full, 'utf8'));
+      if (data && data.positions && Object.prototype.hasOwnProperty.call(data.positions, widgetId)) {
+        delete data.positions[widgetId];
+        fs.writeFileSync(full, JSON.stringify(data, null, 2));
+      }
+    } catch (err) {
+      /* corrupt or unrelated file - leave it alone */
+    }
+  });
+}
+
 app.get('/api/layout', (req, res) => {
   try {
-    if (fs.existsSync(LAYOUT_FILE)) {
-      return res.json(JSON.parse(fs.readFileSync(LAYOUT_FILE, 'utf8')));
-    }
-    return res.json(DEFAULT_LAYOUT);
+    const deviceId = sanitizeDeviceId(req.query.device);
+    const shared = readSharedLayout();
+    const positions = readDevicePositions(deviceId);
+    const widgets = shared.widgets.map((w) => {
+      const pos = positions[w.id];
+      return pos ? { ...w, x: pos.x, y: pos.y, w: pos.w, h: pos.h } : w;
+    });
+    res.json({ widgets });
   } catch (err) {
     console.error('[loudllama] Failed to read layout:', err);
     res.status(500).json({ error: 'layout_read_failed' });
@@ -353,11 +475,55 @@ app.get('/api/layout', (req, res) => {
 
 app.post('/api/layout', (req, res) => {
   try {
-    fs.writeFileSync(LAYOUT_FILE, JSON.stringify(req.body, null, 2));
+    const deviceId = sanitizeDeviceId(req.query.device);
+    const incoming = Array.isArray(req.body && req.body.widgets) ? req.body.widgets : [];
+    const shared = readSharedLayout();
+    const sharedById = new Map(shared.widgets.map((w) => [w.id, w]));
+    const positions = {};
+
+    incoming.forEach((w) => {
+      if (!w || !w.id || !w.type) return;
+      const existing = sharedById.get(w.id);
+      sharedById.set(w.id, {
+        id: w.id,
+        type: w.type,
+        config: w.config || {},
+        label: typeof w.label === 'string' ? w.label : (existing ? existing.label : undefined),
+        // The *default* position is set once, when a widget is first seen,
+        // and never touched again by an upsert - only this device's own
+        // position file changes on every save. Otherwise whichever device
+        // happened to save last would keep resetting everyone else's
+        // fallback placement.
+        x: existing ? existing.x : (w.x ?? 0),
+        y: existing ? existing.y : (w.y ?? 0),
+        w: existing ? existing.w : (w.w ?? 3),
+        h: existing ? existing.h : (w.h ?? 3),
+      });
+      positions[w.id] = { x: w.x ?? 0, y: w.y ?? 0, w: w.w ?? 3, h: w.h ?? 3 };
+    });
+
+    writeSharedLayout({ widgets: Array.from(sharedById.values()) });
+    writeDevicePositions(deviceId, positions);
     res.json({ ok: true });
   } catch (err) {
     console.error('[loudllama] Failed to save layout:', err);
     res.status(500).json({ error: 'layout_write_failed' });
+  }
+});
+
+// Explicit, deliberate widget removal - see the big comment above for why
+// this is a separate endpoint instead of being inferred from a POST that
+// simply omits the widget.
+app.delete('/api/layout/widgets/:id', (req, res) => {
+  try {
+    const shared = readSharedLayout();
+    shared.widgets = shared.widgets.filter((w) => w.id !== req.params.id);
+    writeSharedLayout(shared);
+    pruneWidgetFromAllDevicePositions(req.params.id);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[loudllama] Failed to delete widget:', err);
+    res.status(500).json({ error: 'layout_delete_failed' });
   }
 });
 

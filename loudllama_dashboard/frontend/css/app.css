@@ -117,6 +117,22 @@ body.llw-edit-mode .llw-bg-upload {
   padding: var(--llw-gap);
 }
 
+/* Outer shell fills the GridStack cell exactly (same 100%/100% the card
+   itself used to have directly) and stacks the card above a small caption
+   underneath it, iOS-home-screen-icon style. */
+.llw-widget-shell {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+/* Unchanged from before the caption existed: fills its parent's box
+   completely. This is what Room/Group's nested sub-widget tiles still use
+   directly (grid-stack-item-content.llw-widget, no shell/caption there -
+   see room.js's mountSubWidgets), so it has to keep working exactly as-is
+   with no flex parent involved. */
 .llw-widget {
   position: relative;
   width: 100%;
@@ -126,10 +142,54 @@ body.llw-edit-mode .llw-bg-upload {
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
   background: rgba(30, 34, 44, 0.6);
 }
+/* Only override to the flex-friendly "fill remaining space after the
+   caption" sizing when .llw-widget is actually inside the new shell - more
+   specific selector, so the rule above still applies unchanged everywhere
+   else. */
+.llw-widget-shell > .llw-widget {
+  height: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+}
 
 .llw-body {
   width: 100%;
   height: 100%;
+}
+
+.llw-caption {
+  flex: 0 0 auto;
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 500;
+  line-height: 1.2;
+  color: #f4f5f7;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.65);
+  padding: 0 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+body.llw-edit-mode .llw-caption {
+  cursor: text;
+  border-radius: 4px;
+}
+body.llw-edit-mode .llw-caption:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+.llw-caption-input {
+  flex: 0 0 auto;
+  width: 100%;
+  text-align: center;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: #14171d;
+  background: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 1px 4px;
+  outline: 2px solid rgba(255, 255, 255, 0.5);
 }
 
 .llw-remove {
@@ -152,7 +212,7 @@ body.llw-edit-mode .llw-bg-upload {
 }
 body.llw-edit-mode .llw-remove { display: flex; }
 
-body.llw-edit-mode .grid-stack-item-content.llw-widget {
+body.llw-edit-mode .llw-widget {
   outline: 2px dashed rgba(255, 255, 255, 0.35);
   outline-offset: 2px;
 }

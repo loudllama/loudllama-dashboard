@@ -54,7 +54,13 @@ body.llw-edit-mode .llw-frigate__gear { display: inline-flex; }
 .llw-frigate__grid {
   flex: 1;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  /* Column count is set from JS (frigate.js's layoutGrid/bestColumnCount) -
+     it depends on both how many cameras are shown and the widget's current
+     size, which a fixed auto-fill/minmax rule can't express (it only knows
+     about width, not camera count, and never grows a tile to use *more*
+     space than its minmax minimum needs). This is just a reasonable
+     fallback for the brief moment before JS runs. */
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
   grid-auto-rows: minmax(0, 1fr);
   gap: 6px;
   padding: 0 0.6rem 0.6rem;

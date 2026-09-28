@@ -102,7 +102,37 @@
       if (!res.ok) throw new Error(`POST ${path} -> ${res.status}`);
       return res.json();
     },
+    async del(path) {
+      const res = await fetch(path, { method: 'DELETE' });
+      if (!res.ok) throw new Error(`DELETE ${path} -> ${res.status}`);
+      return res.json();
+    },
   };
+
+  // Every layout call is tagged with this device's id (see device.js) so
+  // the backend can keep this device's widget positions separate from
+  // everyone else's while the widgets themselves (which ones exist, their
+  // settings) stay the same for all.
+  function layoutUrl(suffix) {
+    return `api/layout${suffix}${suffix.includes('?') ? '&' : '?'}device=${encodeURIComponent(LL.deviceId || 'default')}`;
+  }
+
+  function escapeHtml(str) {
+    return String(str).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
+  // What a widget's caption shows when the user hasn't typed a custom one:
+  // a Room/Group's own name if it has one (so renaming the room updates its
+  // home-screen label too, same as renaming an iOS folder), otherwise the
+  // widget type's own localized display name from the store catalog.
+  function defaultLabelFor(type, config) {
+    if (config && typeof config.name === 'string' && config.name.trim()) return config.name.trim();
+    const meta = LL.widgetMeta[type];
+    if (meta && meta.name) return meta.name[LL.i18n.lang] || meta.name.en || type;
+    const def = LL.widgetTypes[type];
+    if (def && def.name) return def.name[LL.i18n.lang] || def.name.en || type;
+    return type;
+  }
 
   let grid;
   let editMode = false;
@@ -135,6 +165,7 @@
           w: node.w,
           h: node.h,
           config: JSON.parse(el.dataset.widgetConfig || '{}'),
+          label: el.dataset.widgetLabel || '',
         };
       });
     return { widgets };
@@ -142,7 +173,7 @@
 
   async function saveLayout() {
     try {
-      await LL.api.post('api/layout', serializeLayout());
+      await LL.api.post(layoutUrl(''), serializeLayout());
     } catch (err) {
       console.error('[loudllama] Failed to save layout', err);
     }
@@ -151,6 +182,7 @@
   function mountWidget(node) {
     const def = LL.widgetTypes[node.type];
     const el = node.el.querySelector('.llw-body');
+    const captionEl = node.el.querySelector('.llw-caption');
     if (!def) {
       // The widget was placed on the dashboard at some point but isn't
       // currently installed (its script was never loaded) - most likely the
@@ -174,8 +206,62 @@
       config: node.config || {},
       saveConfig(newConfig) {
         node.el.dataset.widgetConfig = JSON.stringify(newConfig);
+        // Keep the caption following e.g. a Room/Group's own name live, as
+        // long as nobody has typed a custom caption of their own for this
+        // tile (an explicit custom caption always wins).
+        if (captionEl && !node.el.dataset.widgetLabel) {
+          captionEl.textContent = defaultLabelFor(node.type, newConfig);
+        }
         scheduleSave();
       },
+    });
+  }
+
+  // Swaps a tile's caption for a small text input (edit mode only), and
+  // commits back to a <div> on blur/Enter. An empty value means "no custom
+  // caption" - go back to following the widget's own default label.
+  function startEditingCaption(el, node) {
+    const captionEl = el.querySelector('.llw-caption');
+    if (!captionEl) return;
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'llw-caption-input';
+    input.maxLength = 30;
+    input.value = el.dataset.widgetLabel || '';
+    input.placeholder = captionEl.textContent;
+    captionEl.replaceWith(input);
+    input.focus();
+    input.select();
+    input.addEventListener('click', (ev) => ev.stopPropagation());
+    input.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Enter' || ev.key === 'Escape') input.blur();
+    });
+    input.addEventListener(
+      'blur',
+      () => {
+        const val = input.value.trim();
+        el.dataset.widgetLabel = val;
+        const config = JSON.parse(el.dataset.widgetConfig || '{}');
+        const fresh = document.createElement('div');
+        fresh.className = 'llw-caption';
+        fresh.tabIndex = 0;
+        fresh.title = t('app', 'renameWidget');
+        fresh.textContent = val || defaultLabelFor(node.type, config);
+        input.replaceWith(fresh);
+        wireCaptionEditing(el, node);
+        scheduleSave();
+      },
+      { once: true }
+    );
+  }
+
+  function wireCaptionEditing(el, node) {
+    const captionEl = el.querySelector('.llw-caption');
+    if (!captionEl) return;
+    captionEl.addEventListener('click', (ev) => {
+      if (!editMode) return;
+      ev.stopPropagation();
+      startEditingCaption(el, node);
     });
   }
 
@@ -190,24 +276,37 @@
     el.className = 'grid-stack-item';
     el.dataset.widgetType = node.type;
     el.dataset.widgetConfig = JSON.stringify(node.config || {});
+    el.dataset.widgetLabel = node.label || '';
     el.setAttribute('gs-id', widgetId);
     el.setAttribute('gs-x', size.x ?? 0);
     el.setAttribute('gs-y', size.y ?? 0);
     el.setAttribute('gs-w', size.w ?? 3);
     el.setAttribute('gs-h', size.h ?? 3);
+    const captionText = el.dataset.widgetLabel || defaultLabelFor(node.type, node.config || {});
     el.innerHTML = `
-      <div class="grid-stack-item-content llw-widget">
-        <button class="llw-remove" title="${t('app', 'removeWidget')}" aria-label="${t('app', 'removeWidget')}">×</button>
-        <div class="llw-body"></div>
+      <div class="grid-stack-item-content llw-widget-shell">
+        <div class="llw-widget">
+          <button class="llw-remove" title="${t('app', 'removeWidget')}" aria-label="${t('app', 'removeWidget')}">×</button>
+          <div class="llw-body"></div>
+        </div>
+        <div class="llw-caption" tabindex="0" title="${t('app', 'renameWidget')}">${escapeHtml(captionText)}</div>
       </div>
     `;
     el.querySelector('.llw-remove').addEventListener('click', (ev) => {
       ev.stopPropagation();
       const body = el.querySelector('.llw-body');
       if (body && typeof body._llwCleanup === 'function') body._llwCleanup();
+      const removedId = (el.gridstackNode && el.gridstackNode.id) || widgetId;
       grid.removeWidget(el);
+      // Explicit, immediate delete - see server.js's big comment on why
+      // widget removal is its own endpoint rather than inferred from a
+      // save that simply omits the widget.
+      LL.api.del(layoutUrl(`/widgets/${encodeURIComponent(removedId)}`)).catch((err) => {
+        console.error('[loudllama] Failed to delete widget', removedId, err);
+      });
       scheduleSave();
     });
+    wireCaptionEditing(el, node);
 
     grid.addWidget(el);
     mountWidget({ ...node, id: widgetId, el });
@@ -319,7 +418,7 @@
 
     let layout = { widgets: [] };
     try {
-      layout = await LL.api.get('api/layout');
+      layout = await LL.api.get(layoutUrl(''));
     } catch (err) {
       console.warn('[loudllama] Could not load layout', err);
     }
