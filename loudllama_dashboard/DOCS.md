@@ -114,6 +114,14 @@ Everything else — listing it in the store, lazy-loading it on install, restric
 
 ## Releasing a new version
 
+Version numbers follow `x.xx.xxx`:
+
+- `x` — release readiness. Stays `0` until the add-on is considered release-ready.
+- `xx` — the two-digit month the version was cut in (`01`–`12`).
+- `xxx` — a three-digit counter of releases within that month, starting at `001` and counting every release made in that calendar month (not reset per bump — just incremented each time a new version goes out), regardless of `x`.
+
+For example, the second release cut in September is `0.09.002`, and the next one after that in October starts over at `0.10.001`.
+
 For an update notification to show up in anyone's Home Assistant (see "Updates" above), a release needs three things, all committed and pushed to this repository's `main` branch:
 
 1. Bump `version` in `loudllama_dashboard/config.yaml` — this is the number Supervisor compares against.

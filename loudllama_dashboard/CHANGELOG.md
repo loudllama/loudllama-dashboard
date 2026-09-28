@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.10.0
+## 0.09.007
 
 - New: **per-device widget placement**. Every device (phone, tablet, wall panel, ...) that opens the dashboard now remembers its own widget sizes and positions, while still showing the same set of widgets with the same settings as every other device — resize or move a widget on your phone and it stays exactly as you left it there, without changing how it sits on the wall-mounted tablet. This is done with a small random ID the browser generates and keeps in `localStorage`, not a cookie: unlike a cookie, it isn't sent on every request, has no ~4KB size limit, and — critically — isn't at risk of being dropped by Home Assistant Ingress's per-session URL-prefix proxying. Removing a widget now goes through its own explicit "delete" step on the backend, instead of being inferred from what's missing in a save, so two devices with slightly different in-memory state can never accidentally make each other's widgets disappear.
 - New: **Group widget**. A container you name yourself (e.g. "Living room devices" or "Favorites") that holds any other widgets you drag into it, each independently movable and resizable on its own mini-grid inside the group's pop-up — the same "container" pattern Room already used, but for arbitrary widgets instead of a room's own entities.
