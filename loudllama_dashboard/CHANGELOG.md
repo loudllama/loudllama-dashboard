@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.09.009
+
+- New: **add-on icon**. The add-on store and "Local apps" list previously showed a generic puzzle-piece placeholder since no icon was shipped; added a proper `icon.png`/`icon@2x.png` (a small llama face on the same dark rounded-card look the dashboard itself uses).
+
 ## 0.09.008
 
 - New: **"tap and hold" feel across the whole dashboard**. Widgets now press down slightly when tapped, corners are rounder (more "squircle", less plain rectangle), and entering edit mode makes every widget gently jiggle in place — the classic iOS springboard "hold to rearrange" tell — instead of only showing a dashed outline. Jiggle automatically pauses for whichever widget is being dragged or resized, and for any widget you're actively typing into (a Group's name field, a caption rename), so it never fights your input.
