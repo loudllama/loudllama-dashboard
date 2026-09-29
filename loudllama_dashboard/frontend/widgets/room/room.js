@@ -97,6 +97,12 @@
       // rooms (from before this existed) just get it derived the first time
       // they're opened, so upgrading never loses anything.
       subWidgets: Array.isArray(config.subWidgets) ? config.subWidgets.slice() : null,
+      // Which of this room's entities the glance temperature/target-temp
+      // stepper comes from. '' (the default) means auto-detect, same as
+      // before this setting existed - findPrimaryTemperature() falls back
+      // to that whenever this is unset or points at something that's no
+      // longer in the room.
+      tempEntityId: config.tempEntityId || '',
     };
     let liveEntities = {}; // entity_id -> live HA entity
     let pollTimer = null;
@@ -108,6 +114,7 @@
     let saveTimer = null;
     let editorDraftName = '';
     let editorDraftEntities = [];
+    let editorDraftTempEntity = '';
 
     function scheduleSaveRoom() {
       clearTimeout(saveTimer);
@@ -177,6 +184,7 @@
     function openEditor() {
       editorDraftName = cfg.name;
       editorDraftEntities = cfg.entities.slice();
+      editorDraftTempEntity = cfg.tempEntityId || '';
       editorEl.classList.add('llw-open');
       renderEditorStep1();
     }
@@ -223,6 +231,10 @@
           <label class="llw-room__editor-label">${t('room', 'chooseEntitiesTitle')}</label>
           <input type="text" class="llw-room__search" placeholder="${escapeHtml(t('room', 'searchPlaceholder'))}" />
           <div class="llw-room__editor-list">…</div>
+          <div class="llw-room__editor-temp">
+            <label class="llw-room__editor-label llw-room__editor-label--sub">${t('room', 'tempSourceLabel')}</label>
+            <select class="llw-room__temp-select"><option value="">${t('room', 'tempSourceAuto')}</option></select>
+          </div>
           <div class="llw-room__editor-actions">
             <button type="button" class="llw-room__back">${t('room', 'back')}</button>
             <button type="button" class="llw-room__save">${t('room', 'save')}</button>
@@ -231,7 +243,38 @@
       `;
       const listEl = editorEl.querySelector('.llw-room__editor-list');
       const searchEl = editorEl.querySelector('.llw-room__search');
+      const tempSelectEl = editorEl.querySelector('.llw-room__temp-select');
       let allEntities = [];
+
+      // Only a climate entity (has a settable target) or a temperature
+      // sensor is worth offering as "the" room temperature - and only ones
+      // actually checked into this room, so this stays a refinement of
+      // what's already there rather than a second, unrelated entity picker.
+      function isTempCandidate(e) {
+        const domain = domainOf(e.entity_id);
+        if (domain === 'climate') return true;
+        return domain === 'sensor' && e.attributes && e.attributes.device_class === 'temperature';
+      }
+      function refreshTempOptions() {
+        const candidates = editorDraftEntities
+          .map((id) => allEntities.find((e) => e.entity_id === id) || { entity_id: id, attributes: {} })
+          .filter(isTempCandidate);
+        // If the entity that was providing the temperature just got
+        // unchecked, fall back to "Automatic" rather than keeping a
+        // dangling id nothing points at any more.
+        if (editorDraftTempEntity && !candidates.some((e) => e.entity_id === editorDraftTempEntity)) {
+          editorDraftTempEntity = '';
+        }
+        tempSelectEl.disabled = !candidates.length;
+        tempSelectEl.innerHTML =
+          `<option value="">${t('room', 'tempSourceAuto')}</option>` +
+          candidates
+            .map((e) => `<option value="${e.entity_id}" ${e.entity_id === editorDraftTempEntity ? 'selected' : ''}>${escapeHtml(friendlyName(e))}</option>`)
+            .join('');
+      }
+      tempSelectEl.addEventListener('change', () => {
+        editorDraftTempEntity = tempSelectEl.value;
+      });
 
       function renderList(filterText) {
         const q = filterText.trim().toLowerCase();
@@ -269,6 +312,7 @@
             editorDraftEntities = cb.checked
               ? editorDraftEntities.concat(cb.value)
               : editorDraftEntities.filter((id) => id !== cb.value);
+            refreshTempOptions();
           });
         });
       }
@@ -278,6 +322,7 @@
         .then((entities) => {
           allEntities = entities;
           renderList('');
+          refreshTempOptions();
         })
         .catch((err) => {
           console.error('[loudllama][room] failed to load entities', err);
@@ -287,7 +332,12 @@
       searchEl.addEventListener('input', () => renderList(searchEl.value));
       editorEl.querySelector('.llw-room__back').addEventListener('click', renderEditorStep1);
       editorEl.querySelector('.llw-room__save').addEventListener('click', () => {
-        cfg = { name: editorDraftName, entities: editorDraftEntities.slice(), subWidgets: cfg.subWidgets || [] };
+        cfg = {
+          name: editorDraftName,
+          entities: editorDraftEntities.slice(),
+          subWidgets: cfg.subWidgets || [],
+          tempEntityId: editorDraftTempEntity || '',
+        };
         syncSubWidgets();
         ensureSubWidgetTypesLoaded().then(() => saveConfig(cfg));
         closeEditor();
@@ -352,11 +402,29 @@
       });
     }
 
+    // Returns {value, unit, climateEntityId?} - climateEntityId is only set
+    // when the source is a climate.* entity (i.e. one with an actual
+    // settable target), which is what renderCompact() uses to decide
+    // whether to show the +/- stepper next to the glance temperature.
     function findPrimaryTemperature() {
+      if (cfg.tempEntityId) {
+        const chosen = liveEntities[cfg.tempEntityId];
+        if (chosen) {
+          if (domainOf(chosen.entity_id) === 'climate' && chosen.attributes && chosen.attributes.current_temperature !== undefined) {
+            return { value: chosen.attributes.current_temperature, unit: '°', climateEntityId: chosen.entity_id };
+          }
+          if (chosen.attributes && chosen.attributes.device_class === 'temperature') {
+            return { value: chosen.state, unit: chosen.attributes.unit_of_measurement || '°' };
+          }
+        }
+        // Chosen entity is missing or turned out not to be temperature-
+        // shaped (e.g. removed from HA) - fall through to auto-detect
+        // rather than showing nothing.
+      }
       const climateEnt = cfg.entities
         .map((id) => liveEntities[id])
         .find((e) => e && domainOf(e.entity_id) === 'climate' && e.attributes && e.attributes.current_temperature !== undefined);
-      if (climateEnt) return { value: climateEnt.attributes.current_temperature, unit: '°' };
+      if (climateEnt) return { value: climateEnt.attributes.current_temperature, unit: '°', climateEntityId: climateEnt.entity_id };
       const sensorEnt = cfg.entities
         .map((id) => liveEntities[id])
         .find((e) => e && e.attributes && e.attributes.device_class === 'temperature');
@@ -381,8 +449,20 @@
       }
       const counts = groupCounts();
       const temp = findPrimaryTemperature();
+      const climateId = temp && temp.climateEntityId;
+      const climateEnt = climateId ? liveEntities[climateId] : null;
+      const target = climateEnt && climateEnt.attributes ? climateEnt.attributes.temperature : undefined;
       glanceEl.innerHTML = `
-        ${temp ? `<div class="llw-room__temp">${formatGlanceTemp(temp)}</div>` : ''}
+        ${temp ? `
+          <div class="llw-room__temp-row">
+            <div class="llw-room__temp">${formatGlanceTemp(temp)}</div>
+            ${climateId ? `
+              <div class="llw-room__temp-stepper">
+                <button type="button" class="llw-room__temp-btn" data-temp-action="dec" aria-label="-">−</button>
+                <span class="llw-room__temp-target">${target !== undefined && target !== null ? `${Math.round(target * 10) / 10}°` : '--'}</span>
+                <button type="button" class="llw-room__temp-btn" data-temp-action="inc" aria-label="+">+</button>
+              </div>` : ''}
+          </div>` : ''}
         <div class="llw-room__chips">
           ${GROUP_ORDER.filter((g) => counts[g])
             .map((g) => `<span class="llw-room__chip" title="${t('room', `groups.${g}`)}">${GROUP_ICON[g]}<b>${counts[g]}</b></span>`)
@@ -390,6 +470,23 @@
         </div>
         <div class="llw-room__hint">${t('room', 'tapToOpen')}</div>
       `;
+      // Glance tile itself is clickable (opens the full room popup), so
+      // both stepper buttons have to stop that click from reaching it -
+      // same pattern as the gear icon just above.
+      if (climateId) {
+        const stepClimateTarget = (delta) => {
+          const ent = liveEntities[climateId];
+          if (!ent) return;
+          const base = (ent.attributes && ent.attributes.temperature) || 20;
+          const next = Math.round((base + delta) * 10) / 10;
+          optimisticMutate(climateId, (e) => { e.attributes.temperature = next; });
+          callService('climate', 'set_temperature', climateId, { temperature: next });
+        };
+        const decBtn = glanceEl.querySelector('[data-temp-action="dec"]');
+        const incBtn = glanceEl.querySelector('[data-temp-action="inc"]');
+        decBtn.addEventListener('click', (ev) => { ev.stopPropagation(); stepClimateTarget(-0.5); });
+        incBtn.addEventListener('click', (ev) => { ev.stopPropagation(); stepClimateTarget(0.5); });
+      }
     }
 
     roomEl.addEventListener('click', (ev) => {

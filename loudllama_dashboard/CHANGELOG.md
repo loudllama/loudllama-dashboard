@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.09.010
+
+- Fix: **jiggle mode made the remove/pin/settings badges hard to hit**, especially on a wide widget - a rotation's displacement at a corner scales with the widget's size, so the same jiggle angle moved a wide tile's badges much more than a small one's. Jiggle amplitude is roughly halved, and every small badge (remove, pin, and every widget's own settings gear) now freezes the jiggle the moment the pointer reaches it, so the click always lands on a still target instead of a moving one.
+- Fix: **dragging a Light or Speaker widget's slider (brightness / volume) didn't track the drag** - every tiny movement was rebuilding the slider itself, which killed the browser's own drag gesture after the first pixel of movement, so the light only ever jumped to whatever value that first pixel implied. This affected the slider everywhere it appears, standalone on the dashboard and nested inside a Room.
+- New: **Room widget can now adjust the temperature, not just show it**. If the room's temperature comes from a thermostat (a `climate.*` entity), the glance tile now shows a +/- stepper right next to the reading, the same control the standalone Thermostat widget has.
+- New: **Room widget setting to choose which entity the temperature comes from**. Previously this was always auto-detected (first thermostat, or first temperature sensor, among the room's entities); a room's settings now offer a "Temperature comes from" dropdown - listing whichever of the room's own entities are thermostats or temperature sensors - so you can pick the right one yourself when a room has more than one, instead of hoping auto-detection picks the one you meant.
+
 ## 0.09.009
 
 - New: **add-on icon**. The add-on store and "Local apps" list previously showed a generic puzzle-piece placeholder since no icon was shipped; added a proper `icon.png`/`icon@2x.png` (a small llama face on the same dark rounded-card look the dashboard itself uses).

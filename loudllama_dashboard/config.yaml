@@ -1,5 +1,5 @@
 name: "LoudLlama Dashboard"
-version: "0.09.009"
+version: "0.09.010"
 slug: "loudllama_dashboard"
 description: "Build your own freely customizable, iPad-style dashboard in Home Assistant with movable widgets"
 url: "https://github.com/loudllama/loudllama-dashboard"

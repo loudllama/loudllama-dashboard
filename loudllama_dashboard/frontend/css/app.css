@@ -339,13 +339,21 @@ body.llw-edit-mode .llw-widget {
    item that's actually being dragged/resized right now so it doesn't fight
    GridStack's own transform on that item, or for anyone who's asked the OS
    to reduce motion. */
+/* Amplitude was originally ±1-1.2deg, tuned by eye on small tiles - it
+   turned out to be genuinely hard to click the remove/pin badge, because a
+   rotation's displacement at the corner scales with distance from the
+   center, so the same angle moves a wide widget's corner (where the badge
+   sits) far more than a small one's. Halved to ±0.5-0.6deg, which still
+   reads clearly as "jiggling" but keeps the badge close enough to its rest
+   position to hit reliably even on a wide tile; see also the :hover pause
+   below for the rest of that fix. */
 @keyframes llw-jiggle-a {
-  0%, 100% { transform: rotate(-1deg); }
-  50% { transform: rotate(1.2deg); }
+  0%, 100% { transform: rotate(-0.5deg); }
+  50% { transform: rotate(0.6deg); }
 }
 @keyframes llw-jiggle-b {
-  0%, 100% { transform: rotate(1deg); }
-  50% { transform: rotate(-1.2deg); }
+  0%, 100% { transform: rotate(0.5deg); }
+  50% { transform: rotate(-0.6deg); }
 }
 @media (prefers-reduced-motion: no-preference) {
   body.llw-edit-mode .grid-stack-item:not(.ui-draggable-dragging):not(.ui-resizable-resizing) .llw-widget-shell,
@@ -377,6 +385,33 @@ body.llw-edit-mode .llw-widget {
      pseudo-classes and end up more specific than a plain
      ".llw-widget-shell:has(...)" selector otherwise - this one has to win
      unconditionally, in every jiggle variant, dock or grid. */
+  animation: none !important;
+}
+/* A widget's own settings/editor panel (Room's setup wizard, Light/
+   Climate/Media/Weather/Frigate's entity-picker gear, Group's name editor
+   and its "add widget" menu - every one of them toggles the shared
+   ".llw-open" class) lives INSIDE .llw-widget-shell, so it jiggles right
+   along with the tile behind it whenever edit mode is on - a checkbox or
+   dropdown is a much easier target than the tiny remove/pin badge, but a
+   wobbling name field and "Save" button are still worse to use than a
+   still one. Same blanket pause as the focused-input rule above, just
+   triggered by any panel being open rather than only a focused text field. */
+.llw-widget-shell:has(.llw-open) {
+  animation: none !important;
+}
+/* The other half of the "can't hit the delete button" fix: freeze the
+   jiggle the instant the pointer reaches the remove/pin badge, the same way
+   it already freezes for a focused input above. A moving mouse cursor still
+   has to catch a moving target on the way in, but the reduced amplitude
+   above makes that easy, and once :hover engages the badge stops moving
+   entirely, so the actual click always lands - no chasing a wobbling
+   target for the click itself. */
+/* [class*="__gear"] catches every widget's own settings-gear button
+   (llw-light__gear, llw-climate__gear, llw-room__gear, llw-group__gear,
+   ...) in one rule instead of enumerating each widget - they're only ever
+   shown in edit mode to begin with (same as remove/pin), so they have the
+   exact same "always jiggling while tappable" problem. */
+.llw-widget-shell:has(.llw-remove:hover, .llw-pin:hover, [class*="__gear"]:hover) {
   animation: none !important;
 }
 

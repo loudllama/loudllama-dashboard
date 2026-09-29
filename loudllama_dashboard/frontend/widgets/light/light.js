@@ -117,11 +117,20 @@
       const slider = bodyEl.querySelector('.llw-light__slider');
       if (slider) {
         slider.addEventListener('click', (ev) => ev.stopPropagation());
+        // Deliberately NOT calling optimisticMutate()/render() here: a real
+        // drag fires many 'input' events per second, and render() rebuilds
+        // this exact <input> via bodyEl.innerHTML - replacing the element
+        // the browser is mid-drag on kills the native slider gesture after
+        // the very first tick (the drag was still targeting the now-removed
+        // old node), so the light only ever jumped to whatever the first
+        // pixel of movement was. Just keep `entity` in sync for later reads;
+        // the slider's own displayed value already tracks the drag natively,
+        // and nothing else on the tile needs to update mid-gesture.
         slider.addEventListener('input', () => {
-          optimisticMutate((e) => {
-            e.state = 'on';
-            e.attributes.brightness = Math.round((Number(slider.value) / 100) * 255);
-          });
+          if (entity) {
+            entity.state = 'on';
+            entity.attributes.brightness = Math.round((Number(slider.value) / 100) * 255);
+          }
         });
         slider.addEventListener('change', () => {
           callService('turn_on', { brightness_pct: Number(slider.value) });

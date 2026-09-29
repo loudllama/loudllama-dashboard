@@ -77,10 +77,46 @@ body.llw-edit-mode .llw-room__gear { display: inline-flex; }
   min-height: 0;
 }
 
+.llw-room__temp-row {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
 .llw-room__temp {
   font-size: 1.9rem;
   font-weight: 700;
   line-height: 1;
+}
+
+/* Only shown when the glance temperature actually comes from a climate.*
+   entity (see findPrimaryTemperature()/renderCompact() in room.js) - a
+   plain sensor has no target to set, so no stepper for those. */
+.llw-room__temp-stepper {
+  display: flex;
+  align-items: center;
+  gap: 0.28rem;
+}
+.llw-room__temp-btn {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-size: 0.85rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.llw-room__temp-btn:hover { background: rgba(255, 255, 255, 0.24); }
+.llw-room__temp-target {
+  min-width: 2.6em;
+  text-align: center;
+  font-size: 0.8rem;
+  font-weight: 600;
+  opacity: 0.85;
 }
 
 .llw-room__chips {
@@ -189,6 +225,26 @@ body.llw-edit-mode .llw-room__gear { display: inline-flex; }
   flex-direction: column;
   gap: 0.7rem;
 }
+
+.llw-room__editor-temp {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.llw-room__editor-label--sub {
+  padding-right: 0;
+}
+.llw-room__temp-select {
+  width: 100%;
+  padding: 0.5rem 0.6rem;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-size: 0.85rem;
+}
+.llw-room__temp-select:disabled { opacity: 0.5; }
 .llw-room__editor-group-label {
   font-size: 0.68rem;
   text-transform: uppercase;

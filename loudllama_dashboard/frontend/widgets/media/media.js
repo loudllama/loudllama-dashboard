@@ -118,8 +118,13 @@
       const volume = bodyEl.querySelector('.llw-media__volume');
       if (volume) {
         volume.addEventListener('click', (ev) => ev.stopPropagation());
+        // Same fix as light.js's brightness slider: don't call
+        // optimisticMutate()/render() from 'input' - it rebuilds this
+        // element via bodyEl.innerHTML on every tick of the drag, which
+        // kills the native slider gesture after the first pixel of
+        // movement. Just track the value; visuals stay native during drag.
         volume.addEventListener('input', () => {
-          optimisticMutate((e) => { e.attributes.volume_level = Number(volume.value) / 100; });
+          if (entity) entity.attributes.volume_level = Number(volume.value) / 100;
         });
         volume.addEventListener('change', () => {
           callService('volume_set', { volume_level: Number(volume.value) / 100 });
