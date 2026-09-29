@@ -64,7 +64,14 @@ body.llw-edit-mode .llw-frigate__gear { display: inline-flex; }
   grid-auto-rows: minmax(0, 1fr);
   gap: 6px;
   padding: 0 0.6rem 0.6rem;
-  overflow: auto;
+  /* Was `auto`. layoutGrid()/bestColumnCount() in frigate.js already pick
+     the column count that best fits the widget's current width x height,
+     but a fixed-aspect-ratio camera tile (16/9) can still end up a few
+     pixels taller than the row height the CSS grid actually allotted it -
+     enough for `auto` to permanently show a thin scrollbar down the right
+     edge even though nothing meaningful is cut off. Clipping that sliver
+     reads far better than a scrollbar that's always there. */
+  overflow: hidden;
   align-content: start;
 }
 

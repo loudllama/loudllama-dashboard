@@ -146,8 +146,14 @@
   // slightly-different rectangles. Picks whichever tier is closest to
   // whatever size the user actually dragged to, so it still feels like a
   // normal resize and not like fighting the grid.
-  const LLW_WIDTH_TIERS = [2, 3, 4, 6, 8, 12];
-  const LLW_HEIGHT_TIERS = [2, 3, 4, 6];
+  // 1 is included here even though most widgets never reach it: pickTier()
+  // below filters candidate tiers down to whatever's >= a widget's own
+  // minSize first, so a widget whose minSize is still {w:2,h:2} (the
+  // default) simply never sees 1 as a candidate and keeps snapping exactly
+  // as before. Only a widget that explicitly declares minSize:{w:1,h:1}
+  // (e.g. Room) can actually land on it.
+  const LLW_WIDTH_TIERS = [1, 2, 3, 4, 6, 8, 12];
+  const LLW_HEIGHT_TIERS = [1, 2, 3, 4, 6];
   function pickTier(current, tiers, min, max) {
     const candidates = tiers.filter((t) => t >= (min || 1) && t <= (max || Infinity));
     if (!candidates.length) return Math.max(min || 1, Math.min(current, max || current));

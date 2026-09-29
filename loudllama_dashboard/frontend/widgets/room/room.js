@@ -937,7 +937,7 @@
   LL.registerWidget('room', {
     name: { en: 'Room', da: 'Værelse', de: 'Raum', sv: 'Rum', no: 'Rom' },
     defaultSize: { w: 3, h: 3 },
-    minSize: { w: 2, h: 2 },
+    minSize: { w: 1, h: 1 },
     defaultConfig: () => ({ name: '', entities: [] }),
     mount,
   });

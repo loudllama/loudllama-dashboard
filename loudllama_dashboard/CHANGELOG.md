@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.09.011
+
+- Fix: **Room widget couldn't be resized down to a 1x1 grid cell**. Resizing snaps to a small set of curated sizes (see 0.09.008), but the smallest size in that set was 2x2 for every widget, Room included, so shrinking it any further always bounced back up to 2x2. Room can now go all the way down to a single grid cell; every other widget's smallest size is unchanged.
+- Fix: **Cameras (Frigate) widget showed a thin scrollbar down its right edge**. The camera grid already resizes itself to fit the widget, but a same-aspect-ratio camera tile could still end up a pixel or two taller than the space actually available, which was enough to make the scrollbar appear permanently even though there was nothing meaningful to scroll to. It's gone now.
+- Note: full multi-page/swipeable dashboards (several "pages" of widgets, like iOS home screen pages) are still on the list - flagging again that this hasn't been forgotten, just still waiting for its own dedicated pass rather than being squeezed into a batch with unrelated fixes. Let me know if you'd like that to be the next thing tackled.
+
 ## 0.09.010
 
 - Fix: **jiggle mode made the remove/pin/settings badges hard to hit**, especially on a wide widget - a rotation's displacement at a corner scales with the widget's size, so the same jiggle angle moved a wide tile's badges much more than a small one's. Jiggle amplitude is roughly halved, and every small badge (remove, pin, and every widget's own settings gear) now freezes the jiggle the moment the pointer reaches it, so the click always lands on a still target instead of a moving one.
