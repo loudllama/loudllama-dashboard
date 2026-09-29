@@ -1,5 +1,5 @@
 :root {
-  --llw-radius: 16px;
+  --llw-radius: 22px;
   --llw-gap: 12px;
 }
 
@@ -115,7 +115,93 @@ body.llw-edit-mode .llw-bg-upload {
 
 .grid-stack {
   padding: var(--llw-gap);
+  /* Leaves room so the last row of widgets never sits behind the fixed
+     dock - only actually needed once something is pinned (see
+     body.llw-has-dock, toggled from app.js). */
+  transition: padding-bottom 0.2s ease;
 }
+body.llw-has-dock .grid-stack {
+  padding-bottom: 118px;
+}
+
+/* Fixed "favorites" row, always visible regardless of scroll - the iOS
+   dock. Hidden entirely (via body.llw-has-dock, toggled in app.js) until
+   at least one widget is pinned. */
+.llw-dock {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  display: none;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 14px;
+  padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
+  overflow-x: auto;
+}
+body.llw-has-dock .llw-dock {
+  display: flex;
+  background: rgba(20, 23, 30, 0.55);
+  backdrop-filter: blur(16px);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.llw-dock-item {
+  /* Explicit height (not just width) so .llw-widget-shell's existing
+     height:100% + "flex:1 1 auto after the caption" rule (see
+     .llw-widget-shell > .llw-widget above) resolves the same way it does
+     for a normal grid tile, instead of fighting it with a second
+     conflicting height rule. */
+  flex: 0 0 auto;
+  width: 88px;
+  height: 108px;
+}
+.llw-dock-item .llw-caption {
+  font-size: 0.66rem;
+}
+/* The dock tile (88x93px of usable widget area) is meaningfully narrower
+   than even the smallest grid tier, and widget internals size themselves in
+   rem (relative to the page root, not their own container) - so a verbose
+   state like a weather widget's "no entity configured" message wraps and
+   gets clipped mid-word instead of just shrinking to fit. `zoom` scales the
+   widget's whole internal layout (text, icons, spacing) down together,
+   which is the actual fix; it leaves the remove/pin buttons and caption
+   alone since those are already sized for a small touch target. Supported
+   in all current Chromium/WebKit-based renderers (incl. iOS/Android HA
+   companion webviews) and in Firefox since 126 (2024); on anything older it
+   simply falls back to today's clipping behavior, not a regression. */
+.llw-dock-item .llw-body {
+  zoom: 0.68;
+}
+
+.llw-pin {
+  /* Bottom-right, not another top corner - top-left runs into the title
+     text every widget already puts there and top-right is where .llw-remove
+     lives. Bottom-right is the one spot no widget header reserves, and
+     body content rarely extends into the exact last few pixels of a
+     corner. */
+  position: absolute;
+  bottom: 6px;
+  right: 6px;
+  z-index: 5;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid rgba(20, 23, 30, 0.9);
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  font-size: 0.72rem;
+  line-height: 1;
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+body.llw-edit-mode .llw-pin { display: flex; }
+.llw-pin:hover { background: rgba(255, 255, 255, 0.3); }
+.llw-pin.llw-pinned { background: #ffd166; color: #1a1200; }
 
 /* Outer shell fills the GridStack cell exactly (same 100%/100% the card
    itself used to have directly) and stacks the card above a small caption
@@ -139,8 +225,26 @@ body.llw-edit-mode .llw-bg-upload {
   height: 100%;
   border-radius: var(--llw-radius);
   overflow: hidden;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
   background: rgba(30, 34, 44, 0.6);
+  /* A slim inner highlight ring (the "continuous corner" glossy edge a lot
+     of iOS chrome uses) plus a spring-flavored press transition - both
+     purely cosmetic, neither changes layout so every consumer of this
+     class (the main dashboard, Room/Group's nested tiles) gets them for
+     free. */
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35), inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transform: scale(1);
+  will-change: transform;
+}
+/* Tap/press feedback - the widget shrinks slightly the moment it's pressed
+   and springs back on release, the same "squishy icon" feel iOS app icons
+   and widgets have. Scoped to the card itself (not the shell), so the
+   caption underneath doesn't move with it. Skipped while the item is
+   actually being dragged or resized (see body.llw-edit-mode rules further
+   down) so it doesn't fight GridStack's own transform. */
+.llw-widget:active {
+  transform: scale(0.96);
+  transition-duration: 0.12s;
 }
 /* Only override to the flex-friendly "fill remaining space after the
    caption" sizing when .llw-widget is actually inside the new shell - more
@@ -193,6 +297,13 @@ body.llw-edit-mode .llw-caption:hover {
 }
 
 .llw-remove {
+  /* Solid circle, "−" glyph instead of "×" - closer to the iOS delete-badge
+     look. Stays top-RIGHT (not the top-left corner real iOS uses) because
+     every widget's own header already reserves clearance there for it
+     (padding-right: 30px, so its title/gear never collide with this
+     button) - moving it to the opposite corner would run straight into
+     each widget's title text instead, which isn't worth the "feel" gained
+     without also reworking every widget header's padding to match. */
   position: absolute;
   top: 6px;
   right: 6px;
@@ -200,21 +311,73 @@ body.llw-edit-mode .llw-caption:hover {
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  border: none;
-  background: rgba(0, 0, 0, 0.45);
+  border: 2px solid rgba(20, 23, 30, 0.9);
+  background: #ff4d4f;
   color: #fff;
-  font-size: 0.9rem;
+  font-size: 1rem;
+  font-weight: 700;
   line-height: 1;
   cursor: pointer;
   display: none;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
 }
 body.llw-edit-mode .llw-remove { display: flex; }
 
 body.llw-edit-mode .llw-widget {
   outline: 2px dashed rgba(255, 255, 255, 0.35);
   outline-offset: 2px;
+}
+
+/* Jiggle mode - every widget wobbles gently and slightly out of sync with
+   its neighbours while editing, the classic "hold to rearrange" springboard
+   tell. Two alternating keyframe directions (assigned by odd/even child
+   position) plus a small per-item delay offset keep it from reading as one
+   single mass rotating in lockstep. Scoped to the shell (whole tile incl.
+   caption) so the label jiggles along with its icon, and skipped for an
+   item that's actually being dragged/resized right now so it doesn't fight
+   GridStack's own transform on that item, or for anyone who's asked the OS
+   to reduce motion. */
+@keyframes llw-jiggle-a {
+  0%, 100% { transform: rotate(-1deg); }
+  50% { transform: rotate(1.2deg); }
+}
+@keyframes llw-jiggle-b {
+  0%, 100% { transform: rotate(1deg); }
+  50% { transform: rotate(-1.2deg); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  body.llw-edit-mode .grid-stack-item:not(.ui-draggable-dragging):not(.ui-resizable-resizing) .llw-widget-shell,
+  body.llw-edit-mode .llw-dock-item .llw-widget-shell {
+    animation: llw-jiggle-a 0.28s ease-in-out infinite;
+    transform-origin: 50% 50%;
+  }
+  body.llw-edit-mode .grid-stack-item:nth-child(even):not(.ui-draggable-dragging):not(.ui-resizable-resizing) .llw-widget-shell,
+  body.llw-edit-mode .llw-dock-item:nth-child(even) .llw-widget-shell {
+    animation-name: llw-jiggle-b;
+    animation-duration: 0.24s;
+  }
+  body.llw-edit-mode .grid-stack-item:nth-child(3n):not(.ui-draggable-dragging):not(.ui-resizable-resizing) .llw-widget-shell,
+  body.llw-edit-mode .llw-dock-item:nth-child(3n) .llw-widget-shell {
+    animation-delay: -0.1s;
+  }
+}
+.grid-stack-item.ui-draggable-dragging .llw-widget-shell,
+.grid-stack-item.ui-resizable-resizing .llw-widget-shell {
+  animation: none;
+}
+/* Also pause jiggle for any widget that currently has an open text input
+   inside it - a Group/Room's name setup, the caption rename field, a
+   widget's own settings form, etc. A wobbling editor is genuinely harder
+   to use (the input and its save button keep drifting under the cursor),
+   and real iOS doesn't jiggle content you're actively typing into either. */
+.llw-widget-shell:has(input:focus, textarea:focus) {
+  /* !important because the jiggle rules above stack several :not()
+     pseudo-classes and end up more specific than a plain
+     ".llw-widget-shell:has(...)" selector otherwise - this one has to win
+     unconditionally, in every jiggle variant, dock or grid. */
+  animation: none !important;
 }
 
 .llw-error {

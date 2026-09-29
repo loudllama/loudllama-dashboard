@@ -47,6 +47,14 @@
 
   <div class="grid-stack" id="llw-grid"></div>
 
+  <!--
+    Fixed row of pinned "favorite" widgets, iOS-dock style - stays put at
+    the bottom of the screen regardless of how far the grid above is
+    scrolled. Empty (and hidden) until something is pinned; see app.js's
+    pinToDock/unpinFromDock.
+  -->
+  <div id="llw-dock" class="llw-dock"></div>
+
   <script src="vendor/gridstack/gridstack-all.js"></script>
   <script src="js/i18n.js"></script>
   <script src="js/device.js"></script>

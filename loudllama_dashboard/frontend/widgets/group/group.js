@@ -121,15 +121,33 @@
       openEditor();
     });
 
+    // Small per-type glyph for the folder-stack preview - deliberately just
+    // a compact local lookup (not shared with store.js's own EMOJI map,
+    // which is private to that file) since this only ever needs to cover
+    // whatever a Group can actually contain, i.e. anything except itself.
+    const STACK_EMOJI = {
+      weather: '🌤️', frigate: '📷', room: '🚪', light: '💡', climate: '🌡️', media: '🔊',
+    };
+
     // --- Compact glance tile ------------------------------------------------
+    // Renders like an iOS folder icon: a 2x2 stack of mini-tiles, one per
+    // contained widget (up to 4, most-recently-added first), instead of a
+    // plain "N widgets" count - so a Group actually looks like what's
+    // inside it at a glance, the same way a real folder icon does.
     function renderCompact() {
       nameEl.textContent = cfg.name;
       groupEl.style.setProperty('--group-hue', String(hashHue(cfg.name || 'group')));
       groupEl.classList.toggle('llw-group--clickable', !!cfg.name);
-      const count = cfg.widgets.length;
-      glanceEl.innerHTML = count
-        ? `<div class="llw-group__count">${count}</div><div class="llw-group__hint">${t('room', 'tapToOpen')}</div>`
-        : `<div class="llw-group__empty">${escapeHtml(t('group', 'empty'))}</div>`;
+      if (!cfg.widgets.length) {
+        glanceEl.innerHTML = `<div class="llw-group__empty">${escapeHtml(t('group', 'empty'))}</div>`;
+        return;
+      }
+      const preview = cfg.widgets.slice(-4).reverse();
+      const cells = preview
+        .map((w) => `<div class="llw-group__stack-cell">${STACK_EMOJI[w.type] || '🧩'}</div>`)
+        .join('');
+      const overflow = cfg.widgets.length > 4 ? `<div class="llw-group__stack-more">+${cfg.widgets.length - 4}</div>` : '';
+      glanceEl.innerHTML = `<div class="llw-group__stack">${cells}</div>${overflow}`;
     }
 
     groupEl.addEventListener('click', (ev) => {
@@ -305,6 +323,11 @@
 
     function openModal() {
       closeModal();
+      // Where the tapped tile actually is on screen right now - the bubble
+      // will grow out from this point instead of just appearing centered.
+      const originRect = groupEl.getBoundingClientRect();
+      const originX = originRect.left + originRect.width / 2;
+      const originY = originRect.top + originRect.height / 2;
       const modal = document.createElement('div');
       modal.className = 'llw-group-modal';
       modal.innerHTML = `
@@ -351,6 +374,28 @@
       // empty group otherwise has nothing to click and no obvious way in.
       if (!cfg.widgets.length) setArranging(true);
       else setArranging(false);
+
+      // Only now (after the subgrid has its real content and GridStack has
+      // set its actual pixel height) measure the card's true size - doing
+      // this any earlier would clamp/center against a too-short guess and
+      // the popup could end up overflowing the viewport once the subgrid's
+      // widgets actually render in. Placed centered on the tile that was
+      // tapped and clamped to stay fully on-screen, then revealed with the
+      // "pop open from the icon" motion.
+      const card = modal.querySelector('.llw-group-modal__card');
+      requestAnimationFrame(() => {
+        const cardRect = card.getBoundingClientRect();
+        const margin = 16;
+        const maxLeft = Math.max(margin, window.innerWidth - cardRect.width - margin);
+        const maxTop = Math.max(margin, window.innerHeight - cardRect.height - margin);
+        const left = Math.min(Math.max(originX - cardRect.width / 2, margin), maxLeft);
+        const top = Math.min(Math.max(originY - cardRect.height / 2, margin), maxTop);
+        card.style.left = `${left}px`;
+        card.style.top = `${top}px`;
+        card.style.setProperty('--llw-pop-x', `${originX - left}px`);
+        card.style.setProperty('--llw-pop-y', `${originY - top}px`);
+        card.classList.add('llw-group-modal__card--placed');
+      });
     }
 
     // --- Boot ------------------------------------------------------------------

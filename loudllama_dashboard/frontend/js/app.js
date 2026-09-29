@@ -138,6 +138,22 @@
   let editMode = false;
   let saveTimer = null;
 
+  // Widgets resize to one of a curated set of sizes instead of every
+  // arbitrary integer cell count the 12-column grid technically allows -
+  // the same idea as iOS 14+ widgets only coming in small/medium/large:
+  // it's what makes a dashboard people have been freely resizing for a
+  // while still read as an ordered tile grid instead of a jumble of
+  // slightly-different rectangles. Picks whichever tier is closest to
+  // whatever size the user actually dragged to, so it still feels like a
+  // normal resize and not like fighting the grid.
+  const LLW_WIDTH_TIERS = [2, 3, 4, 6, 8, 12];
+  const LLW_HEIGHT_TIERS = [2, 3, 4, 6];
+  function pickTier(current, tiers, min, max) {
+    const candidates = tiers.filter((t) => t >= (min || 1) && t <= (max || Infinity));
+    if (!candidates.length) return Math.max(min || 1, Math.min(current, max || current));
+    return candidates.reduce((best, t) => (Math.abs(t - current) < Math.abs(best - current) ? t : best), candidates[0]);
+  }
+
   function scheduleSave() {
     clearTimeout(saveTimer);
     saveTimer = setTimeout(saveLayout, 500);
@@ -153,7 +169,7 @@
     // which GridStack keeps current on every move/resize) sidesteps that
     // entirely, and skipping anything without a widgetType still guards
     // against a stale/detached element lingering right after removeWidget().
-    const widgets = Array.from(grid.el.children)
+    const gridWidgets = Array.from(grid.el.children)
       .filter((el) => el.classList.contains('grid-stack-item') && el.dataset && el.dataset.widgetType && el.gridstackNode)
       .map((el) => {
         const node = el.gridstackNode;
@@ -166,9 +182,27 @@
           h: node.h,
           config: JSON.parse(el.dataset.widgetConfig || '{}'),
           label: el.dataset.widgetLabel || '',
+          dock: false,
         };
       });
-    return { widgets };
+    // Docked widgets live outside GridStack entirely (see pinToDock), so
+    // they're read straight off their own dataset instead of a
+    // gridstackNode - x/y/w/h are whatever they were the moment they got
+    // pinned, kept only so there's a sane place to put them back on unpin.
+    const dockWidgets = Array.from(document.getElementById('llw-dock').children)
+      .filter((el) => el.dataset && el.dataset.widgetType)
+      .map((el) => ({
+        id: el.dataset.widgetId,
+        type: el.dataset.widgetType,
+        x: Number(el.dataset.widgetX || 0),
+        y: Number(el.dataset.widgetY || 0),
+        w: Number(el.dataset.widgetW || 3),
+        h: Number(el.dataset.widgetH || 3),
+        config: JSON.parse(el.dataset.widgetConfig || '{}'),
+        label: el.dataset.widgetLabel || '',
+        dock: true,
+      }));
+    return { widgets: gridWidgets.concat(dockWidgets) };
   }
 
   async function saveLayout() {
@@ -265,28 +299,35 @@
     });
   }
 
-  function addWidgetElement(node) {
-    const widgetId = node.id || `${node.type}-${Date.now()}`;
-    const def = LL.widgetTypes[node.type];
-    const size = node.w
-      ? node
-      : { ...(def ? def.defaultSize : { w: 3, h: 3 }), ...node };
+  function updateDockVisibility() {
+    document.body.classList.toggle('llw-has-dock', document.getElementById('llw-dock').children.length > 0);
+  }
 
+  function syncPinButton(el) {
+    const btn = el.querySelector('.llw-pin');
+    if (!btn) return;
+    const pinned = el.classList.contains('llw-dock-item');
+    btn.classList.toggle('llw-pinned', pinned);
+    const label = t('app', pinned ? 'unpinFromDock' : 'pinToDock');
+    btn.title = label;
+    btn.setAttribute('aria-label', label);
+  }
+
+  // Shared by both the main grid and the dock - the actual card markup
+  // (remove button, pin button, body, caption) never depends on which
+  // container it currently lives in.
+  function buildWidgetCard(node, widgetId) {
     const el = document.createElement('div');
-    el.className = 'grid-stack-item';
     el.dataset.widgetType = node.type;
+    el.dataset.widgetId = widgetId;
     el.dataset.widgetConfig = JSON.stringify(node.config || {});
     el.dataset.widgetLabel = node.label || '';
-    el.setAttribute('gs-id', widgetId);
-    el.setAttribute('gs-x', size.x ?? 0);
-    el.setAttribute('gs-y', size.y ?? 0);
-    el.setAttribute('gs-w', size.w ?? 3);
-    el.setAttribute('gs-h', size.h ?? 3);
     const captionText = el.dataset.widgetLabel || defaultLabelFor(node.type, node.config || {});
     el.innerHTML = `
-      <div class="grid-stack-item-content llw-widget-shell">
+      <div class="llw-widget-shell">
         <div class="llw-widget">
-          <button class="llw-remove" title="${t('app', 'removeWidget')}" aria-label="${t('app', 'removeWidget')}">×</button>
+          <button class="llw-remove" title="${t('app', 'removeWidget')}" aria-label="${t('app', 'removeWidget')}">−</button>
+          <button class="llw-pin" title="${t('app', 'pinToDock')}" aria-label="${t('app', 'pinToDock')}">📌</button>
           <div class="llw-body"></div>
         </div>
         <div class="llw-caption" tabindex="0" title="${t('app', 'renameWidget')}">${escapeHtml(captionText)}</div>
@@ -297,7 +338,12 @@
       const body = el.querySelector('.llw-body');
       if (body && typeof body._llwCleanup === 'function') body._llwCleanup();
       const removedId = (el.gridstackNode && el.gridstackNode.id) || widgetId;
-      grid.removeWidget(el);
+      if (el.classList.contains('llw-dock-item')) {
+        el.remove();
+        updateDockVisibility();
+      } else {
+        grid.removeWidget(el);
+      }
       // Explicit, immediate delete - see server.js's big comment on why
       // widget removal is its own endpoint rather than inferred from a
       // save that simply omits the widget.
@@ -306,10 +352,97 @@
       });
       scheduleSave();
     });
+    el.querySelector('.llw-pin').addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      if (el.classList.contains('llw-dock-item')) unpinFromDock(el);
+      else pinToDock(el);
+    });
     wireCaptionEditing(el, node);
+    return el;
+  }
+
+  function addWidgetElement(node) {
+    const widgetId = node.id || `${node.type}-${Date.now()}`;
+    if (node.dock) {
+      addDockElement({ ...node, id: widgetId });
+      return;
+    }
+    const def = LL.widgetTypes[node.type];
+    const size = node.w
+      ? node
+      : { ...(def ? def.defaultSize : { w: 3, h: 3 }), ...node };
+
+    const el = buildWidgetCard(node, widgetId);
+    el.classList.add('grid-stack-item');
+    el.querySelector('.llw-widget-shell').classList.add('grid-stack-item-content');
+    el.setAttribute('gs-id', widgetId);
+    el.setAttribute('gs-x', size.x ?? 0);
+    el.setAttribute('gs-y', size.y ?? 0);
+    el.setAttribute('gs-w', size.w ?? 3);
+    el.setAttribute('gs-h', size.h ?? 3);
+    syncPinButton(el);
 
     grid.addWidget(el);
     mountWidget({ ...node, id: widgetId, el });
+  }
+
+  // Docked widgets are plain elements appended straight to #llw-dock -
+  // deliberately never GridStack items, since the dock is a fixed row, not
+  // part of the scrollable/resizable canvas.
+  function addDockElement(node) {
+    const widgetId = node.id;
+    const el = buildWidgetCard(node, widgetId);
+    el.classList.add('llw-dock-item');
+    el.dataset.widgetX = node.x ?? 0;
+    el.dataset.widgetY = node.y ?? 0;
+    el.dataset.widgetW = node.w ?? 3;
+    el.dataset.widgetH = node.h ?? 3;
+    syncPinButton(el);
+    document.getElementById('llw-dock').appendChild(el);
+    updateDockVisibility();
+    mountWidget({ ...node, id: widgetId, el });
+  }
+
+  // Moves a widget that's currently a GridStack item into the fixed dock
+  // row. Keeps its last grid position/size stashed on the element's own
+  // dataset (see addDockElement) purely so unpinning has somewhere sane to
+  // put it back.
+  function pinToDock(el) {
+    const node = el.gridstackNode;
+    if (node) {
+      el.dataset.widgetX = node.x;
+      el.dataset.widgetY = node.y;
+      el.dataset.widgetW = node.w;
+      el.dataset.widgetH = node.h;
+    }
+    grid.removeWidget(el, false); // keep the element (and its mounted widget) alive, just detach from the grid
+    el.classList.remove('grid-stack-item');
+    el.classList.add('llw-dock-item');
+    const shell = el.querySelector('.llw-widget-shell');
+    if (shell) shell.classList.remove('grid-stack-item-content');
+    document.getElementById('llw-dock').appendChild(el);
+    updateDockVisibility();
+    syncPinButton(el);
+    scheduleSave();
+  }
+
+  // Moves a docked widget back onto the main grid, at its last known
+  // position/size (or wherever GridStack's own collision handling decides
+  // to put it, if that spot is now taken).
+  function unpinFromDock(el) {
+    const x = Number(el.dataset.widgetX || 0);
+    const y = Number(el.dataset.widgetY || 0);
+    const w = Number(el.dataset.widgetW || 3);
+    const h = Number(el.dataset.widgetH || 3);
+    el.classList.remove('llw-dock-item');
+    el.classList.add('grid-stack-item');
+    const shell = el.querySelector('.llw-widget-shell');
+    if (shell) shell.classList.add('grid-stack-item-content');
+    grid.el.appendChild(el);
+    grid.makeWidget(el, { x, y, w, h });
+    updateDockVisibility();
+    syncPinButton(el);
+    scheduleSave();
   }
 
   function setEditMode(on) {
@@ -425,6 +558,21 @@
     layout.widgets.forEach(addWidgetElement);
 
     grid.on('change', scheduleSave);
+    // Snap to a size tier the instant a resize ends (not during, so the drag
+    // itself still feels smooth/free) - see LLW_WIDTH_TIERS/pickTier above.
+    grid.on('resizestop', (event, el) => {
+      const node = el.gridstackNode;
+      if (!node) return;
+      const def = LL.widgetTypes[el.dataset.widgetType];
+      const minW = (def && def.minSize && def.minSize.w) || 1;
+      const minH = (def && def.minSize && def.minSize.h) || 1;
+      const snappedW = pickTier(node.w, LLW_WIDTH_TIERS, minW, 12 - node.x);
+      const snappedH = pickTier(node.h, LLW_HEIGHT_TIERS, minH, 20);
+      if (snappedW !== node.w || snappedH !== node.h) {
+        grid.update(el, { w: snappedW, h: snappedH });
+        scheduleSave();
+      }
+    });
 
     // 4. Chrome interactions.
     document.getElementById('llw-edit-toggle').addEventListener('click', () => setEditMode(!editMode));

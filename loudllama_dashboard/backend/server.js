@@ -372,8 +372,12 @@ app.use('/vendor/gridstack', express.static(path.join(__dirname, 'node_modules',
 //                                      device that hasn't customized this
 //                                      widget's placement yet.
 //   - device-layouts/<deviceId>.json  per device: {positions: {widgetId:
-//                                      {x, y, w, h}}} - only an override,
-//                                      never the widget's own definition.
+//                                      {x, y, w, h, dock}}} - only an
+//                                      override, never the widget's own
+//                                      definition. `dock` is whether this
+//                                      device pins the widget to its fixed
+//                                      bottom row instead of the scrollable
+//                                      grid.
 //
 // POSTing a layout only ever *upserts* the shared definitions (adds new
 // widgets, updates an existing one's config/label) - it never removes one
@@ -464,7 +468,7 @@ app.get('/api/layout', (req, res) => {
     const positions = readDevicePositions(deviceId);
     const widgets = shared.widgets.map((w) => {
       const pos = positions[w.id];
-      return pos ? { ...w, x: pos.x, y: pos.y, w: pos.w, h: pos.h } : w;
+      return pos ? { ...w, x: pos.x, y: pos.y, w: pos.w, h: pos.h, dock: !!pos.dock } : w;
     });
     res.json({ widgets });
   } catch (err) {
@@ -499,7 +503,11 @@ app.post('/api/layout', (req, res) => {
         w: existing ? existing.w : (w.w ?? 3),
         h: existing ? existing.h : (w.h ?? 3),
       });
-      positions[w.id] = { x: w.x ?? 0, y: w.y ?? 0, w: w.w ?? 3, h: w.h ?? 3 };
+      // dock: whether *this device* pins the widget to its fixed bottom
+      // dock row instead of the scrollable grid - same per-device
+      // treatment as x/y/w/h, since it's about where a widget sits on this
+      // particular screen, not what the widget is or does.
+      positions[w.id] = { x: w.x ?? 0, y: w.y ?? 0, w: w.w ?? 3, h: w.h ?? 3, dock: !!w.dock };
     });
 
     writeSharedLayout({ widgets: Array.from(sharedById.values()) });

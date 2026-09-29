@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.09.008
+
+- New: **"tap and hold" feel across the whole dashboard**. Widgets now press down slightly when tapped, corners are rounder (more "squircle", less plain rectangle), and entering edit mode makes every widget gently jiggle in place — the classic iOS springboard "hold to rearrange" tell — instead of only showing a dashed outline. Jiggle automatically pauses for whichever widget is being dragged or resized, and for any widget you're actively typing into (a Group's name field, a caption rename), so it never fights your input.
+- New: **dock** — a fixed row at the bottom of the dashboard for favorite widgets, always visible regardless of scroll position, like the iOS home screen dock. In edit mode, every widget gets a small pin button; pin a widget and it moves down into the dock, unpin it and it goes back to its last spot on the grid.
+- New: **Group now looks and opens like an iOS folder**. Instead of a plain count and hint text, a Group's tile shows a 2x2 preview of what's inside (most recent 4 widgets), and tapping it pops the full view open growing out of the tile you tapped, rather than always snapping to the center of the screen.
+- New: **resizing snaps to fixed size steps** instead of landing on an arbitrary pixel size — drag a widget's resize handle and it settles on the nearest of a small set of sane tile sizes, the same "everything lines up" feel as rearranging iOS home screen icons.
+- Fix: the remove ("×") button on every widget is now a small solid red circle with a "−", matching the other new circular buttons, instead of a plain gray square.
+- Fix: a widget with a long status message (e.g. a **Weather** widget with no entity configured yet) could wrap and get cut off mid-word when shown in the new, narrower dock tile. Docked widgets now scale their content down to fit instead of clipping it.
+- Note: full multi-page/swipeable dashboards (several "pages" of widgets, like iOS home screen pages) were considered for this release but intentionally left for a later one — it's a much bigger structural change than the items above, and this add-on is in daily use, so it needs its own dedicated pass rather than being bundled in alongside everything here.
+
 ## 0.09.007
 
 - New: **per-device widget placement**. Every device (phone, tablet, wall panel, ...) that opens the dashboard now remembers its own widget sizes and positions, while still showing the same set of widgets with the same settings as every other device — resize or move a widget on your phone and it stays exactly as you left it there, without changing how it sits on the wall-mounted tablet. This is done with a small random ID the browser generates and keeps in `localStorage`, not a cookie: unlike a cookie, it isn't sent on every request, has no ~4KB size limit, and — critically — isn't at risk of being dropped by Home Assistant Ingress's per-session URL-prefix proxying. Removing a widget now goes through its own explicit "delete" step on the backend, instead of being inferred from what's missing in a save, so two devices with slightly different in-memory state can never accidentally make each other's widgets disappear.
