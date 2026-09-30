@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.09.017
+
+- Fix: **the weather widget's animated background "clouds" were just plain bars, not clouds**. The 0.09.014/0.09.015 passes made the small weather *icon* look properly cloud-shaped (gradient shading, soft shadow, puffy silhouette), but the separate drifting background particles behind it — the ones that slowly float across for cloudy/partly-cloudy/stormy conditions — were left as a plain translucent rounded rectangle, because the CSS for their two "puff" shapes never actually gave them a size or position, so they silently rendered as nothing. Those puffs now have real dimensions, turning each drifting shape into an actual 3-blob cloud silhouette (with a soft shadow and a subtle light-to-dark gradient), instead of a bar sliding across the widget.
+
 ## 0.09.016
 
 - Change: **Room widget's setup/edit screen is now a proper fullscreen popup, independent of the room tile's own size**. It used to be squeezed into whatever grid size the Room widget currently had — and since Room can be resized all the way down to 1x1, picking entities in a small room tile meant a cramped list with barely any room to scroll or read. Clicking the gear icon now opens a large, centered popup (the same style as the room's own live view), so choosing entities is comfortable no matter how small you've shrunk the tile itself.

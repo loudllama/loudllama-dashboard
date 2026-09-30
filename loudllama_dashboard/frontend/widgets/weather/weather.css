@@ -236,11 +236,18 @@ body.llw-edit-mode .llw-weather__gear { display: inline-flex; }
   transform: rotate(20deg);
 }
 
+/* A puffy cloud silhouette, not just a bar: the element itself is the
+   cloud's rounded "belly", and the two pseudo-elements are circular
+   "bumps" rising off the top of it at different heights/positions - the
+   standard 3-blob flat-cloud shape. Before this, ::before/::after had no
+   width/height/position of their own, so they rendered as nothing and the
+   drifting background "clouds" were just plain translucent bars. */
 .llw-cloud {
   position: absolute;
-  background: rgba(255, 255, 255, 0.55);
-  border-radius: 40px;
-  filter: blur(0.5px);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(216, 226, 235, 0.72));
+  border-radius: 999px;
+  filter: blur(0.3px);
+  box-shadow: 0 3px 7px rgba(8, 12, 20, 0.14);
   animation: llw-drift linear infinite;
 }
 .llw-cloud::before,
@@ -249,6 +256,18 @@ body.llw-edit-mode .llw-weather__gear { display: inline-flex; }
   position: absolute;
   background: inherit;
   border-radius: 50%;
+}
+.llw-cloud::before {
+  width: 56%;
+  height: 170%;
+  top: -92%;
+  left: 13%;
+}
+.llw-cloud::after {
+  width: 40%;
+  height: 130%;
+  top: -64%;
+  right: 15%;
 }
 
 .llw-star {
