@@ -511,7 +511,7 @@
       stateEl.innerHTML = `<div class="llw-weather__empty">${message}</div>`;
     }
 
-    function render(entity) {
+    function render(entity, fetchedForecast) {
       const condition = entity.state;
       const attrs = entity.attributes || {};
       const tempUnit = attrs.temperature_unit || (LL.haConfig.unit_system && LL.haConfig.unit_system.temperature) || '°C';
@@ -519,7 +519,15 @@
       bgEl.className = `llw-weather__bg llw-bg-${normalizeCondition(condition)}`;
       renderFx(fxEl, condition);
 
-      const forecast = Array.isArray(attrs.forecast) ? attrs.forecast.slice(0, 4) : [];
+      // Current Home Assistant versions (core 2023.9+) no longer put
+      // forecast data on the entity's own state - it has to be fetched via
+      // the weather.get_forecasts service instead (see fetchAndRender()
+      // below). attrs.forecast is kept as a fallback for any integration
+      // that still sets it directly.
+      const rawForecast = (Array.isArray(fetchedForecast) && fetchedForecast.length)
+        ? fetchedForecast
+        : (Array.isArray(attrs.forecast) ? attrs.forecast : []);
+      const forecast = rawForecast.slice(0, 4);
       const forecastHtml = forecast.length
         ? `<div class="llw-weather__forecast">${forecast
             .map(
@@ -555,9 +563,22 @@
         return;
       }
       try {
-        const entity = await LL.api.get(`api/hass/states/${encodeURIComponent(entityId)}`);
+        // Fetched in parallel, not chained: the forecast call hits HA's
+        // weather.get_forecasts service, which is a separate round-trip
+        // from the entity's own state and shouldn't block or fail the
+        // widget's main temperature/condition readout if it errors (e.g.
+        // on an older HA version that doesn't support it - render() falls
+        // back to attrs.forecast in that case, or shows no forecast strip
+        // at all rather than nothing).
+        const [entity, forecastRes] = await Promise.all([
+          LL.api.get(`api/hass/states/${encodeURIComponent(entityId)}`),
+          LL.api.get(`api/hass/weather_forecast/${encodeURIComponent(entityId)}?type=daily`).catch((err) => {
+            console.warn('[loudllama][weather] weather_forecast fetch failed, falling back to attrs.forecast', err);
+            return null;
+          }),
+        ]);
         if (destroyed) return;
-        render(entity);
+        render(entity, forecastRes && forecastRes.forecast);
       } catch (err) {
         console.error('[loudllama][weather] Failed to fetch entity', err);
         if (!destroyed) renderEmpty(t('app', 'connectionError'));

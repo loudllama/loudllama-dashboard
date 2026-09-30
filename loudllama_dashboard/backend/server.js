@@ -148,6 +148,28 @@ function mockCameraEntities() {
   ];
 }
 
+// Shared by both the legacy `weather.demo` state's `attributes.forecast`
+// (still read directly by very old HA versions/frontends) and the mock
+// implementation of the `weather.get_forecasts` service below - real HA
+// moved forecast data from the former to the latter around 2023.9, and the
+// mock backend needs to keep answering both the same way a real instance
+// running either era would.
+function mockForecastArray(type) {
+  const hourly = [
+    { datetime: new Date(Date.now() + 1 * 3600e3).toISOString(), condition: 'cloudy', temperature: 13 },
+    { datetime: new Date(Date.now() + 2 * 3600e3).toISOString(), condition: 'cloudy', temperature: 13 },
+    { datetime: new Date(Date.now() + 3 * 3600e3).toISOString(), condition: 'rainy', temperature: 12 },
+    { datetime: new Date(Date.now() + 6 * 3600e3).toISOString(), condition: 'rainy', temperature: 11 },
+  ];
+  const daily = [
+    { datetime: new Date(Date.now() + 3 * 3600e3).toISOString(), condition: 'cloudy', temperature: 13 },
+    { datetime: new Date(Date.now() + 6 * 3600e3).toISOString(), condition: 'rainy', temperature: 11 },
+    { datetime: new Date(Date.now() + 24 * 3600e3).toISOString(), condition: 'sunny', temperature: 16 },
+    { datetime: new Date(Date.now() + 48 * 3600e3).toISOString(), condition: 'partlycloudy', temperature: 15 },
+  ];
+  return type === 'hourly' ? hourly : daily;
+}
+
 function mockWeatherEntity() {
   return {
     entity_id: 'weather.demo',
@@ -161,11 +183,11 @@ function mockWeatherEntity() {
       wind_speed_unit: 'km/h',
       pressure: 1012,
       pressure_unit: 'hPa',
-      forecast: [
-        { datetime: new Date(Date.now() + 3 * 3600e3).toISOString(), condition: 'cloudy', temperature: 13 },
-        { datetime: new Date(Date.now() + 6 * 3600e3).toISOString(), condition: 'rainy', temperature: 11 },
-        { datetime: new Date(Date.now() + 24 * 3600e3).toISOString(), condition: 'sunny', temperature: 16 },
-      ],
+      // Legacy shape, kept only so the mock also exercises the
+      // attrs.forecast fallback path in weather.js - a real current-version
+      // HA instance no longer sends this, which is why the forecast now
+      // primarily comes from /api/hass/weather_forecast below.
+      forecast: mockForecastArray('daily'),
     },
     last_updated: new Date().toISOString(),
   };
@@ -740,6 +762,49 @@ app.get('/api/hass/states/:entityId', async (req, res) => {
     res.json(await haFetch(`/states/${encodeURIComponent(req.params.entityId)}`));
   } catch (err) {
     console.error('[loudllama] /api/hass/states/:entityId failed:', err.message);
+    res.status(502).json({ error: 'ha_unreachable' });
+  }
+});
+
+// Home Assistant removed forecast data from `weather.*` entities'
+// `attributes.forecast` around core 2023.9, in favour of calling the
+// `weather.get_forecasts` *service* explicitly (it returns its result in the
+// response body rather than storing it as entity state). The weather widget
+// used to read `attributes.forecast` directly, which is why the forecast
+// strip quietly stopped appearing for anyone on a current HA version - this
+// wraps that service call so the frontend has one endpoint that works
+// regardless of which era of HA it's talking to (weather.js still also
+// checks attrs.forecast as a fallback for any integration that still sets
+// it).
+app.get('/api/hass/weather_forecast/:entityId', async (req, res) => {
+  const { entityId } = req.params;
+  const type = ['daily', 'hourly', 'twice_daily'].includes(req.query.type) ? req.query.type : 'daily';
+  if (MOCK_MODE) {
+    return res.json({ forecast: mockForecastArray(type) });
+  }
+  try {
+    // `return_response` is what tells HA's REST API to include the
+    // service's return value in the response body at all (services are
+    // fire-and-forget by default) - it's a bare query flag, no value.
+    const upstream = await fetch(`${HA_API_BASE}/services/weather/get_forecasts?return_response`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${SUPERVISOR_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ entity_id: entityId, type }),
+    });
+    if (!upstream.ok) {
+      const detail = await upstream.text().catch(() => '');
+      console.error(`[loudllama] weather.get_forecasts -> ${upstream.status}: ${detail}`);
+      return res.status(502).json({ error: 'ha_service_failed' });
+    }
+    const body = await upstream.json();
+    // Response shape: { changed_states: [...], service_response: { "<entity_id>": { forecast: [...] } } }
+    const forecast = (body && body.service_response && body.service_response[entityId] && body.service_response[entityId].forecast) || [];
+    res.json({ forecast });
+  } catch (err) {
+    console.error('[loudllama] /api/hass/weather_forecast failed:', err.message);
     res.status(502).json({ error: 'ha_unreachable' });
   }
 });

@@ -462,8 +462,24 @@ body.llw-edit-mode.llw-multi-real-pages .llw-page-move { display: flex; }
      of iOS chrome uses) plus a spring-flavored press transition - both
      purely cosmetic, neither changes layout so every consumer of this
      class (the main dashboard, Room/Group's nested tiles) gets them for
-     free. */
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35), inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+     free.
+     The outer shadow is deliberately kept tighter than it first looks like
+     it should be: widgets now sit on a 16px gap (see the gap/shadow fix
+     above), and a shadow's blur radius is roughly how far it visibly
+     reaches past the element's own edge. The previous `10px 30px` shadow
+     reached ~30-40px past each edge - more than twice the gap - so on any
+     ordinary grid two/three/four neighbouring widgets' shadows overlapped
+     *inside* that shared gap, and every point where four widgets meet (an
+     actual grid corner) had up to four of those overlapping at once. Each
+     shadow alone follows the rounded corner just fine, but stacking several
+     of them right in a narrow gap reads as one solid, darker, distinctly
+     squared-off smudge - which is exactly the "square shadow in the
+     corners" look, not a rounding bug. Shrinking blur to 12px (comfortably
+     inside the 16px gap) and dropping the y-offset to 4px so it does not
+     lean into one side more than another keeps the soft-lift look on a
+     single widget while (mostly) containing each widget's own shadow to
+     its own gap instead of piling up with its neighbours'. */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3), inset 0 0 0 1px rgba(255, 255, 255, 0.06);
   transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
   transform: scale(1);
   will-change: transform;
