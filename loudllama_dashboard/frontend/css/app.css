@@ -424,6 +424,27 @@ body.llw-edit-mode.llw-multi-real-pages .llw-page-move { display: flex; }
   flex-direction: column;
   gap: 3px;
 }
+/* When this shell IS a GridStack item's content (the main dashboard and
+   dock's own pinned tiles are the other case - see the dock-item comment
+   above for why THOSE still need the plain rule's fixed width/height:100%),
+   GridStack positions it with `top/right/bottom/left` all set (an explicit
+   pixel inset per side, computed from marginTop/Right/Bottom/Left) and
+   expects `width`/`height` to stay `auto` so the box is solved from those
+   four offsets. The plain rule's explicit width/height:100% instead wins
+   the "over-constrained" box-sizing fight for height specifically (nothing
+   else sets `height` at higher specificity the way GridStack's own
+   `width: auto` rule does for width - see gridstack.css), making every
+   widget ignore its bottom margin and overflow a full margin's worth
+   *past* its own grid cell, straight into the gap where the next widget's
+   top margin should have been - which is what erased the visible gap
+   between stacked widgets and made their drop-shadows land flush on the
+   widget below instead of fading into empty space. This rule is more
+   specific than the plain one above (two classes, not one) and wins only
+   where both classes are present, leaving the dock tile's sizing alone. */
+.grid-stack-item-content.llw-widget-shell {
+  width: auto;
+  height: auto;
+}
 
 /* Unchanged from before the caption existed: fills its parent's box
    completely. This is what Room/Group's nested sub-widget tiles still use
@@ -446,6 +467,16 @@ body.llw-edit-mode.llw-multi-real-pages .llw-page-move { display: flex; }
   transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
   transform: scale(1);
   will-change: transform;
+}
+/* Same fix as .grid-stack-item-content.llw-widget-shell above, for the
+   other place a GridStack item's content can be a bare .llw-widget with no
+   shell in between: Room's and Group's own nested sub-widget grids (see
+   room.js's mountSubWidgets() and group.js) both configure `margin: 6` on
+   their sub-grid, which this same width/height:100% vs GridStack's
+   top/right/bottom/left insets conflict was silently erasing. */
+.grid-stack-item-content.llw-widget {
+  width: auto;
+  height: auto;
 }
 /* Tap/press feedback - the widget shrinks slightly the moment it's pressed
    and springs back on release, the same "squishy icon" feel iOS app icons
