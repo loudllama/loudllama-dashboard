@@ -30,29 +30,38 @@
   }
 
   // --- Icons ---------------------------------------------------------------
-  // Small hand-built SVG icon per condition family. Kept intentionally
-  // simple/geometric (no external image files) so the add-on has zero
-  // runtime dependency on the internet or bundled photo assets.
+  // Small hand-built SVG icon per condition family - no external image
+  // files, so the add-on has zero runtime dependency on the internet or
+  // bundled photo assets. Each icon gets its own <defs> (gradients/soft
+  // shadow) scoped with a per-call unique id suffix, since several of these
+  // can end up inline in the same document at once (the main icon plus a
+  // handful of small forecast-strip icons, and possibly more than one
+  // weather widget on the dashboard) - SVG ids are global to the document,
+  // so reusing a bare id like "sunGrad" across instances would make later
+  // ones silently hijack earlier ones' gradients.
+  let iconUid = 0;
+  function nextIconUid() {
+    iconUid += 1;
+    return `llwic${iconUid}`;
+  }
+
   function iconSvg(condition) {
     const c = normalizeCondition(condition);
-    const sun = '<circle cx="32" cy="32" r="14" fill="#ffd166"/>' +
-      raysMarkup();
-    const moon = '<circle cx="32" cy="32" r="14" fill="#f4f1e6"/>' +
-      '<circle cx="38" cy="27" r="12" fill="var(--llw-icon-bg,#33475f)"/>';
-    const cloud = cloudMarkup(32, 34, 1);
-    const cloudSun = '<g transform="translate(-6,-6)">' + '<circle cx="30" cy="26" r="10" fill="#ffd166"/>' + '</g>' + cloudMarkup(34, 38, 0.9);
-    const rain = cloudMarkup(32, 26, 0.9) + dropsMarkup(3);
-    const pouring = cloudMarkup(32, 24, 1) + dropsMarkup(5);
-    const snow = cloudMarkup(32, 26, 0.9) + flakesMarkup(4);
-    const sleet = cloudMarkup(32, 26, 0.9) + dropsMarkup(2) + flakesMarkup(2);
-    const storm = cloudMarkup(32, 24, 1) + '<path d="M30 34 L24 46 L30 46 L26 56 L40 40 L33 40 Z" fill="#ffe066"/>';
-    const stormRain = storm + dropsMarkup(2);
+    const uid = nextIconUid();
+    const sun = sunMarkup(uid, 32, 32, 1);
+    const moon = moonMarkup(uid, 32, 32, 1);
+    const cloud = cloudMarkup(uid, 32, 36, 1);
+    const cloudSun = sunMarkup(uid, 24, 24, 0.62) + cloudMarkup(uid, 35, 40, 0.92);
+    const rain = cloudMarkup(uid, 32, 28, 0.88) + dropsMarkup(uid, 3);
+    const pouring = cloudMarkup(uid, 32, 26, 0.98) + dropsMarkup(uid, 5);
+    const snow = cloudMarkup(uid, 32, 28, 0.88) + flakesMarkup(4);
+    const sleet = cloudMarkup(uid, 32, 28, 0.88) + dropsMarkup(uid, 2) + flakesMarkup(2);
+    const storm = cloudMarkup(uid, 32, 26, 0.98) + boltMarkup(uid);
+    const stormRain = storm + dropsMarkup(uid, 2);
     const fog = fogMarkup();
-    const wind = windMarkup();
-    const hail = cloudMarkup(32, 26, 0.9) + hailMarkup();
-    const alertIcon = '<circle cx="32" cy="32" r="15" fill="none" stroke="#ff7676" stroke-width="3"/>' +
-      '<rect x="30" y="20" width="4" height="16" rx="2" fill="#ff7676"/>' +
-      '<rect x="30" y="40" width="4" height="4" rx="2" fill="#ff7676"/>';
+    const wind = windMarkup(uid);
+    const hail = cloudMarkup(uid, 32, 28, 0.88) + hailMarkup();
+    const alertIcon = alertMarkup(uid);
 
     const byCondition = {
       sunny: sun,
@@ -76,29 +85,97 @@
     return `<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${byCondition[c]}</svg>`;
   }
 
-  function raysMarkup() {
+  function sunMarkup(uid, cx, cy, scale) {
+    const gradId = `${uid}sun`;
+    const glowId = `${uid}sunGlow`;
     let rays = '';
-    for (let i = 0; i < 8; i += 1) {
-      const angle = (i * 360) / 8;
-      rays += `<line x1="32" y1="32" x2="32" y2="10" stroke="#ffd166" stroke-width="2" stroke-linecap="round" transform="rotate(${angle} 32 32)"/>`;
+    for (let i = 0; i < 12; i += 1) {
+      const long = i % 3 === 0;
+      const len = long ? 11 : 7;
+      const w = long ? 3 : 2;
+      const angle = (i * 360) / 12;
+      rays += `<line x1="0" y1="${-22 * scale}" x2="0" y2="${-(22 + len) * scale}" stroke="url(#${gradId})" stroke-width="${w}" stroke-linecap="round" transform="translate(${cx} ${cy}) rotate(${angle})"/>`;
     }
-    return rays;
+    return `
+      <defs>
+        <radialGradient id="${gradId}" cx="38%" cy="32%" r="70%">
+          <stop offset="0%" stop-color="#fff6d8"/>
+          <stop offset="55%" stop-color="#ffd166"/>
+          <stop offset="100%" stop-color="#ffa93c"/>
+        </radialGradient>
+        <radialGradient id="${glowId}" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="#ffd166" stop-opacity="0.45"/>
+          <stop offset="100%" stop-color="#ffd166" stop-opacity="0"/>
+        </radialGradient>
+      </defs>
+      <circle cx="${cx}" cy="${cy}" r="${24 * scale}" fill="url(#${glowId})"/>
+      ${rays}
+      <circle cx="${cx}" cy="${cy}" r="${15 * scale}" fill="url(#${gradId})"/>
+      <ellipse cx="${cx - 4 * scale}" cy="${cy - 5 * scale}" rx="${6 * scale}" ry="${3.5 * scale}" fill="#fff" opacity="0.35"/>
+    `;
   }
 
-  function cloudMarkup(cx, cy, scale) {
-    return `<g transform="translate(${cx - 32 * scale},${cy - 20 * scale}) scale(${scale})">
-      <ellipse cx="20" cy="24" rx="14" ry="10" fill="#f4f6f8"/>
-      <ellipse cx="34" cy="20" rx="16" ry="12" fill="#f4f6f8"/>
-      <ellipse cx="46" cy="26" rx="12" ry="9" fill="#f4f6f8"/>
-      <rect x="14" y="24" width="40" height="12" rx="6" fill="#f4f6f8"/>
-    </g>`;
+  function moonMarkup(uid, cx, cy, scale) {
+    const gradId = `${uid}moon`;
+    const glowId = `${uid}moonGlow`;
+    return `
+      <defs>
+        <linearGradient id="${gradId}" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#fffdf5"/>
+          <stop offset="100%" stop-color="#e4dfc8"/>
+        </linearGradient>
+        <radialGradient id="${glowId}" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="#f4f1e6" stop-opacity="0.4"/>
+          <stop offset="100%" stop-color="#f4f1e6" stop-opacity="0"/>
+        </radialGradient>
+      </defs>
+      <circle cx="${cx}" cy="${cy}" r="${22 * scale}" fill="url(#${glowId})"/>
+      <mask id="${uid}moonMask">
+        <rect x="${cx - 24 * scale}" y="${cy - 24 * scale}" width="${48 * scale}" height="${48 * scale}" fill="#fff"/>
+        <circle cx="${cx + 7 * scale}" cy="${cy - 6 * scale}" r="${12.5 * scale}" fill="#000"/>
+      </mask>
+      <circle cx="${cx}" cy="${cy}" r="${15 * scale}" fill="url(#${gradId})" mask="url(#${uid}moonMask)"/>
+      <circle cx="${cx - 5 * scale}" cy="${cy + 4 * scale}" r="${2 * scale}" fill="#000" opacity="0.06"/>
+      <circle cx="${cx - 1 * scale}" cy="${cy - 5 * scale}" r="${1.3 * scale}" fill="#000" opacity="0.06"/>
+    `;
   }
 
-  function dropsMarkup(count) {
-    let out = '';
+  function cloudMarkup(uid, cx, cy, scale) {
+    const gradId = `${uid}cloud`;
+    const x = cx - 32 * scale;
+    const y = cy - 20 * scale;
+    return `
+      <defs>
+        <linearGradient id="${gradId}" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stop-color="#ffffff"/>
+          <stop offset="100%" stop-color="#dfe6ec"/>
+        </linearGradient>
+      </defs>
+      <g transform="translate(${x + 1.6 * scale},${y + 2.4 * scale}) scale(${scale})" opacity="0.22">
+        <ellipse cx="22" cy="27" rx="15" ry="10" fill="#0a1420"/>
+        <ellipse cx="36" cy="23" rx="17" ry="13" fill="#0a1420"/>
+        <rect x="16" y="27" width="40" height="11" rx="5.5" fill="#0a1420"/>
+      </g>
+      <g transform="translate(${x},${y}) scale(${scale})">
+        <ellipse cx="20" cy="24" rx="14" ry="10" fill="url(#${gradId})"/>
+        <ellipse cx="34" cy="20" rx="16" ry="12" fill="url(#${gradId})"/>
+        <ellipse cx="46" cy="26" rx="12" ry="9" fill="url(#${gradId})"/>
+        <rect x="14" y="24" width="40" height="12" rx="6" fill="url(#${gradId})"/>
+        <ellipse cx="29" cy="16" rx="7" ry="3.5" fill="#fff" opacity="0.7"/>
+      </g>
+    `;
+  }
+
+  function dropsMarkup(uid, count) {
+    const gradId = `${uid}drop`;
+    let out = `<defs><linearGradient id="${gradId}" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#bfe2fb" stop-opacity="0.2"/>
+      <stop offset="100%" stop-color="#8ec8f0"/>
+    </linearGradient></defs>`;
     for (let i = 0; i < count; i += 1) {
-      const x = 22 + i * 8;
-      out += `<line x1="${x}" y1="42" x2="${x - 3}" y2="54" stroke="#8ec8f0" stroke-width="3" stroke-linecap="round"/>`;
+      const x = 20 + i * (count > 4 ? 6 : 8);
+      // Teardrop: a circle with a small pointed tip, not just a stroked line.
+      out += `<path d="M${x} 40 C${x + 3.5} 46 ${x + 3.5} 50.5 ${x} 53 C${x - 3.5} 50.5 ${x - 3.5} 46 ${x} 40 Z" fill="url(#${gradId})"/>`;
     }
     return out;
   }
@@ -107,33 +184,79 @@
     let out = '';
     for (let i = 0; i < count; i += 1) {
       const x = 20 + i * 8;
-      out += `<circle cx="${x}" cy="${46 + (i % 2) * 6}" r="2.2" fill="#ffffff"/>`;
+      const y = 46 + (i % 2) * 6;
+      out += `<g stroke="#ffffff" stroke-width="1.1" stroke-linecap="round" transform="translate(${x} ${y})" opacity="0.95">
+        <line x1="-3.2" y1="0" x2="3.2" y2="0"/>
+        <line x1="-1.6" y1="-2.8" x2="1.6" y2="2.8"/>
+        <line x1="-1.6" y1="2.8" x2="1.6" y2="-2.8"/>
+      </g>`;
     }
     return out;
   }
 
   function hailMarkup() {
-    let out = '';
+    const grad = '<defs><linearGradient id="hailG" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#fff"/><stop offset="100%" stop-color="#bcd3de"/></linearGradient></defs>';
+    let out = grad;
     for (let i = 0; i < 4; i += 1) {
       const x = 20 + i * 7;
-      out += `<rect x="${x}" y="${46 + (i % 2) * 5}" width="4" height="4" fill="#dfeaf0" transform="rotate(20 ${x} 48)"/>`;
+      const y = 46 + (i % 2) * 5;
+      out += `<rect x="${x - 2.4}" y="${y - 2.4}" width="4.8" height="4.8" fill="url(#hailG)" transform="rotate(45 ${x} ${y})"/>`;
     }
     return out;
   }
 
   function fogMarkup() {
-    let out = '';
-    [22, 32, 42].forEach((y, i) => {
-      out += `<rect x="${8 + (i % 2) * 4}" y="${y}" width="48" height="4" rx="2" fill="#e2e8ec"/>`;
+    let out = '<defs><linearGradient id="fogG" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#e2e8ec" stop-opacity="0.3"/><stop offset="50%" stop-color="#eef2f5"/><stop offset="100%" stop-color="#e2e8ec" stop-opacity="0.3"/></linearGradient></defs>';
+    [{ y: 20, w: 40, x: 12 }, { y: 30, w: 50, x: 7 }, { y: 40, w: 34, x: 15 }, { y: 48, w: 44, x: 10 }].forEach((band) => {
+      out += `<rect x="${band.x}" y="${band.y}" width="${band.w}" height="4.5" rx="2.25" fill="url(#fogG)"/>`;
     });
     return out;
   }
 
-  function windMarkup() {
+  function windMarkup(uid) {
+    const gradId = `${uid}wind`;
     return `
-      <path d="M10 24 H40 a6 6 0 1 0 -6 -6" stroke="#dff1ee" stroke-width="3" fill="none" stroke-linecap="round"/>
-      <path d="M10 34 H48 a6 6 0 1 1 -6 6" stroke="#dff1ee" stroke-width="3" fill="none" stroke-linecap="round"/>
-      <path d="M10 44 H32" stroke="#dff1ee" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <defs>
+        <linearGradient id="${gradId}" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="#dff1ee" stop-opacity="0.15"/>
+          <stop offset="100%" stop-color="#dff1ee"/>
+        </linearGradient>
+      </defs>
+      <path d="M8 22 H38 a6.5 6.5 0 1 0 -6.5 -6.5" stroke="url(#${gradId})" stroke-width="3.4" fill="none" stroke-linecap="round"/>
+      <path d="M8 33 H50 a6.5 6.5 0 1 1 -6.5 6.5" stroke="url(#${gradId})" stroke-width="3.4" fill="none" stroke-linecap="round"/>
+      <path d="M8 44 H30" stroke="url(#${gradId})" stroke-width="3.4" fill="none" stroke-linecap="round"/>
+      <circle cx="12" cy="22" r="2" fill="#dff1ee" opacity="0.5"/>
+      <circle cx="12" cy="44" r="1.6" fill="#dff1ee" opacity="0.5"/>
+    `;
+  }
+
+  function boltMarkup(uid) {
+    const gradId = `${uid}bolt`;
+    return `
+      <defs>
+        <linearGradient id="${gradId}" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stop-color="#fff3b0"/>
+          <stop offset="100%" stop-color="#ffb23c"/>
+        </linearGradient>
+      </defs>
+      <path d="M31 36 L23 50 L30 50 L25 60 L41 43 L33 43 Z" fill="#ffb23c" opacity="0.35" transform="translate(1,1)"/>
+      <path d="M31 36 L23 50 L30 50 L25 60 L41 43 L33 43 Z" fill="url(#${gradId})"/>
+    `;
+  }
+
+  function alertMarkup(uid) {
+    const gradId = `${uid}alert`;
+    return `
+      <defs>
+        <linearGradient id="${gradId}" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stop-color="#ff9a8f"/>
+          <stop offset="100%" stop-color="#ff5c52"/>
+        </linearGradient>
+      </defs>
+      <circle cx="32" cy="32" r="18" fill="url(#${gradId})" opacity="0.18"/>
+      <circle cx="32" cy="32" r="15" fill="none" stroke="url(#${gradId})" stroke-width="3.2"/>
+      <rect x="29.6" y="20" width="4.8" height="17" rx="2.4" fill="url(#${gradId})"/>
+      <rect x="29.6" y="40.5" width="4.8" height="4.8" rx="2.4" fill="url(#${gradId})"/>
     `;
   }
 

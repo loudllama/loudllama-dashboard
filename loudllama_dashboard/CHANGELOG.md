@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.09.014
+
+- New: **richer, more detailed weather icons**. The small condition icon (next to the temperature, and in the mini forecast strip) was a fairly plain flat shape - it's now bigger and has real depth: gradient shading, a soft glow around the sun, a proper crescent moon with subtle craters, a two-tone puffy cloud with its own soft shadow, teardrop-shaped raindrops, star-shaped snowflakes, a glowing lightning bolt, and so on. Every condition got the same treatment. Nothing about what the widget shows changed, just how it looks.
+
+## 0.09.013
+
+- Fix: **on a phone, you couldn't swipe down to reach widgets below the bottom of the screen**. Each page now scrolls itself instead of the whole dashboard (needed for the swipeable pages added in 0.09.012), but the page's own height wasn't actually being held to the screen's height, so it just grew to fit every widget instead of clipping and scrolling - there was nothing left to scroll to, and anything past the bottom of the screen was simply unreachable. Scrolling down to widgets further down the page works properly again.
+- Fix: **a widget touching the left or right edge of the screen was nearly impossible to resize down to 1 column wide on a phone**. Since corner-drag resizing was replaced with edge-drag resizing in 0.09.012, shrinking a widget's width means dragging its very edge - and a widget already sitting at the edge of the screen put that edge right at the physical border of the phone, both very thin to grab precisely and fighting the phone's own edge-swipe-back gesture. Widgets now keep a bit more breathing room from the left/right edge of the screen (top/bottom spacing between widgets is unchanged) so that edge is easier to reach and drag.
+
 ## 0.09.012
 
 - New: **swipeable multi-page dashboards**, the feature flagged as "still coming" in the last couple of releases. Enter edit mode and you'll see a row of small dots appear at the bottom - swipe left/right (or click a dot) to move between pages, the same feel as flipping between iOS home screen pages. A blank page is always waiting at the end while you're editing, so dragging or adding a widget onto it turns it into a real page automatically; every widget also gets small ‹ › buttons in edit mode once there's a second page to send it to, letting you move it over without dragging. Pages are remembered per device, same as widget positions already were, so your phone and a wall-mounted tablet can each be laid out across however many pages make sense for that screen. Leaving edit mode tidies away any pages you didn't end up using.

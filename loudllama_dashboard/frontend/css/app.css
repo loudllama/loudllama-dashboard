@@ -161,7 +161,18 @@ body.llw-edit-mode .llw-bg-upload {
      the track wider than the viewport in the first place. */
   flex: 0 0 100%;
   width: 100%;
-  height: 100%;
+  /* !important: GridStack sets its own inline `height` on this same element
+     (it IS the .grid-stack container - see createPage() in app.js) sized to
+     fit every row of widgets, because by default it expects the whole page
+     to grow and the document itself to scroll. That's no longer true now
+     that each page is a fixed-size slide with its own internal scrollbar,
+     so without this override GridStack's inline height wins over the plain
+     rule below, the page silently grows past the viewport, and everything
+     beyond it is clipped by #llw-pages-viewport's overflow:hidden with no
+     way to reach it - this is what broke scrolling to widgets below the
+     fold. Forcing the height back to the viewport's own height here is what
+     makes the overflow-y:auto below actually have something to scroll. */
+  height: 100% !important;
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;

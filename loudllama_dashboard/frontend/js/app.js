@@ -555,7 +555,17 @@
     const g = GridStack.init(
       {
         cellHeight: 90,
-        margin: 8,
+        marginTop: 8,
+        marginBottom: 8,
+        // Left/right get a bit more than top/bottom: this is what keeps a
+        // widget's own side resize handle ('e'/'w') off the true screen
+        // edge on a phone - see the resizable comment below for why corner
+        // handles are gone, leaving 'e'/'w' as the only way to shrink a
+        // widget's width, and a touch dragging exactly at the physical
+        // screen edge both has very little room to register precisely and
+        // competes with the OS's own edge-swipe gesture (back/forward).
+        marginLeft: 16,
+        marginRight: 16,
         float: true,
         disableOneColumnMode: false,
         // No 'se'/'sw' corner handles (top-level pages only - Room/Group's
