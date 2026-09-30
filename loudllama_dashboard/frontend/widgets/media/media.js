@@ -95,7 +95,7 @@
 
     function render() {
       if (!entity) return;
-      const name = (entity.attributes && entity.attributes.friendly_name) || entity.entity_id;
+      const name = config.displayName || (entity.attributes && entity.attributes.friendly_name) || entity.entity_id;
       const playing = entity.state === 'playing';
       const stateKey = ['playing', 'paused', 'idle'].includes(entity.state) ? entity.state : 'idle';
       const vol = entity.attributes && entity.attributes.volume_level;

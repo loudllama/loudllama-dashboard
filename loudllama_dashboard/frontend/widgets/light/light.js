@@ -95,7 +95,7 @@
 
     function render() {
       if (!entity) return;
-      const name = (entity.attributes && entity.attributes.friendly_name) || entity.entity_id;
+      const name = config.displayName || (entity.attributes && entity.attributes.friendly_name) || entity.entity_id;
       const isOn = entity.state === 'on';
       const hasBrightness = entity.attributes && entity.attributes.brightness !== undefined && entity.attributes.brightness !== null;
       const pct = hasBrightness ? Math.round(((entity.attributes.brightness || 0) / 255) * 100) : 0;

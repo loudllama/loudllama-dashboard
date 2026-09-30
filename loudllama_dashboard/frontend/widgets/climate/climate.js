@@ -92,7 +92,7 @@
 
     function render() {
       if (!entity) return;
-      const name = (entity.attributes && entity.attributes.friendly_name) || entity.entity_id;
+      const name = config.displayName || (entity.attributes && entity.attributes.friendly_name) || entity.entity_id;
       const current = entity.attributes && entity.attributes.current_temperature;
       const target = entity.attributes && entity.attributes.temperature;
 

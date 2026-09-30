@@ -150,45 +150,61 @@ body.llw-edit-mode .llw-room__gear { display: inline-flex; }
   opacity: 0.8;
 }
 
-/* --- Setup / edit overlay (name + entity picker) ------------------------ */
+/* --- Setup / edit popup (name + entity picker) --------------------------
+   A true fullscreen popup appended to document.body (same pattern as
+   .llw-room-modal below) rather than something confined to the widget's
+   own tile - so it's never cramped by the room tile being resized down to
+   as small as 1x1. */
 
-.llw-room__editor {
-  position: absolute;
+.llw-room-editor-modal {
+  position: fixed;
   inset: 0;
-  z-index: 3;
-  background: rgba(16, 19, 26, 0.94);
-  backdrop-filter: blur(2px);
-  display: none;
-  flex-direction: column;
+  z-index: 1100; /* above .llw-room-modal, in case both were somehow open */
+  background: rgba(8, 10, 14, 0.72);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  animation: llw-fade-in 0.15s ease;
 }
-.llw-room__editor.llw-open { display: flex; }
 
-.llw-room__editor-inner {
+.llw-room-editor-modal__card {
+  width: 100%;
+  max-width: 480px;
+  max-height: 86vh;
+  overflow-y: auto;
+  background: linear-gradient(180deg, rgba(32, 36, 46, 0.99), rgba(20, 23, 30, 0.99));
+  border-radius: 28px;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.llw-room-editor-modal__body {
   position: relative;
   display: flex;
   flex-direction: column;
-  height: 100%;
-  padding: 1rem 1rem 1.75rem; /* extra bottom padding clears GridStack's bottom resize handle */
   gap: 0.55rem;
+  padding: 1.4rem 1.4rem 1.6rem;
 }
 
-.llw-room__editor-close {
-  /* right:34px (not 0) keeps this clear of the outer widget's top-right
-     "remove widget" (x) button, which sits at right:6px/width:22px - see
-     the same fix applied to .llw-weather__head / .llw-frigate__head. */
+.llw-room-editor-modal__close {
   position: absolute;
-  top: 0;
-  right: 34px;
-  background: rgba(255, 255, 255, 0.14);
+  top: 1.1rem;
+  right: 1.2rem;
+  background: rgba(255, 255, 255, 0.12);
   border: none;
   color: #fff;
-  width: 26px;
-  height: 26px;
-  border-radius: 999px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
   cursor: pointer;
-  font-size: 0.85rem;
+  font-size: 1rem;
+  line-height: 1;
+  flex-shrink: 0;
 }
-.llw-room__editor-close:hover { background: rgba(255, 255, 255, 0.26); }
+.llw-room-editor-modal__close:hover { background: rgba(255, 255, 255, 0.24); }
 
 .llw-room__editor-label {
   font-size: 0.78rem;
@@ -196,7 +212,7 @@ body.llw-edit-mode .llw-room__gear { display: inline-flex; }
   text-transform: uppercase;
   letter-spacing: 0.03em;
   opacity: 0.75;
-  padding-right: 30px;
+  padding-right: 34px;
 }
 
 .llw-room__name-input,
@@ -219,11 +235,13 @@ body.llw-edit-mode .llw-room__gear { display: inline-flex; }
 }
 
 .llw-room__editor-list {
-  flex: 1;
-  overflow: auto;
   display: flex;
   flex-direction: column;
   gap: 0.7rem;
+  max-height: 48vh;
+  overflow-y: auto;
+  margin: 0 -0.3rem;
+  padding: 0 0.3rem;
 }
 
 .llw-room__editor-temp {
@@ -255,9 +273,57 @@ body.llw-edit-mode .llw-room__gear { display: inline-flex; }
 .llw-room__editor-row {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  justify-content: space-between;
+  gap: 0.4rem;
   font-size: 0.82rem;
-  padding: 0.15rem 0;
+  padding: 0.3rem 0;
+}
+.llw-room__editor-row-label {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+.llw-room__editor-row-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.llw-room__editor-rename-input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.3rem 0.5rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 209, 102, 0.55);
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-size: 0.82rem;
+}
+/* Rename (pencil) button sits outside the <label> on purpose, so clicking
+   it never also toggles the entity's checkbox - see startRename() in
+   room.js. */
+.llw-room__editor-rename {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  opacity: 0.6;
+  cursor: pointer;
+  font-size: 0.78rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.llw-room__editor-rename:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.22);
 }
 .llw-room__empty-msg { font-size: 0.82rem; opacity: 0.75; }
 

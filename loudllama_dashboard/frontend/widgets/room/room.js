@@ -103,11 +103,18 @@
       // to that whenever this is unset or points at something that's no
       // longer in the room.
       tempEntityId: config.tempEntityId || '',
+      // entity_id -> custom display name, scoped to this room only (doesn't
+      // touch the entity's actual name in Home Assistant or on any other
+      // widget). Anything not in here just falls back to friendly_name, same
+      // as always - see displayName() below.
+      entityLabels: (config.entityLabels && typeof config.entityLabels === 'object') ? { ...config.entityLabels } : {},
     };
     let liveEntities = {}; // entity_id -> live HA entity
     let pollTimer = null;
     let destroyed = false;
     let activeModal = null;
+    let activeEditorModal = null;
+    let editorBodyEl = null;
     let subGrid = null;
     let subWidgetCleanups = [];
     let arranging = false;
@@ -115,6 +122,7 @@
     let editorDraftName = '';
     let editorDraftEntities = [];
     let editorDraftTempEntity = '';
+    let editorDraftEntityLabels = {};
 
     function scheduleSaveRoom() {
       clearTimeout(saveTimer);
@@ -131,14 +139,26 @@
         const type = SUBWIDGET_TYPE_BY_DOMAIN[domainOf(id)];
         if (!type) return;
         wanted.add(id);
-        if (!cfg.subWidgets.some((w) => w.config && w.config.entity_id === id)) {
-          cfg.subWidgets.push({
+        let sw = cfg.subWidgets.find((w) => w.config && w.config.entity_id === id);
+        if (!sw) {
+          sw = {
             id: `${type}-${id.replace(/[^a-z0-9_]/gi, '')}-${Date.now().toString(36)}`,
             type,
             w: 2,
             h: 2,
             config: { entity_id: id },
-          });
+          };
+          cfg.subWidgets.push(sw);
+        }
+        // Keep the sub-widget's own displayed name in sync with this room's
+        // custom label, in both directions - set it when there's a label,
+        // clear it when there isn't (so a removed label really does fall
+        // back to the entity's real friendly_name again).
+        const label = cfg.entityLabels && cfg.entityLabels[id];
+        if (label) {
+          sw.config.displayName = label;
+        } else if (sw.config && sw.config.displayName) {
+          delete sw.config.displayName;
         }
       });
       cfg.subWidgets = cfg.subWidgets.filter((w) => w.config && wanted.has(w.config.entity_id));
@@ -170,7 +190,6 @@
           </div>
           <div class="llw-room__glance"></div>
         </div>
-        <div class="llw-room__editor"></div>
       </div>
     `;
 
@@ -178,34 +197,62 @@
     const nameEl = el.querySelector('.llw-room__name');
     const glanceEl = el.querySelector('.llw-room__glance');
     const gearBtn = el.querySelector('.llw-room__gear');
-    const editorEl = el.querySelector('.llw-room__editor');
 
     // --- Editor (setup wizard + later edits) -----------------------------
+    // Unlike the compact glance tile, the editor is a true fullscreen popup
+    // appended to document.body (same pattern as openModal() below) instead
+    // of living inside the widget's own element - so picking entities is
+    // never cramped by whatever size the room tile itself happens to be
+    // (it can be resized down to 1x1).
     function openEditor() {
+      closeEditor();
       editorDraftName = cfg.name;
       editorDraftEntities = cfg.entities.slice();
       editorDraftTempEntity = cfg.tempEntityId || '';
-      editorEl.classList.add('llw-open');
+      editorDraftEntityLabels = { ...cfg.entityLabels };
+
+      const modal = document.createElement('div');
+      modal.className = 'llw-room-editor-modal';
+      modal.innerHTML = `
+        <div class="llw-room-editor-modal__card">
+          <div class="llw-room-editor-modal__body"></div>
+        </div>
+      `;
+      const canCancel = !!cfg.name;
+      modal.addEventListener('click', (ev) => {
+        if (canCancel && ev.target === modal) closeEditor();
+      });
+      document.body.appendChild(modal);
+      if (canCancel) document.addEventListener('keydown', onEditorKeydown);
+      activeEditorModal = modal;
+      editorBodyEl = modal.querySelector('.llw-room-editor-modal__body');
       renderEditorStep1();
     }
 
     function closeEditor() {
-      editorEl.classList.remove('llw-open');
+      if (!activeEditorModal) return;
+      document.removeEventListener('keydown', onEditorKeydown);
+      activeEditorModal.remove();
+      activeEditorModal = null;
+      editorBodyEl = null;
+    }
+
+    function onEditorKeydown(ev) {
+      if (ev.key === 'Escape') closeEditor();
     }
 
     function renderEditorStep1() {
+      if (!editorBodyEl) return;
       const canCancel = !!cfg.name;
-      editorEl.innerHTML = `
-        <div class="llw-room__editor-inner">
-          ${canCancel ? `<button type="button" class="llw-room__editor-close" aria-label="${t('room', 'close')}">×</button>` : ''}
-          <label class="llw-room__editor-label">${t('room', 'setupTitle')}</label>
-          <input type="text" class="llw-room__name-input" placeholder="${escapeHtml(t('room', 'namePlaceholder'))}" value="${escapeHtml(editorDraftName)}" maxlength="40" />
-          <div class="llw-room__editor-actions">
-            <button type="button" class="llw-room__next">${t('room', 'next')}</button>
-          </div>
+      editorBodyEl.innerHTML = `
+        ${canCancel ? `<button type="button" class="llw-room-editor-modal__close" aria-label="${t('room', 'close')}">×</button>` : ''}
+        <label class="llw-room__editor-label">${t('room', 'setupTitle')}</label>
+        <input type="text" class="llw-room__name-input" placeholder="${escapeHtml(t('room', 'namePlaceholder'))}" value="${escapeHtml(editorDraftName)}" maxlength="40" />
+        <div class="llw-room__editor-actions">
+          <button type="button" class="llw-room__next">${t('room', 'next')}</button>
         </div>
       `;
-      const input = editorEl.querySelector('.llw-room__name-input');
+      const input = editorBodyEl.querySelector('.llw-room__name-input');
       const goNext = () => {
         const val = input.value.trim();
         if (!val) {
@@ -220,31 +267,86 @@
       input.addEventListener('keydown', (ev) => {
         if (ev.key === 'Enter') goNext();
       });
-      editorEl.querySelector('.llw-room__next').addEventListener('click', goNext);
-      if (canCancel) editorEl.querySelector('.llw-room__editor-close').addEventListener('click', closeEditor);
+      editorBodyEl.querySelector('.llw-room__next').addEventListener('click', goNext);
+      if (canCancel) editorBodyEl.querySelector('.llw-room-editor-modal__close').addEventListener('click', closeEditor);
       requestAnimationFrame(() => input.focus());
     }
 
     function renderEditorStep2() {
-      editorEl.innerHTML = `
-        <div class="llw-room__editor-inner">
-          <label class="llw-room__editor-label">${t('room', 'chooseEntitiesTitle')}</label>
-          <input type="text" class="llw-room__search" placeholder="${escapeHtml(t('room', 'searchPlaceholder'))}" />
-          <div class="llw-room__editor-list">…</div>
-          <div class="llw-room__editor-temp">
-            <label class="llw-room__editor-label llw-room__editor-label--sub">${t('room', 'tempSourceLabel')}</label>
-            <select class="llw-room__temp-select"><option value="">${t('room', 'tempSourceAuto')}</option></select>
-          </div>
-          <div class="llw-room__editor-actions">
-            <button type="button" class="llw-room__back">${t('room', 'back')}</button>
-            <button type="button" class="llw-room__save">${t('room', 'save')}</button>
-          </div>
+      if (!editorBodyEl) return;
+      const canCancel = !!cfg.name;
+      editorBodyEl.innerHTML = `
+        ${canCancel ? `<button type="button" class="llw-room-editor-modal__close" aria-label="${t('room', 'close')}">×</button>` : ''}
+        <label class="llw-room__editor-label">${t('room', 'chooseEntitiesTitle')}</label>
+        <input type="text" class="llw-room__search" placeholder="${escapeHtml(t('room', 'searchPlaceholder'))}" />
+        <div class="llw-room__editor-list">…</div>
+        <div class="llw-room__editor-temp">
+          <label class="llw-room__editor-label llw-room__editor-label--sub">${t('room', 'tempSourceLabel')}</label>
+          <select class="llw-room__temp-select"><option value="">${t('room', 'tempSourceAuto')}</option></select>
+        </div>
+        <div class="llw-room__editor-actions">
+          <button type="button" class="llw-room__back">${t('room', 'back')}</button>
+          <button type="button" class="llw-room__save">${t('room', 'save')}</button>
         </div>
       `;
-      const listEl = editorEl.querySelector('.llw-room__editor-list');
-      const searchEl = editorEl.querySelector('.llw-room__search');
-      const tempSelectEl = editorEl.querySelector('.llw-room__temp-select');
+      if (canCancel) editorBodyEl.querySelector('.llw-room-editor-modal__close').addEventListener('click', closeEditor);
+      const listEl = editorBodyEl.querySelector('.llw-room__editor-list');
+      const searchEl = editorBodyEl.querySelector('.llw-room__search');
+      const tempSelectEl = editorBodyEl.querySelector('.llw-room__temp-select');
       let allEntities = [];
+
+      // Custom label (if any) currently staged for this entity, else its
+      // real Home Assistant friendly_name - used for both the list's display
+      // text and the search filter, so renaming "spisestue anden lysgruppe"
+      // to "Spisestue loft" also makes it findable under the new name.
+      function labelFor(e) {
+        return (editorDraftEntityLabels && editorDraftEntityLabels[e.entity_id]) || friendlyName(e);
+      }
+
+      function startRename(id) {
+        const span = listEl.querySelector(`.llw-room__editor-row-name[data-row-entity="${id}"]`);
+        if (!span || span.tagName === 'INPUT') return;
+        const entity = allEntities.find((e) => e.entity_id === id) || { entity_id: id, attributes: {} };
+        const original = friendlyName(entity);
+        const currentValue = (editorDraftEntityLabels && editorDraftEntityLabels[id]) || '';
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'llw-room__editor-rename-input';
+        input.maxLength = 60;
+        input.value = currentValue;
+        input.placeholder = original;
+        input.dataset.rowEntity = id;
+        span.replaceWith(input);
+        input.focus();
+        input.select();
+        let committed = false;
+        const commit = () => {
+          if (committed) return;
+          committed = true;
+          const val = input.value.trim();
+          if (val && val !== original) editorDraftEntityLabels[id] = val;
+          else delete editorDraftEntityLabels[id];
+          const newSpan = document.createElement('span');
+          newSpan.className = 'llw-room__editor-row-name';
+          newSpan.dataset.rowEntity = id;
+          newSpan.textContent = editorDraftEntityLabels[id] || original;
+          input.replaceWith(newSpan);
+        };
+        input.addEventListener('keydown', (ev) => {
+          if (ev.key === 'Enter') {
+            ev.preventDefault();
+            ev.stopPropagation();
+            input.blur();
+          } else if (ev.key === 'Escape') {
+            ev.preventDefault();
+            ev.stopPropagation();
+            input.value = currentValue;
+            input.blur();
+          }
+        });
+        input.addEventListener('blur', commit);
+        input.addEventListener('click', (ev) => ev.stopPropagation());
+      }
 
       // Only a climate entity (has a settable target) or a temperature
       // sensor is worth offering as "the" room temperature - and only ones
@@ -269,7 +371,7 @@
         tempSelectEl.innerHTML =
           `<option value="">${t('room', 'tempSourceAuto')}</option>` +
           candidates
-            .map((e) => `<option value="${e.entity_id}" ${e.entity_id === editorDraftTempEntity ? 'selected' : ''}>${escapeHtml(friendlyName(e))}</option>`)
+            .map((e) => `<option value="${e.entity_id}" ${e.entity_id === editorDraftTempEntity ? 'selected' : ''}>${escapeHtml(labelFor(e))}</option>`)
             .join('');
       }
       tempSelectEl.addEventListener('change', () => {
@@ -279,7 +381,7 @@
       function renderList(filterText) {
         const q = filterText.trim().toLowerCase();
         const filtered = q
-          ? allEntities.filter((e) => friendlyName(e).toLowerCase().includes(q) || e.entity_id.toLowerCase().includes(q))
+          ? allEntities.filter((e) => labelFor(e).toLowerCase().includes(q) || e.entity_id.toLowerCase().includes(q))
           : allEntities;
         if (!filtered.length) {
           listEl.innerHTML = `<div class="llw-room__empty-msg">${t('room', 'noEntitiesFound')}</div>`;
@@ -298,10 +400,13 @@
               ${byGroup[g]
                 .map(
                   (e) => `
-                <label class="llw-room__editor-row">
-                  <input type="checkbox" value="${e.entity_id}" ${editorDraftEntities.includes(e.entity_id) ? 'checked' : ''} />
-                  <span>${escapeHtml(friendlyName(e))}</span>
-                </label>`
+                <div class="llw-room__editor-row">
+                  <label class="llw-room__editor-row-label">
+                    <input type="checkbox" value="${e.entity_id}" ${editorDraftEntities.includes(e.entity_id) ? 'checked' : ''} />
+                    <span class="llw-room__editor-row-name" data-row-entity="${e.entity_id}">${escapeHtml(labelFor(e))}</span>
+                  </label>
+                  <button type="button" class="llw-room__editor-rename" data-row-entity="${e.entity_id}" title="${escapeHtml(t('room', 'renameEntity'))}" aria-label="${escapeHtml(t('room', 'renameEntity'))}">✎</button>
+                </div>`
                 )
                 .join('')}
             </div>`
@@ -313,6 +418,13 @@
               ? editorDraftEntities.concat(cb.value)
               : editorDraftEntities.filter((id) => id !== cb.value);
             refreshTempOptions();
+          });
+        });
+        listEl.querySelectorAll('.llw-room__editor-rename').forEach((btn) => {
+          btn.addEventListener('click', (ev) => {
+            ev.preventDefault();
+            ev.stopPropagation();
+            startRename(btn.dataset.rowEntity);
           });
         });
       }
@@ -330,13 +442,18 @@
         });
 
       searchEl.addEventListener('input', () => renderList(searchEl.value));
-      editorEl.querySelector('.llw-room__back').addEventListener('click', renderEditorStep1);
-      editorEl.querySelector('.llw-room__save').addEventListener('click', () => {
+      editorBodyEl.querySelector('.llw-room__back').addEventListener('click', renderEditorStep1);
+      editorBodyEl.querySelector('.llw-room__save').addEventListener('click', () => {
+        const entityLabels = {};
+        editorDraftEntities.forEach((id) => {
+          if (editorDraftEntityLabels[id]) entityLabels[id] = editorDraftEntityLabels[id];
+        });
         cfg = {
           name: editorDraftName,
           entities: editorDraftEntities.slice(),
           subWidgets: cfg.subWidgets || [],
           tempEntityId: editorDraftTempEntity || '',
+          entityLabels,
         };
         syncSubWidgets();
         ensureSubWidgetTypesLoaded().then(() => saveConfig(cfg));
@@ -536,9 +653,19 @@
       return isOn ? 'detected' : 'clear';
     }
 
+    // Custom label for this entity, scoped to this room (cfg.entityLabels),
+    // falling back to its real Home Assistant friendly_name - used for
+    // every entity row in the live room popup (sub-widgets get the same
+    // label via syncSubWidgets() setting their own config.displayName).
+    function displayName(entity) {
+      const id = entity && entity.entity_id;
+      if (id && cfg.entityLabels && cfg.entityLabels[id]) return cfg.entityLabels[id];
+      return friendlyName(entity);
+    }
+
     function rowHtml(entity) {
       const domain = domainOf(entity.entity_id);
-      const name = escapeHtml(friendlyName(entity));
+      const name = escapeHtml(displayName(entity));
       const id = entity.entity_id;
 
       if (domain === 'light') {
@@ -917,10 +1044,7 @@
     });
 
     if (!cfg.name || !cfg.entities.length) {
-      editorDraftName = cfg.name;
-      editorDraftEntities = cfg.entities.slice();
-      editorEl.classList.add('llw-open');
-      renderEditorStep1();
+      openEditor();
       renderCompact();
     } else {
       renderCompact();
@@ -931,6 +1055,7 @@
       destroyed = true;
       clearInterval(pollTimer);
       closeModal();
+      closeEditor();
     };
   }
 

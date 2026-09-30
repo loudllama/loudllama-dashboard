@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.09.016
+
+- Change: **Room widget's setup/edit screen is now a proper fullscreen popup, independent of the room tile's own size**. It used to be squeezed into whatever grid size the Room widget currently had — and since Room can be resized all the way down to 1x1, picking entities in a small room tile meant a cramped list with barely any room to scroll or read. Clicking the gear icon now opens a large, centered popup (the same style as the room's own live view), so choosing entities is comfortable no matter how small you've shrunk the tile itself.
+- New: **rename entities inside a room**. Every entity row in the edit popup now has a small pencil button next to it — click it to give that entity a simpler name just for this room (e.g. turning "homeassist connect zbt-2 spisestue anden lysgruppe" into "Spisestue loft"). It doesn't touch the entity's real name anywhere else in Home Assistant or on any other widget — it's purely a label local to this room. Renaming applies everywhere the entity shows up inside the room: its row in the popup, and, for lights/thermostats/speakers (which get mounted as their own real widgets inside the room), their own widget header too. Leaving the rename blank reverts it back to the entity's normal name.
+
 ## 0.09.015
 
 - New: **weather icons pushed further toward realism**. 0.09.014 added depth (gradients, shadows, glow); this release layers in more of it — clouds now have a proper blurred drop shadow and a darker base layer underneath the lit top layer for real volume, the sun and lightning bolt both get a soft outer glow, the moon is shaded and craters are a touch more visible, and raindrops/snowflakes pick up a small highlight glint. Same set of conditions, same icon sizes, just more detail at every one.
