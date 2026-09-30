@@ -64,8 +64,9 @@
   /* Extra right padding keeps the gear button clear of the top-right
      "remove widget" (x) button that app.js overlays in edit mode - GridStack
      resize handles only run along the bottom/side edges (see `resizable:
-     {handles: 'e, se, s, sw, w'}` in app.js), so the top edge stays free for
-     widget-specific controls as long as they don't collide with each other. */
+     {handles: 'e, s, w'}` in app.js's createPage), so the top edge stays
+     free for widget-specific controls as long as they don't collide with
+     each other. */
   padding-right: 30px;
 }
 

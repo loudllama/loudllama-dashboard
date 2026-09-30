@@ -45,12 +45,28 @@
 
   <main id="llw-loading">Loading…</main>
 
-  <div class="grid-stack" id="llw-grid"></div>
+  <!--
+    Swipeable dashboard "pages", iOS home-screen style. Each page is its own
+    independent GridStack instance (a plain 12-col grid, added on demand by
+    app.js - there's no fixed page count in the markup here); #llw-pages-track
+    holds them side by side and app.js slides it horizontally to switch pages,
+    either by dragging/swiping or by tapping a dot below.
+  -->
+  <div id="llw-pages-viewport">
+    <div id="llw-pages-track"></div>
+  </div>
+
+  <!--
+    Page indicator dots - hidden entirely (via body.llw-multi-page, toggled
+    in app.js) as long as there's only one page, same as iOS hides its own
+    dots for a single home screen.
+  -->
+  <div id="llw-page-dots"></div>
 
   <!--
     Fixed row of pinned "favorite" widgets, iOS-dock style - stays put at
-    the bottom of the screen regardless of how far the grid above is
-    scrolled. Empty (and hidden) until something is pinned; see app.js's
+    the bottom of the screen regardless of which page is showing or how far
+    it's scrolled. Empty (and hidden) until something is pinned; see app.js's
     pinToDock/unpinFromDock.
   -->
   <div id="llw-dock" class="llw-dock"></div>

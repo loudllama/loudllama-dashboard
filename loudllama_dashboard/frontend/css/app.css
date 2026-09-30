@@ -12,6 +12,16 @@ html, body {
   background: #1b1f27;
   color: #f4f5f7;
 }
+/* The page itself no longer scrolls - the toolbar and (once there's more
+   than one) the pages viewport are stacked in a column, and each page
+   scrolls internally on its own (see .llw-page below). This is what makes
+   horizontal swiping between pages possible without it fighting the
+   document's own vertical scroll. */
+body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
 
 #llw-background {
   position: fixed;
@@ -30,8 +40,11 @@ html, body {
 }
 
 #llw-toolbar {
-  position: sticky;
-  top: 0;
+  /* Was `position: sticky; top: 0` - meaningful when the *document* scrolled
+     underneath it. Now the body is a non-scrolling flex column (see above)
+     and the toolbar is simply its first, fixed-size child, so plain flow
+     positioning already keeps it exactly where it was. */
+  flex: 0 0 auto;
   z-index: 50;
   display: flex;
   align-items: center;
@@ -113,15 +126,116 @@ body.llw-edit-mode .llw-bg-upload {
   font-size: 0.9rem;
 }
 
-.grid-stack {
+/* --- Swipeable pages -------------------------------------------------------
+   #llw-pages-viewport clips a horizontally-wider #llw-pages-track (one
+   .llw-page per page, each exactly one viewport wide) and app.js slides the
+   track with a transform to switch pages. See app.js's goToPage/
+   setupPagesSwipe for the interaction, and syncPageCount for how many pages
+   actually exist at any moment - there's no fixed count, it's entirely
+   derived from where widgets are. */
+#llw-pages-viewport {
+  flex: 1 1 auto;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+}
+#llw-pages-track {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  transition: transform 0.32s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+/* While a finger/pointer is actively dragging a page, or right after a page
+   was silently added/removed and the track needs to jump without a visible
+   slide (see goToPage's skipAnimation), the transform has to apply
+   immediately - the eased transition above is only for a deliberate,
+   already-decided page change. */
+#llw-pages-track.llw-dragging,
+#llw-pages-track.llw-no-anim {
+  transition: none;
+}
+
+.llw-page {
+  /* Each page is exactly one viewport wide and doesn't shrink to fit
+     alongside its neighbours - see the CSS comment above; this is what makes
+     the track wider than the viewport in the first place. */
+  flex: 0 0 100%;
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  /* Lets the browser's own touch scrolling handle vertical drags immediately
+     while leaving horizontal ones to app.js's swipe handler - without this,
+     mobile browsers can claim a touch gesture for their own (vertical-only)
+     scroll heuristics before JS gets a chance to see it's actually
+     horizontal. */
+  touch-action: pan-y;
   padding: var(--llw-gap);
-  /* Leaves room so the last row of widgets never sits behind the fixed
-     dock - only actually needed once something is pinned (see
-     body.llw-has-dock, toggled from app.js). */
+  /* Leaves room so the last row of widgets never sits behind the fixed dock
+     and/or the page dots - only actually needed once one or both are
+     showing (see body.llw-has-dock/llw-multi-page, toggled from app.js). */
   transition: padding-bottom 0.2s ease;
 }
-body.llw-has-dock .grid-stack {
+body.llw-multi-page .llw-page {
+  padding-bottom: 44px;
+}
+body.llw-has-dock .llw-page {
   padding-bottom: 118px;
+}
+body.llw-has-dock.llw-multi-page .llw-page {
+  padding-bottom: 154px;
+}
+
+/* Page indicator dots - centered, sitting just above the dock (when there is
+   one) the same way real iOS keeps its page dots clear of the dock. Hidden
+   entirely for a single-page dashboard. */
+#llw-page-dots {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 41;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 0;
+  /* This strip spans the full width (so the dots stay centered regardless
+     of how many there are) but almost none of that width is an actual dot -
+     without this, the empty padding on either side would silently swallow
+     every pointer event that lands in it (including page-swipe drags that
+     start or pass near the bottom edge), even though nothing is visibly
+     there to click. Individual dots opt back in below. */
+  pointer-events: none;
+}
+body.llw-multi-page #llw-page-dots {
+  display: flex;
+}
+body.llw-has-dock #llw-page-dots {
+  bottom: 118px;
+}
+.llw-dot {
+  width: 7px;
+  height: 7px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.35);
+  cursor: pointer;
+  pointer-events: auto;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+.llw-dot:hover { background: rgba(255, 255, 255, 0.55); }
+.llw-dot.llw-dot--active {
+  background: #fff;
+  transform: scale(1.3);
+}
+/* The one extra page that only exists while editing (see app.js's
+   syncPageCount) is always blank and always last - dimming its dot slightly
+   hints "swipe here for a new page" without needing any extra copy. */
+.llw-dot.llw-dot--blank {
+  background: rgba(255, 255, 255, 0.15);
 }
 
 /* Fixed "favorites" row, always visible regardless of scroll - the iOS
@@ -202,6 +316,46 @@ body.llw-has-dock .llw-dock {
 body.llw-edit-mode .llw-pin { display: flex; }
 .llw-pin:hover { background: rgba(255, 255, 255, 0.3); }
 .llw-pin.llw-pinned { background: #ffd166; color: #1a1200; }
+
+/* "Move this widget to the previous/next page" - the one part of iOS's
+   "drag to the screen edge to change page" gesture we deliberately didn't
+   build (see the note on the swipeable-pages release): dragging a widget
+   while ALSO trying to carry a page-swipe gesture on the same pointer is a
+   lot of extra gesture-disambiguation for real gain, so instead a widget can
+   be nudged a page at a time from its own controls. Bottom-left sits right
+   where remove/pin already established this shell's badge pattern - top-
+   right and bottom-right are taken, so bottom-left is the next free corner.
+   Nudging past the first/last page is simply a no-op rather than something
+   that needs disabling/greying out, so unlike .llw-pin there's no extra
+   state class here. */
+.llw-page-move {
+  position: absolute;
+  bottom: 6px;
+  z-index: 5;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid rgba(20, 23, 30, 0.9);
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  font-size: 0.7rem;
+  line-height: 1;
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+/* Only shown once there's a second page with real content on it to move a
+   widget to - llw-multi-real-pages, not the more permissive llw-multi-page
+   the page dots use, so an ordinary one-page dashboard doesn't sprout these
+   on every widget the instant edit mode's always-there blank trailing page
+   exists (see syncPageCount's comment on the two classes). Never shown on a
+   dock tile either, which isn't part of any page to begin with. */
+body.llw-edit-mode.llw-multi-real-pages .llw-page-move { display: flex; }
+.llw-dock-item .llw-page-move { display: none !important; }
+.llw-page-move:hover { background: rgba(255, 255, 255, 0.3); }
+.llw-page-prev { left: 6px; }
+.llw-page-next { left: 30px; }
 
 /* Outer shell fills the GridStack cell exactly (same 100%/100% the card
    itself used to have directly) and stacks the card above a small caption
@@ -411,7 +565,7 @@ body.llw-edit-mode .llw-widget {
    ...) in one rule instead of enumerating each widget - they're only ever
    shown in edit mode to begin with (same as remove/pin), so they have the
    exact same "always jiggling while tappable" problem. */
-.llw-widget-shell:has(.llw-remove:hover, .llw-pin:hover, [class*="__gear"]:hover) {
+.llw-widget-shell:has(.llw-remove:hover, .llw-pin:hover, .llw-page-prev:hover, .llw-page-next:hover, [class*="__gear"]:hover) {
   animation: none !important;
 }
 

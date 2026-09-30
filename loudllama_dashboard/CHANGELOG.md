@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.09.012
+
+- New: **swipeable multi-page dashboards**, the feature flagged as "still coming" in the last couple of releases. Enter edit mode and you'll see a row of small dots appear at the bottom - swipe left/right (or click a dot) to move between pages, the same feel as flipping between iOS home screen pages. A blank page is always waiting at the end while you're editing, so dragging or adding a widget onto it turns it into a real page automatically; every widget also gets small ‹ › buttons in edit mode once there's a second page to send it to, letting you move it over without dragging. Pages are remembered per device, same as widget positions already were, so your phone and a wall-mounted tablet can each be laid out across however many pages make sense for that screen. Leaving edit mode tidies away any pages you didn't end up using.
+- Fix: resizing a widget diagonally (corner-drag) has been replaced with resizing from an edge (drag the side or the bottom) - a side effect of the groundwork for pages above. You can still reach every size a widget supports, it just now takes two edge-drags (e.g. bottom, then side) instead of one corner-drag when you want to change both width and height at once.
+
 ## 0.09.011
 
 - Fix: **Room widget couldn't be resized down to a 1x1 grid cell**. Resizing snaps to a small set of curated sizes (see 0.09.008), but the smallest size in that set was 2x2 for every widget, Room included, so shrinking it any further always bounced back up to 2x2. Room can now go all the way down to a single grid cell; every other widget's smallest size is unchanged.

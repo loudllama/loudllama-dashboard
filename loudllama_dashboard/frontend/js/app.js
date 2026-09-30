@@ -134,7 +134,14 @@
     return type;
   }
 
-  let grid;
+  // The dashboard is a horizontal row of "pages" (iOS home-screen style),
+  // each its own independent GridStack instance/12-col grid - see the big
+  // comment block above createPage() for why. pageEls[i].gridstack is that
+  // page's GridStack instance (GridStack.init sets this itself); currentPage
+  // is just which one is currently scrolled into view, purely a client-side
+  // view concern, never persisted.
+  let pageEls = [];
+  let currentPage = 0;
   let editMode = false;
   let saveTimer = null;
 
@@ -175,22 +182,29 @@
     // which GridStack keeps current on every move/resize) sidesteps that
     // entirely, and skipping anything without a widgetType still guards
     // against a stale/detached element lingering right after removeWidget().
-    const gridWidgets = Array.from(grid.el.children)
-      .filter((el) => el.classList.contains('grid-stack-item') && el.dataset && el.dataset.widgetType && el.gridstackNode)
-      .map((el) => {
-        const node = el.gridstackNode;
-        return {
-          id: node.id,
-          type: el.dataset.widgetType,
-          x: node.x,
-          y: node.y,
-          w: node.w,
-          h: node.h,
-          config: JSON.parse(el.dataset.widgetConfig || '{}'),
-          label: el.dataset.widgetLabel || '',
-          dock: false,
-        };
-      });
+    // Each page contributes its own widgets, tagged with that page's index -
+    // this is the only place a widget's page number is decided from, there's
+    // no separate "which page" bookkeeping kept anywhere else.
+    const gridWidgets = [];
+    pageEls.forEach((pageEl, pageIndex) => {
+      Array.from(pageEl.children)
+        .filter((el) => el.classList.contains('grid-stack-item') && el.dataset && el.dataset.widgetType && el.gridstackNode)
+        .forEach((el) => {
+          const node = el.gridstackNode;
+          gridWidgets.push({
+            id: node.id,
+            type: el.dataset.widgetType,
+            x: node.x,
+            y: node.y,
+            w: node.w,
+            h: node.h,
+            page: pageIndex,
+            config: JSON.parse(el.dataset.widgetConfig || '{}'),
+            label: el.dataset.widgetLabel || '',
+            dock: false,
+          });
+        });
+    });
     // Docked widgets live outside GridStack entirely (see pinToDock), so
     // they're read straight off their own dataset instead of a
     // gridstackNode - x/y/w/h are whatever they were the moment they got
@@ -204,6 +218,11 @@
         y: Number(el.dataset.widgetY || 0),
         w: Number(el.dataset.widgetW || 3),
         h: Number(el.dataset.widgetH || 3),
+        // Dock widgets aren't on any page (the dock is fixed chrome, shown
+        // the same regardless of which page is scrolled into view) - page:0
+        // here is just a harmless, unused placeholder to keep every widget's
+        // shape the same.
+        page: 0,
         config: JSON.parse(el.dataset.widgetConfig || '{}'),
         label: el.dataset.widgetLabel || '',
         dock: true,
@@ -334,6 +353,8 @@
         <div class="llw-widget">
           <button class="llw-remove" title="${t('app', 'removeWidget')}" aria-label="${t('app', 'removeWidget')}">−</button>
           <button class="llw-pin" title="${t('app', 'pinToDock')}" aria-label="${t('app', 'pinToDock')}">📌</button>
+          <button class="llw-page-move llw-page-prev" title="${t('app', 'movePagePrev')}" aria-label="${t('app', 'movePagePrev')}">‹</button>
+          <button class="llw-page-move llw-page-next" title="${t('app', 'movePageNext')}" aria-label="${t('app', 'movePageNext')}">›</button>
           <div class="llw-body"></div>
         </div>
         <div class="llw-caption" tabindex="0" title="${t('app', 'renameWidget')}">${escapeHtml(captionText)}</div>
@@ -348,7 +369,8 @@
         el.remove();
         updateDockVisibility();
       } else {
-        grid.removeWidget(el);
+        const pageEl = el.closest('.llw-page');
+        if (pageEl && pageEl.gridstack) pageEl.gridstack.removeWidget(el);
       }
       // Explicit, immediate delete - see server.js's big comment on why
       // widget removal is its own endpoint rather than inferred from a
@@ -357,11 +379,22 @@
         console.error('[loudllama] Failed to delete widget', removedId, err);
       });
       scheduleSave();
+      // The page this widget just left may now be empty - if it was the
+      // trailing page, syncPageCount() will quietly drop it.
+      syncPageCount();
     });
     el.querySelector('.llw-pin').addEventListener('click', (ev) => {
       ev.stopPropagation();
       if (el.classList.contains('llw-dock-item')) unpinFromDock(el);
       else pinToDock(el);
+    });
+    el.querySelector('.llw-page-prev').addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      moveWidgetToPage(el, -1);
+    });
+    el.querySelector('.llw-page-next').addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      moveWidgetToPage(el, 1);
     });
     wireCaptionEditing(el, node);
     return el;
@@ -378,6 +411,10 @@
       ? node
       : { ...(def ? def.defaultSize : { w: 3, h: 3 }), ...node };
 
+    const pageIndex = Math.max(0, Number(node.page) || 0);
+    ensurePageCount(pageIndex + 1);
+    const pageEl = pageEls[pageIndex];
+
     const el = buildWidgetCard(node, widgetId);
     el.classList.add('grid-stack-item');
     el.querySelector('.llw-widget-shell').classList.add('grid-stack-item-content');
@@ -388,8 +425,16 @@
     el.setAttribute('gs-h', size.h ?? 3);
     syncPinButton(el);
 
-    grid.addWidget(el);
+    pageEl.gridstack.addWidget(el);
     mountWidget({ ...node, id: widgetId, el });
+    // A widget landing on a page beyond what currently exists (loading a
+    // saved layout) is handled by ensurePageCount above; this also covers
+    // the opposite case - e.g. the "+ Add widget" menu always adds to
+    // whatever page is currently in view, which never shrinks anything, but
+    // running the same resync after every add keeps this one function the
+    // single source of truth for page bookkeeping instead of every call site
+    // having to remember to do it.
+    syncPageCount();
   }
 
   // Docked widgets are plain elements appended straight to #llw-dock -
@@ -421,7 +466,12 @@
       el.dataset.widgetW = node.w;
       el.dataset.widgetH = node.h;
     }
-    grid.removeWidget(el, false); // keep the element (and its mounted widget) alive, just detach from the grid
+    // The widget's own page - keep detaching from the *right* grid instance,
+    // not just any one, now that there's more than one on screen.
+    const sourcePageEl = el.closest('.llw-page');
+    if (sourcePageEl && sourcePageEl.gridstack) {
+      sourcePageEl.gridstack.removeWidget(el, false); // keep the element (and its mounted widget) alive, just detach from the grid
+    }
     el.classList.remove('grid-stack-item');
     el.classList.add('llw-dock-item');
     const shell = el.querySelector('.llw-widget-shell');
@@ -430,11 +480,15 @@
     updateDockVisibility();
     syncPinButton(el);
     scheduleSave();
+    // Pinning something might have just emptied the trailing page it came
+    // from.
+    syncPageCount();
   }
 
   // Moves a docked widget back onto the main grid, at its last known
   // position/size (or wherever GridStack's own collision handling decides
-  // to put it, if that spot is now taken).
+  // to put it, if that spot is now taken) - on whichever page is currently
+  // in view, since that's where the user is looking when they unpin it.
   function unpinFromDock(el) {
     const x = Number(el.dataset.widgetX || 0);
     const y = Number(el.dataset.widgetY || 0);
@@ -444,20 +498,296 @@
     el.classList.add('grid-stack-item');
     const shell = el.querySelector('.llw-widget-shell');
     if (shell) shell.classList.add('grid-stack-item-content');
-    grid.el.appendChild(el);
-    grid.makeWidget(el, { x, y, w, h });
+    const destPageEl = pageEls[currentPage];
+    destPageEl.appendChild(el);
+    destPageEl.gridstack.makeWidget(el, { x, y, w, h });
     updateDockVisibility();
     syncPinButton(el);
     scheduleSave();
+  }
+
+  // Moves a widget a single page forward/backward (the ◂/▸ badges - see the
+  // big comment on .llw-page-move in app.css for why this exists instead of
+  // a drag-to-edge gesture). Nudging past the first or last page is simply a
+  // no-op, same as a resize handle that's already at its min/max.
+  function moveWidgetToPage(el, delta) {
+    if (el.classList.contains('llw-dock-item')) return; // shouldn't happen - CSS already hides these buttons there
+    const sourcePageEl = el.closest('.llw-page');
+    if (!sourcePageEl) return;
+    const sourceIndex = Number(sourcePageEl.dataset.page);
+    const targetIndex = Math.max(0, sourceIndex + delta);
+    if (targetIndex === sourceIndex) return;
+    ensurePageCount(targetIndex + 1);
+    const node = el.gridstackNode;
+    const w = (node && node.w) || 3;
+    const h = (node && node.h) || 3;
+    // `removeWidget(el, false)` only detaches el from GridStack's own
+    // tracking - the "false" means "don't touch the DOM", so el is still
+    // sitting inside the *source* page's element afterwards. makeWidget()
+    // doesn't relocate an element either (unlike addWidget, which appends
+    // it itself) - it just turns whatever's already inside the target grid
+    // into a tracked item. So the DOM move in between is this function's own
+    // job, same as unpinFromDock already does for the dock -> grid case.
+    sourcePageEl.gridstack.removeWidget(el, false);
+    const destPageEl = pageEls[targetIndex];
+    destPageEl.appendChild(el);
+    // x/y deliberately omitted - 0/0 plus GridStack's own collision handling
+    // (the same thing every brand-new widget already relies on in
+    // addWidgetElement) finds it a free spot on the destination page rather
+    // than assuming its old position is free there too.
+    destPageEl.gridstack.makeWidget(el, { x: 0, y: 0, w, h });
+    goToPage(targetIndex);
+    scheduleSave();
+    syncPageCount();
+  }
+
+  // Creates one page (a plain 12-col GridStack instance) and appends it to
+  // the end of the pages track. Pages are only ever created at the end and
+  // only ever removed from the end while empty (see syncPageCount) - so a
+  // page's index, once assigned, never changes for as long as it holds any
+  // widgets, which is what lets serializeLayout/moveWidgetToPage/etc. trust
+  // a page element's data-page attribute as a stable identity.
+  function createPage() {
+    const pageEl = document.createElement('div');
+    pageEl.className = 'grid-stack llw-page';
+    pageEl.dataset.page = String(pageEls.length);
+    document.getElementById('llw-pages-track').appendChild(pageEl);
+    const g = GridStack.init(
+      {
+        cellHeight: 90,
+        margin: 8,
+        float: true,
+        disableOneColumnMode: false,
+        // No 'se'/'sw' corner handles (top-level pages only - Room/Group's
+        // own nested sub-grids still use all four and are unaffected, since
+        // their tiles don't carry these badges - see below). GridStack
+        // inline-styles every resize handle to z-index:100, and the bottom
+        // corners are exactly where .llw-pin and .llw-page-prev/-next
+        // already live; while jiggle's rotation is live, the *whole*
+        // .llw-widget-shell is its own stacking context (any actively
+        // animated `transform` creates one, per spec), which traps every
+        // badge's z-index inside it - no z-index a badge declares can ever
+        // outrank a sibling of the shell, like these handles. That leaves
+        // a genuine deadlock the moment a bottom corner has both a badge
+        // and a handle: the handle wins every hover, so the badge can never
+        // trigger the hover-pause that would stop the jiggle and lift the
+        // trap. Diagonal (corner) resizing is still fully reachable, just as
+        // two separate edge drags ('e' then 's', or vice versa) instead of
+        // one - width and height already snap to independent tiers either
+        // way (see LLW_WIDTH_TIERS/LLW_HEIGHT_TIERS), so nothing about the
+        // achievable sizes actually changes, only the gesture.
+        resizable: { handles: 'e, s, w' },
+      },
+      pageEl
+    );
+    g.disable(); // matches whatever the *current* global edit mode is - see setEditMode, which enables every page's grid the same way
+    if (editMode) g.enable();
+    wireGridEvents(g);
+    pageEls.push(pageEl);
+    return pageEl;
+  }
+
+  // Every page's grid needs the same "save on any change" and "snap resize
+  // to a tier" wiring addWidgetElement's single global grid used to get once
+  // at init - now it happens once per page, right when that page is created.
+  function wireGridEvents(g) {
+    g.on('change', scheduleSave);
+    // Snap to a size tier the instant a resize ends (not during, so the drag
+    // itself still feels smooth/free) - see LLW_WIDTH_TIERS/pickTier above.
+    g.on('resizestop', (event, el) => {
+      const node = el.gridstackNode;
+      if (!node) return;
+      const def = LL.widgetTypes[el.dataset.widgetType];
+      const minW = (def && def.minSize && def.minSize.w) || 1;
+      const minH = (def && def.minSize && def.minSize.h) || 1;
+      const snappedW = pickTier(node.w, LLW_WIDTH_TIERS, minW, 12 - node.x);
+      const snappedH = pickTier(node.h, LLW_HEIGHT_TIERS, minH, 20);
+      if (snappedW !== node.w || snappedH !== node.h) {
+        g.update(el, { w: snappedW, h: snappedH });
+        scheduleSave();
+      }
+    });
+  }
+
+  // Grows the page list up to (at least) minCount pages. Never shrinks -
+  // that's syncPageCount's job, and only for empty trailing pages, so a
+  // widget's page index is never invalidated out from under it.
+  function ensurePageCount(minCount) {
+    while (pageEls.length < minCount) createPage();
+  }
+
+  // The single place that decides how many pages currently "exist": one past
+  // the highest-numbered page that actually has a widget on it, plus one
+  // extra blank page while editing (so there's always somewhere to swipe to
+  // and start a new page), floored at 1 (there's always at least a page 0,
+  // even empty, so the dashboard has somewhere to render into). Called after
+  // every action that could change which pages have widgets - add, remove,
+  // move-to-another-page, pin/unpin, and entering/leaving edit mode itself
+  // (which is what makes that trailing blank page appear/disappear).
+  function syncPageCount() {
+    let maxNonEmpty = -1;
+    pageEls.forEach((pageEl, i) => {
+      if (pageEl.querySelector('.grid-stack-item')) maxNonEmpty = i;
+    });
+    let desired = maxNonEmpty + 1;
+    if (desired < 1) desired = 1;
+    if (editMode) desired += 1;
+
+    ensurePageCount(desired);
+    while (pageEls.length > desired) {
+      const last = pageEls[pageEls.length - 1];
+      if (last.querySelector('.grid-stack-item')) break; // safety net - never destroy a page that actually has something on it
+      if (last.gridstack) last.gridstack.destroy(); // default true also removes the element itself from the DOM
+      pageEls.pop();
+    }
+
+    if (currentPage > pageEls.length - 1) currentPage = pageEls.length - 1;
+    document.body.classList.toggle('llw-multi-page', pageEls.length > 1);
+    // Deliberately a SEPARATE flag from llw-multi-page above: entering edit
+    // mode always adds one blank trailing page (so dots + a swipe are enough
+    // to discover and reach it - see the comment above), but the ◂/▸ move
+    // buttons only earn their keep once there's a second page actually
+    // worth moving a widget TO, i.e. real content already on more than one
+    // page. Without this distinction, every widget on an ordinary one-page
+    // dashboard would sprout ◂/▸ badges the instant edit mode turns on -
+    // pure clutter for a setup that was never going multi-page - and, on a
+    // small enough tile, those badges plus .llw-pin can even collide in the
+    // same bottom corner real estate.
+    document.body.classList.toggle('llw-multi-real-pages', maxNonEmpty + 1 > 1);
+    renderDots();
+    goToPage(currentPage, true);
+  }
+
+  function renderDots() {
+    const wrap = document.getElementById('llw-page-dots');
+    wrap.innerHTML = '';
+    if (pageEls.length <= 1) return;
+    pageEls.forEach((pageEl, i) => {
+      const dot = document.createElement('button');
+      dot.type = 'button';
+      dot.className = 'llw-dot' + (i === currentPage ? ' llw-dot--active' : '');
+      if (editMode && i === pageEls.length - 1 && !pageEl.querySelector('.grid-stack-item')) {
+        dot.classList.add('llw-dot--blank');
+      }
+      dot.title = `${t('app', 'page')} ${i + 1}`;
+      dot.setAttribute('aria-label', dot.title);
+      dot.addEventListener('click', () => goToPage(i));
+      wrap.appendChild(dot);
+    });
+  }
+
+  // Slides the pages track to `index` (clamped to whatever pages currently
+  // exist). skipAnimation is for a resync that shouldn't visibly slide - a
+  // page silently appearing/disappearing behind the scenes (see
+  // syncPageCount) shouldn't itself look like a swipe.
+  function goToPage(index, skipAnimation) {
+    currentPage = Math.max(0, Math.min(index, pageEls.length - 1));
+    const track = document.getElementById('llw-pages-track');
+    if (skipAnimation) {
+      track.classList.add('llw-no-anim');
+      track.style.transform = `translateX(-${currentPage * 100}%)`;
+      void track.offsetWidth; // force layout so the class actually takes effect for this frame before...
+      track.classList.remove('llw-no-anim'); // ...it's lifted again, so the *next* goToPage still animates
+    } else {
+      track.style.transform = `translateX(-${currentPage * 100}%)`;
+    }
+    document.querySelectorAll('#llw-page-dots .llw-dot').forEach((d, i) => {
+      d.classList.toggle('llw-dot--active', i === currentPage);
+    });
+  }
+
+  // Drag-to-swipe between pages, mirroring how real iOS lets you drag from
+  // anywhere on the home screen, not just the dots. Pointer Events unify
+  // mouse/touch/pen in one set of listeners. See the CSS comment on
+  // .llw-page-move for why moving a WIDGET to another page is a separate,
+  // deliberately simpler mechanism (small ◂/▸ badges) rather than also being
+  // shoehorned into this same gesture.
+  function setupPagesSwipe() {
+    const viewport = document.getElementById('llw-pages-viewport');
+    const track = document.getElementById('llw-pages-track');
+    let active = false;
+    let decided = null; // null = not yet decided, 'h' = paging swipe, 'v' = something else (vertical scroll, etc.) - leave it alone
+    let pointerId = null;
+    let startX = 0;
+    let startY = 0;
+    let dx = 0;
+    let dy = 0;
+
+    viewport.addEventListener('pointerdown', (ev) => {
+      if (ev.button !== undefined && ev.button !== 0) return; // primary mouse button / touch / pen only
+      if (pageEls.length <= 1) return; // nothing to swipe to
+      // In edit mode, a gesture starting ON a widget belongs entirely to
+      // GridStack's own drag/resize handling for that item - grabbing it
+      // here too would fight it for the same pointer. Outside edit mode
+      // widgets aren't draggable at all (see setEditMode), so any drag
+      // anywhere, including over a widget, is fair game for paging there.
+      if (editMode && ev.target.closest('.grid-stack-item')) return;
+      active = true;
+      decided = null;
+      pointerId = ev.pointerId;
+      startX = ev.clientX;
+      startY = ev.clientY;
+      dx = 0;
+      dy = 0;
+    });
+
+    viewport.addEventListener('pointermove', (ev) => {
+      if (!active || ev.pointerId !== pointerId) return;
+      dx = ev.clientX - startX;
+      dy = ev.clientY - startY;
+      if (decided === null) {
+        if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
+          decided = Math.abs(dx) > Math.abs(dy) ? 'h' : 'v';
+          if (decided === 'h') {
+            track.classList.add('llw-dragging');
+            if (viewport.setPointerCapture) viewport.setPointerCapture(pointerId);
+          }
+        }
+      }
+      if (decided === 'h') {
+        ev.preventDefault();
+        const vw = viewport.clientWidth || 1;
+        let offsetPct = (dx / vw) * 100;
+        // Rubber-band resistance past the first/last page - a full free drag
+        // there would feel like the page detached from the row behind it,
+        // same reasoning as iOS's own scroll bounce.
+        if ((currentPage === 0 && dx > 0) || (currentPage === pageEls.length - 1 && dx < 0)) {
+          offsetPct *= 0.35;
+        }
+        track.style.transform = `translateX(calc(-${currentPage * 100}% + ${offsetPct}%))`;
+      }
+    });
+
+    function endSwipe(ev) {
+      if (!active) return;
+      active = false;
+      track.classList.remove('llw-dragging');
+      if (decided === 'h') {
+        const vw = viewport.clientWidth || 1;
+        const threshold = vw * 0.18;
+        let target = currentPage;
+        if (dx <= -threshold) target = currentPage + 1;
+        else if (dx >= threshold) target = currentPage - 1;
+        goToPage(target);
+      }
+      decided = null;
+    }
+    viewport.addEventListener('pointerup', endSwipe);
+    viewport.addEventListener('pointercancel', endSwipe);
   }
 
   function setEditMode(on) {
     editMode = on;
     document.body.classList.toggle('llw-edit-mode', editMode);
     document.getElementById('llw-edit-toggle').textContent = editMode ? t('app', 'done') : t('app', 'edit');
-    if (grid) {
-      editMode ? grid.enable() : grid.disable();
-    }
+    pageEls.forEach((pageEl) => {
+      if (pageEl.gridstack) editMode ? pageEl.gridstack.enable() : pageEl.gridstack.disable();
+    });
+    // Toggling edit mode is what makes the one trailing blank page
+    // appear/disappear (see syncPageCount) - resync right away so the dots
+    // and swipe range reflect it immediately instead of only after the next
+    // unrelated change.
+    syncPageCount();
   }
 
   function applyBackground(settings) {
@@ -512,7 +842,11 @@
       btn.className = 'llw-menu-item';
       btn.textContent = (def.name && (def.name[LL.i18n.lang] || def.name.en)) || id;
       btn.addEventListener('click', () => {
-        addWidgetElement({ type: id, config: def.defaultConfig ? def.defaultConfig() : {} });
+        // New widgets always land on whichever page is currently in view -
+        // not always page 0 - so adding something while looking at page 2
+        // puts it right where you're looking, not somewhere you'd have to
+        // go find.
+        addWidgetElement({ type: id, page: currentPage, config: def.defaultConfig ? def.defaultConfig() : {} });
         scheduleSave();
         menu.classList.remove('llw-open');
       });
@@ -545,15 +879,10 @@
     //     built, since both depend on LL.widgetTypes being populated.
     await loadInstalledWidgets();
 
-    // 3. Grid + saved layout.
-    grid = GridStack.init({
-      cellHeight: 90,
-      margin: 8,
-      float: true,
-      disableOneColumnMode: false,
-      resizable: { handles: 'e, se, s, sw, w' },
-    });
-    grid.disable(); // start in view mode
+    // 3. Pages (each its own grid) + saved layout. Starts in view mode - the
+    //    grids themselves start disabled (see createPage) and there's always
+    //    at least a page 0 to render into, even before anything's loaded.
+    ensurePageCount(1);
 
     let layout = { widgets: [] };
     try {
@@ -562,23 +891,11 @@
       console.warn('[loudllama] Could not load layout', err);
     }
     layout.widgets.forEach(addWidgetElement);
-
-    grid.on('change', scheduleSave);
-    // Snap to a size tier the instant a resize ends (not during, so the drag
-    // itself still feels smooth/free) - see LLW_WIDTH_TIERS/pickTier above.
-    grid.on('resizestop', (event, el) => {
-      const node = el.gridstackNode;
-      if (!node) return;
-      const def = LL.widgetTypes[el.dataset.widgetType];
-      const minW = (def && def.minSize && def.minSize.w) || 1;
-      const minH = (def && def.minSize && def.minSize.h) || 1;
-      const snappedW = pickTier(node.w, LLW_WIDTH_TIERS, minW, 12 - node.x);
-      const snappedH = pickTier(node.h, LLW_HEIGHT_TIERS, minH, 20);
-      if (snappedW !== node.w || snappedH !== node.h) {
-        grid.update(el, { w: snappedW, h: snappedH });
-        scheduleSave();
-      }
-    });
+    // Covers the (rare) case of a genuinely empty layout, where the forEach
+    // above never runs at all - still need the dots/llw-multi-page state
+    // initialized once.
+    syncPageCount();
+    setupPagesSwipe();
 
     // 4. Chrome interactions.
     document.getElementById('llw-edit-toggle').addEventListener('click', () => setEditMode(!editMode));
