@@ -9,8 +9,15 @@ html, body {
   height: 100%;
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  background: #1b1f27;
   color: #f4f5f7;
+}
+/* Fallback colour for the canvas (shown briefly before CSS/JS paints
+   #llw-background) lives on <html> only, not <body>. <body> doesn't
+   establish its own stacking context, so a background painted directly on
+   it would render *after* - i.e. on top of - any negative z-index child
+   such as #llw-background below, hiding it almost entirely. */
+html {
+  background: #1b1f27;
 }
 /* The page itself no longer scrolls - the toolbar and (once there's more
    than one) the pages viewport are stacked in a column, and each page
@@ -23,14 +30,48 @@ body {
   overflow: hidden;
 }
 
+/* Default dashboard background: a soft, iOS-wallpaper-style mesh of
+   overlapping colour blobs over the original dark diagonal base, so it
+   still gives widgets enough contrast to read clearly. Users can always
+   replace this with their own photo (see applyBackground() in app.js) -
+   that just sets background-image inline on this same element, which
+   naturally overrides the gradient below and (via .llw-has-image) hides
+   the easter egg in ::before too. */
 #llw-background {
   position: fixed;
   inset: 0;
   z-index: -1;
-  background: linear-gradient(160deg, #232838, #12141b);
+  background-color: #12141b;
+  background-image:
+    radial-gradient(ellipse 80% 55% at 12% 18%, rgba(130, 100, 255, 0.38), transparent 60%),
+    radial-gradient(ellipse 65% 55% at 88% 12%, rgba(255, 122, 172, 0.22), transparent 58%),
+    radial-gradient(ellipse 85% 65% at 80% 88%, rgba(56, 189, 248, 0.26), transparent 62%),
+    radial-gradient(ellipse 70% 55% at 15% 92%, rgba(255, 179, 84, 0.16), transparent 58%),
+    linear-gradient(160deg, #232838, #12141b);
   background-size: cover;
   background-position: center;
   transition: background-image 0.4s ease;
+}
+/* Hidden easter egg: a low-opacity llama silhouette blended softly into
+   the bottom-right colour blob. Deliberately subtle - opacity 0.05 and a
+   soft-light blend so it reads as a texture in the gradient rather than a
+   sticker, but is there to be found if you look closely (or pinch-zoom on
+   mobile). Only shown on the generated gradient, never over a user photo. */
+#llw-background:not(.llw-has-image)::before {
+  content: '';
+  position: absolute;
+  right: 2%;
+  bottom: 0;
+  width: 36%;
+  max-width: 360px;
+  aspect-ratio: 200 / 220;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 220'%3E%3Cg fill='%23ffffff'%3E%3Crect x='70' y='150' width='10' height='55' rx='5'/%3E%3Crect x='90' y='155' width='10' height='50' rx='5'/%3E%3Crect x='115' y='155' width='10' height='50' rx='5'/%3E%3Crect x='135' y='150' width='10' height='55' rx='5'/%3E%3Cellipse cx='105' cy='140' rx='50' ry='32'/%3E%3Cpath d='M155 120 Q172 114 166 136 Q157 139 152 130 Z'/%3E%3Cpath d='M75 120 C58 90 53 54 70 24 C79 9 96 7 101 19 C89 39 90 70 95 110 Z'/%3E%3Cellipse cx='78' cy='22' rx='16' ry='20'/%3E%3Cpath d='M67 8 C63 -6 72 -9 77 2 Z'/%3E%3Cpath d='M87 8 C91 -6 82 -9 77 2 Z'/%3E%3C/g%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-position: bottom right;
+  opacity: 0.05;
+  mix-blend-mode: soft-light;
+  pointer-events: none;
 }
 #llw-background.llw-has-image::after {
   content: '';
@@ -275,16 +316,12 @@ body.llw-has-dock .llw-dock {
 
 .llw-dock-item {
   /* Explicit height (not just width) so .llw-widget-shell's existing
-     height:100% + "flex:1 1 auto after the caption" rule (see
-     .llw-widget-shell > .llw-widget above) resolves the same way it does
-     for a normal grid tile, instead of fighting it with a second
-     conflicting height rule. */
+     height:100% + "flex:1 1 auto" rule (see .llw-widget-shell > .llw-widget
+     above) resolves the same way it does for a normal grid tile, instead of
+     fighting it with a second conflicting height rule. */
   flex: 0 0 auto;
   width: 88px;
   height: 108px;
-}
-.llw-dock-item .llw-caption {
-  font-size: 0.66rem;
 }
 /* The dock tile (88x93px of usable widget area) is meaningfully narrower
    than even the smallest grid tier, and widget internals size themselves in
@@ -307,8 +344,15 @@ body.llw-has-dock .llw-dock {
      lives. Bottom-right is the one spot no widget header reserves, and
      body content rarely extends into the exact last few pixels of a
      corner. */
+  /* bottom:20px, not a snugger 6px - the south resize handle (see
+     createPage()'s resizable.handles in app.js) occupies roughly the last
+     8-18px of the item's height, nearly full width. This tile used to have
+     a caption strip below .llw-widget that happened to buy exactly this
+     much clearance for free; now that the caption's gone, the offset has to
+     do that job explicitly or the handle intercepts clicks meant for this
+     button (confirmed via test-regression.js's pinInfo check). */
   position: absolute;
-  bottom: 6px;
+  bottom: 20px;
   right: 6px;
   z-index: 5;
   width: 22px;
@@ -340,8 +384,10 @@ body.llw-edit-mode .llw-pin { display: flex; }
    that needs disabling/greying out, so unlike .llw-pin there's no extra
    state class here. */
 .llw-page-move {
+  /* Same reasoning as .llw-pin above: needs to clear the south resize
+     handle now that the caption strip no longer buys that clearance. */
   position: absolute;
-  bottom: 6px;
+  bottom: 20px;
   z-index: 5;
   width: 20px;
   height: 20px;
@@ -403,18 +449,16 @@ body.llw-edit-mode.llw-multi-real-pages .llw-page-move { display: flex; }
 }
 /* Tap/press feedback - the widget shrinks slightly the moment it's pressed
    and springs back on release, the same "squishy icon" feel iOS app icons
-   and widgets have. Scoped to the card itself (not the shell), so the
-   caption underneath doesn't move with it. Skipped while the item is
-   actually being dragged or resized (see body.llw-edit-mode rules further
-   down) so it doesn't fight GridStack's own transform. */
+   and widgets have. Skipped while the item is actually being dragged or
+   resized (see body.llw-edit-mode rules further down) so it doesn't fight
+   GridStack's own transform. */
 .llw-widget:active {
   transform: scale(0.96);
   transition-duration: 0.12s;
 }
-/* Only override to the flex-friendly "fill remaining space after the
-   caption" sizing when .llw-widget is actually inside the new shell - more
-   specific selector, so the rule above still applies unchanged everywhere
-   else. */
+/* Only override to the flex-friendly "fill the shell" sizing when
+   .llw-widget is actually inside the new shell - more specific selector, so
+   the rule above still applies unchanged everywhere else. */
 .llw-widget-shell > .llw-widget {
   height: auto;
   flex: 1 1 auto;
@@ -426,40 +470,6 @@ body.llw-edit-mode.llw-multi-real-pages .llw-page-move { display: flex; }
   height: 100%;
 }
 
-.llw-caption {
-  flex: 0 0 auto;
-  text-align: center;
-  font-size: 0.72rem;
-  font-weight: 500;
-  line-height: 1.2;
-  color: #f4f5f7;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.65);
-  padding: 0 4px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-body.llw-edit-mode .llw-caption {
-  cursor: text;
-  border-radius: 4px;
-}
-body.llw-edit-mode .llw-caption:hover {
-  background: rgba(255, 255, 255, 0.1);
-}
-.llw-caption-input {
-  flex: 0 0 auto;
-  width: 100%;
-  text-align: center;
-  font: inherit;
-  font-size: 0.72rem;
-  font-weight: 500;
-  color: #14171d;
-  background: #fff;
-  border: none;
-  border-radius: 4px;
-  padding: 1px 4px;
-  outline: 2px solid rgba(255, 255, 255, 0.5);
-}
 
 .llw-remove {
   /* Solid circle, "−" glyph instead of "×" - closer to the iOS delete-badge

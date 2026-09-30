@@ -187,6 +187,33 @@
     // fall back to polling plain snapshots quickly enough to read as
     // "live" - strictly worse than true MJPEG, but it always ends up
     // showing a moving picture instead of a dead tile.
+    // Formats a Frigate event's unix timestamp (seconds) the same way the
+    // rest of the dashboard formats times - using the *dashboard's* current
+    // locale, not a hardcoded one (see weather.js's formatForecastTime).
+    function formatEventTime(unixSeconds) {
+      const d = new Date(unixSeconds * 1000);
+      if (Number.isNaN(d.getTime())) return '';
+      const locale = LL.i18n.lang;
+      const now = new Date();
+      const sameDay = d.toDateString() === now.toDateString();
+      return sameDay
+        ? d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })
+        : d.toLocaleDateString(locale, { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+    }
+
+    function eventLabel(ev) {
+      // Frigate's own label (e.g. "person", "car") - Home Assistant doesn't
+      // translate these, so we just capitalize rather than mistranslate.
+      const raw = ev.label || '';
+      return raw ? raw.charAt(0).toUpperCase() + raw.slice(1) : '';
+    }
+
+    // A modal has one of three views open at a time: the live stream, the
+    // events list for its camera, or a single event's clip. All three share
+    // the same popup shell/header so switching between them never closes
+    // and reopens the modal - just swaps its body and header controls,
+    // which is what makes "go back and look at recordings, then back to
+    // live" feel like one continuous place rather than three dialogs.
     function openFullscreen(entityId) {
       closeFullscreen();
       const modal = document.createElement('div');
@@ -195,11 +222,16 @@
         <div class="llw-frigate-modal__head">
           <div class="llw-frigate-modal__title">
             <span class="llw-frigate-modal__live"><span class="llw-frigate-modal__live-dot"></span>${t('frigate', 'live')}</span>
-            <span>${cameraLabel(entityId)}</span>
+            <span class="llw-frigate-modal__camname">${cameraLabel(entityId)}</span>
           </div>
-          <button type="button" class="llw-frigate-modal__close" title="${t('frigate', 'close')}" aria-label="${t('frigate', 'close')}">×</button>
+          <div class="llw-frigate-modal__actions">
+            <button type="button" class="llw-frigate-modal__events-btn">${t('frigate', 'events')}</button>
+            <button type="button" class="llw-frigate-modal__close" title="${t('frigate', 'close')}" aria-label="${t('frigate', 'close')}">×</button>
+          </div>
         </div>
-        <img class="llw-frigate-modal__img" alt="${cameraLabel(entityId)}" />
+        <div class="llw-frigate-modal__body">
+          <img class="llw-frigate-modal__img" alt="${cameraLabel(entityId)}" />
+        </div>
       `;
       modal.addEventListener('click', (ev) => {
         if (ev.target === modal) closeFullscreen();
@@ -209,33 +241,104 @@
       document.addEventListener('keydown', onModalKeydown);
       activeModal = modal;
 
-      const img = modal.querySelector('.llw-frigate-modal__img');
-      let usingFallback = false;
-      let streamLoaded = false;
+      const titleEl = modal.querySelector('.llw-frigate-modal__title');
+      const bodyEl = modal.querySelector('.llw-frigate-modal__body');
+      const eventsBtn = modal.querySelector('.llw-frigate-modal__events-btn');
 
-      function startFallback() {
-        if (usingFallback || destroyed) return;
-        usingFallback = true;
+      function stopLive() {
         clearTimeout(modal._llwWatchdog);
-        const refresh = () => {
-          img.src = `api/hass/camera_snapshot/${encodeURIComponent(entityId)}?t=${Date.now()}`;
-        };
-        refresh();
-        modal._llwFallbackTimer = setInterval(refresh, LIVE_FALLBACK_REFRESH_MS);
+        clearInterval(modal._llwFallbackTimer);
       }
 
-      img.addEventListener('load', () => {
-        streamLoaded = true;
-        clearTimeout(modal._llwWatchdog);
-      });
-      img.addEventListener('error', () => {
-        if (!streamLoaded) startFallback();
-      });
-      modal._llwWatchdog = setTimeout(() => {
-        if (!streamLoaded) startFallback();
-      }, LIVE_STREAM_TIMEOUT_MS);
+      function showLive() {
+        stopLive();
+        titleEl.innerHTML = `
+          <span class="llw-frigate-modal__live"><span class="llw-frigate-modal__live-dot"></span>${t('frigate', 'live')}</span>
+          <span class="llw-frigate-modal__camname">${cameraLabel(entityId)}</span>
+        `;
+        eventsBtn.textContent = t('frigate', 'events');
+        eventsBtn.onclick = showEvents;
+        bodyEl.innerHTML = `<img class="llw-frigate-modal__img" alt="${cameraLabel(entityId)}" />`;
+        const img = bodyEl.querySelector('.llw-frigate-modal__img');
+        let usingFallback = false;
+        let streamLoaded = false;
 
-      img.src = `api/hass/camera_stream/${encodeURIComponent(entityId)}?t=${Date.now()}`;
+        function startFallback() {
+          if (usingFallback || destroyed) return;
+          usingFallback = true;
+          clearTimeout(modal._llwWatchdog);
+          const refresh = () => {
+            img.src = `api/hass/camera_snapshot/${encodeURIComponent(entityId)}?t=${Date.now()}`;
+          };
+          refresh();
+          modal._llwFallbackTimer = setInterval(refresh, LIVE_FALLBACK_REFRESH_MS);
+        }
+
+        img.addEventListener('load', () => {
+          streamLoaded = true;
+          clearTimeout(modal._llwWatchdog);
+        });
+        img.addEventListener('error', () => {
+          if (!streamLoaded) startFallback();
+        });
+        modal._llwWatchdog = setTimeout(() => {
+          if (!streamLoaded) startFallback();
+        }, LIVE_STREAM_TIMEOUT_MS);
+
+        img.src = `api/hass/camera_stream/${encodeURIComponent(entityId)}?t=${Date.now()}`;
+      }
+
+      async function showEvents() {
+        stopLive();
+        titleEl.innerHTML = `<span class="llw-frigate-modal__camname">${t('frigate', 'events')} — ${cameraLabel(entityId)}</span>`;
+        eventsBtn.textContent = t('frigate', 'backToLive');
+        eventsBtn.onclick = showLive;
+        bodyEl.innerHTML = `<div class="llw-frigate-modal__loading">${t('app', 'loading')}</div>`;
+        try {
+          const events = await LL.api.get(`api/hass/frigate/events?cameras=${encodeURIComponent(entityId)}&limit=20`);
+          if (destroyed || !activeModal) return;
+          if (!events.length) {
+            bodyEl.innerHTML = `<div class="llw-frigate-modal__loading">${t('frigate', 'noEvents')}</div>`;
+            return;
+          }
+          bodyEl.innerHTML = `<div class="llw-frigate-modal__events"></div>`;
+          const listEl = bodyEl.querySelector('.llw-frigate-modal__events');
+          listEl.innerHTML = events
+            .map(
+              (ev) => `
+              <button type="button" class="llw-frigate-modal__event" data-event-id="${ev.id}" ${ev.has_clip ? '' : 'disabled'}>
+                <img loading="lazy" alt="${eventLabel(ev)}" src="api/hass/frigate/media/${encodeURIComponent(ev.id)}/thumbnail" />
+                <span class="llw-frigate-modal__event-info">
+                  <span class="llw-frigate-modal__event-label">${eventLabel(ev)}</span>
+                  <span class="llw-frigate-modal__event-time">${formatEventTime(ev.start_time)}</span>
+                </span>
+              </button>`
+            )
+            .join('');
+          listEl.querySelectorAll('.llw-frigate-modal__event').forEach((btn) => {
+            btn.addEventListener('click', () => showClip(btn.dataset.eventId, events.find((e) => String(e.id) === btn.dataset.eventId)));
+          });
+        } catch (err) {
+          console.error('[loudllama][frigate] Failed to load events', err);
+          if (!destroyed && activeModal) bodyEl.innerHTML = `<div class="llw-frigate-modal__loading">${t('frigate', 'eventsError')}</div>`;
+        }
+      }
+
+      function showClip(eventId, ev) {
+        stopLive();
+        titleEl.innerHTML = `<span class="llw-frigate-modal__camname">${eventLabel(ev)} — ${formatEventTime(ev && ev.start_time)}</span>`;
+        eventsBtn.textContent = t('frigate', 'events');
+        eventsBtn.onclick = showEvents;
+        bodyEl.innerHTML = `
+          <video class="llw-frigate-modal__video" src="api/hass/frigate/media/${encodeURIComponent(eventId)}/clip" controls autoplay playsinline></video>
+        `;
+        const video = bodyEl.querySelector('.llw-frigate-modal__video');
+        video.addEventListener('error', () => {
+          if (!destroyed && activeModal) bodyEl.innerHTML = `<div class="llw-frigate-modal__loading">${t('frigate', 'clipUnavailable')}</div>`;
+        });
+      }
+
+      showLive();
     }
 
     // Pre-warm friendly names (so grid labels are correct even before the

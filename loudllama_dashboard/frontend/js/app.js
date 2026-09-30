@@ -121,19 +121,6 @@
     return String(str).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   }
 
-  // What a widget's caption shows when the user hasn't typed a custom one:
-  // a Room/Group's own name if it has one (so renaming the room updates its
-  // home-screen label too, same as renaming an iOS folder), otherwise the
-  // widget type's own localized display name from the store catalog.
-  function defaultLabelFor(type, config) {
-    if (config && typeof config.name === 'string' && config.name.trim()) return config.name.trim();
-    const meta = LL.widgetMeta[type];
-    if (meta && meta.name) return meta.name[LL.i18n.lang] || meta.name.en || type;
-    const def = LL.widgetTypes[type];
-    if (def && def.name) return def.name[LL.i18n.lang] || def.name.en || type;
-    return type;
-  }
-
   // The dashboard is a horizontal row of "pages" (iOS home-screen style),
   // each its own independent GridStack instance/12-col grid - see the big
   // comment block above createPage() for why. pageEls[i].gridstack is that
@@ -241,7 +228,6 @@
   function mountWidget(node) {
     const def = LL.widgetTypes[node.type];
     const el = node.el.querySelector('.llw-body');
-    const captionEl = node.el.querySelector('.llw-caption');
     if (!def) {
       // The widget was placed on the dashboard at some point but isn't
       // currently installed (its script was never loaded) - most likely the
@@ -265,62 +251,8 @@
       config: node.config || {},
       saveConfig(newConfig) {
         node.el.dataset.widgetConfig = JSON.stringify(newConfig);
-        // Keep the caption following e.g. a Room/Group's own name live, as
-        // long as nobody has typed a custom caption of their own for this
-        // tile (an explicit custom caption always wins).
-        if (captionEl && !node.el.dataset.widgetLabel) {
-          captionEl.textContent = defaultLabelFor(node.type, newConfig);
-        }
         scheduleSave();
       },
-    });
-  }
-
-  // Swaps a tile's caption for a small text input (edit mode only), and
-  // commits back to a <div> on blur/Enter. An empty value means "no custom
-  // caption" - go back to following the widget's own default label.
-  function startEditingCaption(el, node) {
-    const captionEl = el.querySelector('.llw-caption');
-    if (!captionEl) return;
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.className = 'llw-caption-input';
-    input.maxLength = 30;
-    input.value = el.dataset.widgetLabel || '';
-    input.placeholder = captionEl.textContent;
-    captionEl.replaceWith(input);
-    input.focus();
-    input.select();
-    input.addEventListener('click', (ev) => ev.stopPropagation());
-    input.addEventListener('keydown', (ev) => {
-      if (ev.key === 'Enter' || ev.key === 'Escape') input.blur();
-    });
-    input.addEventListener(
-      'blur',
-      () => {
-        const val = input.value.trim();
-        el.dataset.widgetLabel = val;
-        const config = JSON.parse(el.dataset.widgetConfig || '{}');
-        const fresh = document.createElement('div');
-        fresh.className = 'llw-caption';
-        fresh.tabIndex = 0;
-        fresh.title = t('app', 'renameWidget');
-        fresh.textContent = val || defaultLabelFor(node.type, config);
-        input.replaceWith(fresh);
-        wireCaptionEditing(el, node);
-        scheduleSave();
-      },
-      { once: true }
-    );
-  }
-
-  function wireCaptionEditing(el, node) {
-    const captionEl = el.querySelector('.llw-caption');
-    if (!captionEl) return;
-    captionEl.addEventListener('click', (ev) => {
-      if (!editMode) return;
-      ev.stopPropagation();
-      startEditingCaption(el, node);
     });
   }
 
@@ -346,8 +278,10 @@
     el.dataset.widgetType = node.type;
     el.dataset.widgetId = widgetId;
     el.dataset.widgetConfig = JSON.stringify(node.config || {});
+    // Still stored/round-tripped (see serializeLayout()) even though nothing
+    // renders it any more, so a dashboard saved by an older version that did
+    // show captions doesn't lose that data - just stops displaying it.
     el.dataset.widgetLabel = node.label || '';
-    const captionText = el.dataset.widgetLabel || defaultLabelFor(node.type, node.config || {});
     el.innerHTML = `
       <div class="llw-widget-shell">
         <div class="llw-widget">
@@ -357,7 +291,6 @@
           <button class="llw-page-move llw-page-next" title="${t('app', 'movePageNext')}" aria-label="${t('app', 'movePageNext')}">›</button>
           <div class="llw-body"></div>
         </div>
-        <div class="llw-caption" tabindex="0" title="${t('app', 'renameWidget')}">${escapeHtml(captionText)}</div>
       </div>
     `;
     el.querySelector('.llw-remove').addEventListener('click', (ev) => {
@@ -396,7 +329,6 @@
       ev.stopPropagation();
       moveWidgetToPage(el, 1);
     });
-    wireCaptionEditing(el, node);
     return el;
   }
 

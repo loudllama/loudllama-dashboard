@@ -289,6 +289,27 @@ const WIDGETS = [
     },
   },
   {
+    id: 'sensor',
+    version: '1.0.0',
+    icon: 'gauge',
+    defaultSize: { w: 2, h: 2 },
+    minSize: { w: 1, h: 1 },
+    name: {
+      da: 'Sensor',
+      en: 'Sensor',
+      de: 'Sensor',
+      sv: 'Sensor',
+      no: 'Sensor',
+    },
+    description: {
+      da: 'Viser den aktuelle værdi for én sensor-entitet, med ikon og enhed. Enkel og hurtig at sætte op til alt fra temperatur til strømforbrug.',
+      en: 'Shows the current reading for one sensor entity, with icon and unit. Quick to set up for anything from temperature to power usage.',
+      de: 'Zeigt den aktuellen Messwert einer Sensor-Entität mit Symbol und Einheit. Schnell eingerichtet für alles von Temperatur bis Stromverbrauch.',
+      sv: 'Visar det aktuella värdet för en sensor-entitet, med ikon och enhet. Snabbt att ställa in för allt från temperatur till strömförbrukning.',
+      no: 'Viser gjeldende verdi for én sensor-enhet, med ikon og enhet. Raskt å sette opp for alt fra temperatur til strømforbruk.',
+    },
+  },
+  {
     id: 'media',
     version: '1.0.0',
     icon: 'speaker',
@@ -771,6 +792,110 @@ app.get('/api/hass/camera_stream/:entityId', async (req, res) => {
     req.on('close', () => upstream.body.destroy());
   } catch (err) {
     console.error('[loudllama] camera_stream failed:', err.message);
+    res.status(502).end();
+  }
+});
+
+// --- Frigate events (recent recordings/detections) --------------------------
+// Still entirely through Home Assistant, never a direct connection to
+// Frigate - same principle as the snapshot/stream proxies above. The
+// Frigate HA integration registers its own REST views under HA's `/api/
+// frigate/...` namespace (proxied through Supervisor's core API the same
+// way `/api/camera_proxy/...` is), including a generic events listing and
+// per-event thumbnail/snapshot/clip media. A camera's HA entity id is
+// `camera.<frigate_camera_name>` by the integration's own convention, so
+// the Frigate-side camera name is recovered by stripping the domain.
+function frigateCameraName(entityId) {
+  const idx = entityId.indexOf('.');
+  return idx === -1 ? entityId : entityId.slice(idx + 1);
+}
+
+const MOCK_EVENT_LABELS = ['person', 'car', 'dog', 'package'];
+
+function mockFrigateEvents(cameraNames, limit) {
+  const now = Date.now();
+  const events = [];
+  cameraNames.forEach((cam, camIdx) => {
+    const count = Math.min(limit, 4);
+    for (let i = 0; i < count; i += 1) {
+      const startMs = now - (camIdx * 1300 + i * 45 * 60 * 1000 + 3 * 60 * 1000);
+      events.push({
+        id: `mock-${cam}-${i}`,
+        camera: cam,
+        label: MOCK_EVENT_LABELS[(camIdx + i) % MOCK_EVENT_LABELS.length],
+        start_time: startMs / 1000,
+        end_time: startMs / 1000 + 12,
+        has_clip: true,
+        has_snapshot: true,
+      });
+    }
+  });
+  events.sort((a, b) => b.start_time - a.start_time);
+  return events.slice(0, limit);
+}
+
+app.get('/api/hass/frigate/events', async (req, res) => {
+  const entityIds = String(req.query.cameras || '').split(',').map((s) => s.trim()).filter(Boolean);
+  const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 50);
+  if (!entityIds.length) return res.json([]);
+  const cameraNames = entityIds.map(frigateCameraName);
+  const nameToEntity = {};
+  entityIds.forEach((id, i) => { nameToEntity[cameraNames[i]] = id; });
+
+  if (MOCK_MODE) {
+    const events = mockFrigateEvents(cameraNames, limit);
+    return res.json(events.map((e) => ({ ...e, entity_id: nameToEntity[e.camera] })));
+  }
+
+  try {
+    // Per-camera requests rather than trusting a single comma-joined
+    // `cameras` filter - Frigate's own /api/events accepts a singular
+    // `camera` query param, and staying per-camera here means one unknown
+    // camera name can't break the whole request, only that camera's slice.
+    const perCameraLimit = Math.min(limit, 20);
+    const results = await Promise.all(
+      cameraNames.map(async (name) => {
+        try {
+          const events = await haFetch(`/frigate/events?camera=${encodeURIComponent(name)}&limit=${perCameraLimit}`);
+          return Array.isArray(events) ? events : [];
+        } catch (err) {
+          console.error('[loudllama] frigate events fetch failed for camera', name, err.message);
+          return [];
+        }
+      })
+    );
+    const merged = results.flat().map((e) => ({ ...e, entity_id: nameToEntity[e.camera] || null }));
+    merged.sort((a, b) => (b.start_time || 0) - (a.start_time || 0));
+    res.json(merged.slice(0, limit));
+  } catch (err) {
+    console.error('[loudllama] /api/hass/frigate/events failed:', err.message);
+    res.status(502).json({ error: 'ha_unreachable' });
+  }
+});
+
+const FRIGATE_MEDIA_KINDS = {
+  thumbnail: 'thumbnail.jpg',
+  snapshot: 'snapshot.jpg',
+  clip: 'clip.mp4',
+};
+
+app.get('/api/hass/frigate/media/:eventId/:kind', async (req, res) => {
+  const { eventId, kind } = req.params;
+  const suffix = FRIGATE_MEDIA_KINDS[kind];
+  if (!suffix) return res.status(400).end();
+  if (MOCK_MODE) {
+    if (kind === 'clip') return res.status(404).end(); // no fake video in mock mode
+    return sendMockImage(res, `${eventId} (mock)`);
+  }
+  try {
+    const upstream = await fetch(`${HA_API_BASE}/frigate/notifications/${encodeURIComponent(eventId)}/${suffix}`, {
+      headers: { Authorization: `Bearer ${SUPERVISOR_TOKEN}` },
+    });
+    if (!upstream.ok) return res.status(502).end();
+    res.set('Content-Type', upstream.headers.get('content-type') || (kind === 'clip' ? 'video/mp4' : 'image/jpeg'));
+    upstream.body.pipe(res);
+  } catch (err) {
+    console.error('[loudllama] frigate media proxy failed:', err.message);
     res.status(502).end();
   }
 });

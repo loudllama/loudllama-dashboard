@@ -88,80 +88,111 @@
   function sunMarkup(uid, cx, cy, scale) {
     const gradId = `${uid}sun`;
     const glowId = `${uid}sunGlow`;
+    const coreId = `${uid}sunCore`;
     let rays = '';
     for (let i = 0; i < 12; i += 1) {
       const long = i % 3 === 0;
-      const len = long ? 11 : 7;
-      const w = long ? 3 : 2;
+      const len = long ? 13 : 8;
+      const w = long ? 3.2 : 2;
+      const op = long ? 0.9 : 0.55;
       const angle = (i * 360) / 12;
-      rays += `<line x1="0" y1="${-22 * scale}" x2="0" y2="${-(22 + len) * scale}" stroke="url(#${gradId})" stroke-width="${w}" stroke-linecap="round" transform="translate(${cx} ${cy}) rotate(${angle})"/>`;
+      rays += `<line x1="0" y1="${-21 * scale}" x2="0" y2="${-(21 + len) * scale}" stroke="url(#${gradId})" stroke-width="${w}" stroke-linecap="round" opacity="${op}" transform="translate(${cx} ${cy}) rotate(${angle})"/>`;
     }
     return `
       <defs>
-        <radialGradient id="${gradId}" cx="38%" cy="32%" r="70%">
-          <stop offset="0%" stop-color="#fff6d8"/>
-          <stop offset="55%" stop-color="#ffd166"/>
-          <stop offset="100%" stop-color="#ffa93c"/>
+        <radialGradient id="${gradId}" cx="36%" cy="30%" r="72%">
+          <stop offset="0%" stop-color="#fffceb"/>
+          <stop offset="35%" stop-color="#ffe59a"/>
+          <stop offset="70%" stop-color="#ffc247"/>
+          <stop offset="100%" stop-color="#ff9d2e"/>
         </radialGradient>
         <radialGradient id="${glowId}" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stop-color="#ffd166" stop-opacity="0.45"/>
+          <stop offset="0%" stop-color="#ffd166" stop-opacity="0.5"/>
+          <stop offset="55%" stop-color="#ffd166" stop-opacity="0.12"/>
           <stop offset="100%" stop-color="#ffd166" stop-opacity="0"/>
         </radialGradient>
+        <radialGradient id="${coreId}" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="#fff6d8" stop-opacity="0.9"/>
+          <stop offset="100%" stop-color="#fff6d8" stop-opacity="0"/>
+        </radialGradient>
       </defs>
-      <circle cx="${cx}" cy="${cy}" r="${24 * scale}" fill="url(#${glowId})"/>
+      <circle cx="${cx}" cy="${cy}" r="${30 * scale}" fill="url(#${glowId})"/>
       ${rays}
-      <circle cx="${cx}" cy="${cy}" r="${15 * scale}" fill="url(#${gradId})"/>
-      <ellipse cx="${cx - 4 * scale}" cy="${cy - 5 * scale}" rx="${6 * scale}" ry="${3.5 * scale}" fill="#fff" opacity="0.35"/>
+      <circle cx="${cx}" cy="${cy}" r="${15.5 * scale}" fill="url(#${gradId})"/>
+      <circle cx="${cx - 3 * scale}" cy="${cy - 4 * scale}" r="${6 * scale}" fill="url(#${coreId})"/>
+      <ellipse cx="${cx - 4.5 * scale}" cy="${cy - 5.5 * scale}" rx="${5.5 * scale}" ry="${3 * scale}" fill="#fff" opacity="0.5"/>
     `;
   }
 
   function moonMarkup(uid, cx, cy, scale) {
     const gradId = `${uid}moon`;
     const glowId = `${uid}moonGlow`;
+    const shadeId = `${uid}moonShade`;
     return `
       <defs>
-        <linearGradient id="${gradId}" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stop-color="#fffdf5"/>
-          <stop offset="100%" stop-color="#e4dfc8"/>
+        <linearGradient id="${gradId}" x1="15%" y1="10%" x2="90%" y2="95%">
+          <stop offset="0%" stop-color="#fffef8"/>
+          <stop offset="55%" stop-color="#f1ecd6"/>
+          <stop offset="100%" stop-color="#d8d0ae"/>
         </linearGradient>
         <radialGradient id="${glowId}" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stop-color="#f4f1e6" stop-opacity="0.4"/>
-          <stop offset="100%" stop-color="#f4f1e6" stop-opacity="0"/>
+          <stop offset="0%" stop-color="#eae6d2" stop-opacity="0.45"/>
+          <stop offset="100%" stop-color="#eae6d2" stop-opacity="0"/>
+        </radialGradient>
+        <radialGradient id="${shadeId}" cx="30%" cy="30%" r="80%">
+          <stop offset="0%" stop-color="#000" stop-opacity="0"/>
+          <stop offset="100%" stop-color="#8f8968" stop-opacity="0.35"/>
         </radialGradient>
       </defs>
-      <circle cx="${cx}" cy="${cy}" r="${22 * scale}" fill="url(#${glowId})"/>
+      <circle cx="${cx}" cy="${cy}" r="${26 * scale}" fill="url(#${glowId})"/>
       <mask id="${uid}moonMask">
-        <rect x="${cx - 24 * scale}" y="${cy - 24 * scale}" width="${48 * scale}" height="${48 * scale}" fill="#fff"/>
-        <circle cx="${cx + 7 * scale}" cy="${cy - 6 * scale}" r="${12.5 * scale}" fill="#000"/>
+        <rect x="${cx - 26 * scale}" y="${cy - 26 * scale}" width="${52 * scale}" height="${52 * scale}" fill="#fff"/>
+        <circle cx="${cx + 7.5 * scale}" cy="${cy - 6.5 * scale}" r="${13 * scale}" fill="#000"/>
       </mask>
-      <circle cx="${cx}" cy="${cy}" r="${15 * scale}" fill="url(#${gradId})" mask="url(#${uid}moonMask)"/>
-      <circle cx="${cx - 5 * scale}" cy="${cy + 4 * scale}" r="${2 * scale}" fill="#000" opacity="0.06"/>
-      <circle cx="${cx - 1 * scale}" cy="${cy - 5 * scale}" r="${1.3 * scale}" fill="#000" opacity="0.06"/>
+      <g mask="url(#${uid}moonMask)">
+        <circle cx="${cx}" cy="${cy}" r="${15.5 * scale}" fill="url(#${gradId})"/>
+        <circle cx="${cx}" cy="${cy}" r="${15.5 * scale}" fill="url(#${shadeId})"/>
+        <circle cx="${cx - 5.5 * scale}" cy="${cy + 4.5 * scale}" r="${2.2 * scale}" fill="#a79c72" opacity="0.28"/>
+        <circle cx="${cx - 1 * scale}" cy="${cy - 6 * scale}" r="${1.4 * scale}" fill="#a79c72" opacity="0.25"/>
+        <circle cx="${cx + 3 * scale}" cy="${cy + 7 * scale}" r="${1 * scale}" fill="#a79c72" opacity="0.22"/>
+      </g>
     `;
   }
 
   function cloudMarkup(uid, cx, cy, scale) {
     const gradId = `${uid}cloud`;
+    const gradBackId = `${uid}cloudBack`;
+    const blurId = `${uid}cloudBlur`;
     const x = cx - 32 * scale;
     const y = cy - 20 * scale;
     return `
       <defs>
         <linearGradient id="${gradId}" x1="0%" y1="0%" x2="0%" y2="100%">
           <stop offset="0%" stop-color="#ffffff"/>
-          <stop offset="100%" stop-color="#dfe6ec"/>
+          <stop offset="60%" stop-color="#eef2f6"/>
+          <stop offset="100%" stop-color="#cfd8e0"/>
         </linearGradient>
+        <linearGradient id="${gradBackId}" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stop-color="#c3cdd8"/>
+          <stop offset="100%" stop-color="#a7b3c0"/>
+        </linearGradient>
+        <filter id="${blurId}" x="-60%" y="-60%" width="220%" height="220%">
+          <feGaussianBlur stdDeviation="2.2"/>
+        </filter>
       </defs>
-      <g transform="translate(${x + 1.6 * scale},${y + 2.4 * scale}) scale(${scale})" opacity="0.22">
-        <ellipse cx="22" cy="27" rx="15" ry="10" fill="#0a1420"/>
-        <ellipse cx="36" cy="23" rx="17" ry="13" fill="#0a1420"/>
-        <rect x="16" y="27" width="40" height="11" rx="5.5" fill="#0a1420"/>
+      <g transform="translate(${x + 2.2 * scale},${y + 3.4 * scale}) scale(${scale})" opacity="0.32" filter="url(#${blurId})">
+        <ellipse cx="22" cy="27" rx="15" ry="10" fill="#060c16"/>
+        <ellipse cx="36" cy="23" rx="17" ry="13" fill="#060c16"/>
+        <rect x="16" y="27" width="40" height="11" rx="5.5" fill="#060c16"/>
       </g>
       <g transform="translate(${x},${y}) scale(${scale})">
+        <ellipse cx="19" cy="25" rx="13" ry="9" fill="url(#${gradBackId})"/>
         <ellipse cx="20" cy="24" rx="14" ry="10" fill="url(#${gradId})"/>
         <ellipse cx="34" cy="20" rx="16" ry="12" fill="url(#${gradId})"/>
         <ellipse cx="46" cy="26" rx="12" ry="9" fill="url(#${gradId})"/>
         <rect x="14" y="24" width="40" height="12" rx="6" fill="url(#${gradId})"/>
-        <ellipse cx="29" cy="16" rx="7" ry="3.5" fill="#fff" opacity="0.7"/>
+        <ellipse cx="30" cy="15" rx="9" ry="4.2" fill="#fff" opacity="0.8"/>
+        <ellipse cx="44" cy="19" rx="5" ry="2.4" fill="#fff" opacity="0.55"/>
       </g>
     `;
   }
@@ -169,13 +200,16 @@
   function dropsMarkup(uid, count) {
     const gradId = `${uid}drop`;
     let out = `<defs><linearGradient id="${gradId}" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#bfe2fb" stop-opacity="0.2"/>
-      <stop offset="100%" stop-color="#8ec8f0"/>
+      <stop offset="0%" stop-color="#d6ecfc" stop-opacity="0.25"/>
+      <stop offset="45%" stop-color="#9fd0f5"/>
+      <stop offset="100%" stop-color="#5ba6e0"/>
     </linearGradient></defs>`;
     for (let i = 0; i < count; i += 1) {
       const x = 20 + i * (count > 4 ? 6 : 8);
-      // Teardrop: a circle with a small pointed tip, not just a stroked line.
+      // Teardrop: a circle with a small pointed tip, plus a tiny glint, not
+      // just a stroked line.
       out += `<path d="M${x} 40 C${x + 3.5} 46 ${x + 3.5} 50.5 ${x} 53 C${x - 3.5} 50.5 ${x - 3.5} 46 ${x} 40 Z" fill="url(#${gradId})"/>`;
+      out += `<ellipse cx="${x - 1.1}" cy="46.5" rx="0.9" ry="1.6" fill="#fff" opacity="0.6"/>`;
     }
     return out;
   }
@@ -185,30 +219,40 @@
     for (let i = 0; i < count; i += 1) {
       const x = 20 + i * 8;
       const y = 46 + (i % 2) * 6;
-      out += `<g stroke="#ffffff" stroke-width="1.1" stroke-linecap="round" transform="translate(${x} ${y})" opacity="0.95">
-        <line x1="-3.2" y1="0" x2="3.2" y2="0"/>
-        <line x1="-1.6" y1="-2.8" x2="1.6" y2="2.8"/>
-        <line x1="-1.6" y1="2.8" x2="1.6" y2="-2.8"/>
+      const s = 1 + (i % 3) * 0.15;
+      out += `<g stroke="#ffffff" stroke-width="1.1" stroke-linecap="round" transform="translate(${x} ${y}) scale(${s})" opacity="0.95">
+        <line x1="-3.4" y1="0" x2="3.4" y2="0"/>
+        <line x1="-1.7" y1="-3" x2="1.7" y2="3"/>
+        <line x1="-1.7" y1="3" x2="1.7" y2="-3"/>
+        <circle cx="0" cy="0" r="1" fill="#fff" opacity="0.9"/>
       </g>`;
     }
     return out;
   }
 
   function hailMarkup() {
-    const grad = '<defs><linearGradient id="hailG" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#fff"/><stop offset="100%" stop-color="#bcd3de"/></linearGradient></defs>';
+    const grad = '<defs><linearGradient id="hailG" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#ffffff"/><stop offset="55%" stop-color="#d7e7ef"/><stop offset="100%" stop-color="#a9c3d2"/></linearGradient></defs>';
     let out = grad;
     for (let i = 0; i < 4; i += 1) {
       const x = 20 + i * 7;
       const y = 46 + (i % 2) * 5;
-      out += `<rect x="${x - 2.4}" y="${y - 2.4}" width="4.8" height="4.8" fill="url(#hailG)" transform="rotate(45 ${x} ${y})"/>`;
+      out += `<rect x="${x - 2.6}" y="${y - 2.6}" width="5.2" height="5.2" rx="1" fill="url(#hailG)" transform="rotate(45 ${x} ${y})"/>`;
+      out += `<rect x="${x - 1}" y="${y - 2.2}" width="1" height="1.6" fill="#fff" opacity="0.8" transform="rotate(45 ${x} ${y})"/>`;
     }
     return out;
   }
 
   function fogMarkup() {
-    let out = '<defs><linearGradient id="fogG" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#e2e8ec" stop-opacity="0.3"/><stop offset="50%" stop-color="#eef2f5"/><stop offset="100%" stop-color="#e2e8ec" stop-opacity="0.3"/></linearGradient></defs>';
-    [{ y: 20, w: 40, x: 12 }, { y: 30, w: 50, x: 7 }, { y: 40, w: 34, x: 15 }, { y: 48, w: 44, x: 10 }].forEach((band) => {
-      out += `<rect x="${band.x}" y="${band.y}" width="${band.w}" height="4.5" rx="2.25" fill="url(#fogG)"/>`;
+    let out = `<defs>
+      <linearGradient id="fogG" x1="0%" y1="0%" x2="100%" y2="0%">
+        <stop offset="0%" stop-color="#e2e8ec" stop-opacity="0"/>
+        <stop offset="50%" stop-color="#eef2f5" stop-opacity="0.9"/>
+        <stop offset="100%" stop-color="#e2e8ec" stop-opacity="0"/>
+      </linearGradient>
+      <filter id="fogBlur" x="-30%" y="-100%" width="160%" height="300%"><feGaussianBlur stdDeviation="1.1"/></filter>
+    </defs>`;
+    [{ y: 18, w: 42, x: 11, op: 0.85 }, { y: 28, w: 52, x: 6, op: 1 }, { y: 38, w: 36, x: 14, op: 0.8 }, { y: 48, w: 46, x: 9, op: 0.9 }].forEach((band) => {
+      out += `<rect x="${band.x}" y="${band.y}" width="${band.w}" height="5" rx="2.5" fill="url(#fogG)" opacity="${band.op}" filter="url(#fogBlur)"/>`;
     });
     return out;
   }
@@ -232,27 +276,38 @@
 
   function boltMarkup(uid) {
     const gradId = `${uid}bolt`;
+    const glowId = `${uid}boltGlow`;
     return `
       <defs>
         <linearGradient id="${gradId}" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stop-color="#fff3b0"/>
-          <stop offset="100%" stop-color="#ffb23c"/>
+          <stop offset="0%" stop-color="#fff9d6"/>
+          <stop offset="45%" stop-color="#ffd166"/>
+          <stop offset="100%" stop-color="#ff9d2e"/>
         </linearGradient>
+        <filter id="${glowId}" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="2.4"/></filter>
       </defs>
+      <path d="M31 36 L23 50 L30 50 L25 60 L41 43 L33 43 Z" fill="#ffcf5c" opacity="0.55" filter="url(#${glowId})"/>
       <path d="M31 36 L23 50 L30 50 L25 60 L41 43 L33 43 Z" fill="#ffb23c" opacity="0.35" transform="translate(1,1)"/>
       <path d="M31 36 L23 50 L30 50 L25 60 L41 43 L33 43 Z" fill="url(#${gradId})"/>
+      <path d="M28 40 L27 47" stroke="#fff" stroke-width="1" stroke-linecap="round" opacity="0.6"/>
     `;
   }
 
   function alertMarkup(uid) {
     const gradId = `${uid}alert`;
+    const glowId = `${uid}alertGlow`;
     return `
       <defs>
         <linearGradient id="${gradId}" x1="0%" y1="0%" x2="0%" y2="100%">
           <stop offset="0%" stop-color="#ff9a8f"/>
           <stop offset="100%" stop-color="#ff5c52"/>
         </linearGradient>
+        <radialGradient id="${glowId}" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="#ff5c52" stop-opacity="0.35"/>
+          <stop offset="100%" stop-color="#ff5c52" stop-opacity="0"/>
+        </radialGradient>
       </defs>
+      <circle cx="32" cy="32" r="24" fill="url(#${glowId})"/>
       <circle cx="32" cy="32" r="18" fill="url(#${gradId})" opacity="0.18"/>
       <circle cx="32" cy="32" r="15" fill="none" stroke="url(#${gradId})" stroke-width="3.2"/>
       <rect x="29.6" y="20" width="4.8" height="17" rx="2.4" fill="url(#${gradId})"/>
