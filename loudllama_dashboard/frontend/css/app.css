@@ -669,6 +669,22 @@ body.llw-edit-mode .llw-widget {
   outline-offset: 2px;
 }
 
+/* Lets a touch drag actually pick a widget up and move it, instead of the
+   browser quietly claiming the gesture as a native vertical scroll first.
+   .llw-page's own `touch-action: pan-y` (above) is what makes swiping
+   between pages/scrolling a page work without JS having to fight the
+   browser for every vertical touch - but with nothing overriding it, that
+   same rule applies to the widgets sitting inside the page too, so a finger
+   placed directly on a widget never reaches GridStack's own drag handling
+   at all on a touchscreen: the browser just scrolls the page under it
+   instead, which is exactly "I can't move widgets around any more". Only
+   relevant in edit mode, since dragging is disabled outside it anyway (see
+   setEditMode in app.js) - view mode keeps scrolling straight off every
+   widget, same as before. */
+body.llw-edit-mode .grid-stack-item-content {
+  touch-action: none;
+}
+
 /* Jiggle mode - every widget wobbles gently and slightly out of sync with
    its neighbours while editing, the classic "hold to rearrange" springboard
    tell. Two alternating keyframe directions (assigned by odd/even child

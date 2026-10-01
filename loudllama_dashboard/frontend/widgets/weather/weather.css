@@ -135,6 +135,53 @@ body.llw-edit-mode .llw-weather__gear { display: inline-flex; }
 .llw-weather__forecast-item .llw-fc-icon svg { width: 100%; height: 100%; overflow: visible; }
 .llw-weather__forecast-item .llw-fc-temp { font-weight: 600; }
 
+/* --- Compact (2x2) size variant -------------------------------------------
+   See sizeVariants on registerWidget and weather.js's `isCompact` flag: the
+   compact card is a quarter of the full variant's area (2x2 vs 4x2) with no
+   forecast strip, so the icon/temperature/condition/meta row - all sized for
+   the much wider "full" card - simply overflowed the box before this (see
+   the bug report that added it). Everything below just shrinks it to fit. */
+.llw-weather--compact .llw-weather__content {
+  padding: 0.6rem 0.65rem 0.5rem;
+  gap: 0.2rem;
+}
+.llw-weather--compact .llw-weather__head {
+  padding-right: 26px;
+}
+.llw-weather--compact .llw-weather__title {
+  font-size: 0.68rem;
+}
+.llw-weather--compact .llw-weather__gear {
+  width: 22px;
+  height: 22px;
+  font-size: 0.72rem;
+}
+.llw-weather--compact .llw-weather__main {
+  gap: 0.4rem;
+}
+.llw-weather--compact .llw-weather__main > div:last-child {
+  min-width: 0;
+  flex: 1;
+}
+.llw-weather--compact .llw-weather__icon {
+  width: 42px;
+  height: 42px;
+}
+.llw-weather--compact .llw-weather__temp {
+  font-size: 1.35rem;
+}
+.llw-weather--compact .llw-weather__condition {
+  font-size: 0.68rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.llw-weather--compact .llw-weather__meta {
+  flex-direction: column;
+  gap: 0.15rem;
+  font-size: 0.64rem;
+}
+
 .llw-weather__empty {
   flex: 1;
   display: flex;

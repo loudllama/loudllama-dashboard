@@ -172,8 +172,18 @@ body.llw-edit-mode .llw-room__gear { display: inline-flex; }
   width: 100%;
   align-items: center;
   justify-content: center;
-  font-size: 2.1rem;
   line-height: 1;
+}
+/* Hand-built gradient-shaded SVG (see room.js's roomIconSvg) instead of a
+   flat emoji character - a plain emoji read as too "cartoonish" next to the
+   rest of the dashboard's shaded, dimensional look (same complaint that
+   already shaped the weather widget's own icons). */
+.llw-room__compact-icon svg {
+  width: 62%;
+  height: 62%;
+  max-width: 64px;
+  max-height: 64px;
+  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.35));
 }
 
 /* Icon picker in the editor's name step - only rendered at all for a room
@@ -188,11 +198,14 @@ body.llw-edit-mode .llw-room__gear { display: inline-flex; }
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.25rem;
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 10px;
   cursor: pointer;
+}
+.llw-room__icon-opt svg {
+  width: 68%;
+  height: 68%;
 }
 .llw-room__icon-opt:hover { background: rgba(255, 255, 255, 0.16); }
 .llw-room__icon-opt.is-selected {

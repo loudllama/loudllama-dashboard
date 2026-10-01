@@ -445,6 +445,10 @@
     const isCompact = config.sizeVariant === 'compact';
 
     el.classList.add('llw-widget-weather');
+    // Drives weather.css's compact-size overrides below - the full variant's
+    // icon/temperature/meta row simply doesn't fit in a 2x2 box without
+    // shrinking everything down (see the bug report that added this).
+    el.classList.toggle('llw-weather--compact', isCompact);
     el.innerHTML = `
       <div class="llw-weather">
         <div class="llw-weather__bg llw-bg-unknown"></div>
@@ -557,8 +561,8 @@
           </div>
         </div>
         <div class="llw-weather__meta">
-          ${attrs.humidity !== undefined ? `<span>💧 ${t('weather', 'humidity')} ${Math.round(attrs.humidity)}%</span>` : ''}
-          ${attrs.wind_speed !== undefined ? `<span>🌬 ${t('weather', 'wind')} ${Math.round(attrs.wind_speed)} ${attrs.wind_speed_unit || ''}</span>` : ''}
+          ${attrs.humidity !== undefined ? `<span>💧 ${isCompact ? '' : `${t('weather', 'humidity')} `}${Math.round(attrs.humidity)}%</span>` : ''}
+          ${attrs.wind_speed !== undefined ? `<span>🌬 ${isCompact ? '' : `${t('weather', 'wind')} `}${Math.round(attrs.wind_speed)} ${attrs.wind_speed_unit || ''}</span>` : ''}
         </div>
         ${forecastHtml}
       `;

@@ -45,7 +45,300 @@
   // llw-room--compact branch. Deliberately a small curated set covering the
   // room types people actually have, not a full icon-font picker - picking
   // one should be a two-second tap, not its own search UI.
+  //
+  // Each entry is still identified by its original plain-emoji character
+  // (so a room saved before the icons below existed keeps showing exactly
+  // the icon it already had - the emoji is just a lookup key now, not what
+  // actually gets drawn). ROOM_ICON_SVG maps that same key to a small
+  // hand-built gradient-shaded SVG, same style as the weather widget's
+  // icons (see weather.js's iconSvg) - picked because a flat single-colour
+  // emoji read as "too cartoonish" next to the rest of the dashboard's
+  // shaded, dimensional look.
   const ROOM_ICONS = ['🏠', '🛋️', '🛏️', '🍳', '🚿', '💻', '🚗', '🌳', '🧺', '🎮', '📺', '🍽️', '🚪'];
+
+  // --- Icons (compact 1x1 size) ---------------------------------------------
+  let roomIconUid = 0;
+  function nextRoomIconUid() {
+    roomIconUid += 1;
+    return `llwri${roomIconUid}`;
+  }
+
+  // A soft contact shadow under each icon - the one bit of shading every
+  // icon below shares, so none of them look like they're floating flat
+  // against the tile.
+  function roomIconShadow(cx, cy, rx, ry) {
+    return `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="#000" opacity="0.18"/>`;
+  }
+
+  function roomIconHouse(uid) {
+    const wallId = `${uid}wall`, roofId = `${uid}roof`;
+    return `
+      <defs>
+        <linearGradient id="${wallId}" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stop-color="#ffe8c2"/>
+          <stop offset="100%" stop-color="#f3c988"/>
+        </linearGradient>
+        <linearGradient id="${roofId}" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stop-color="#e2654a"/>
+          <stop offset="100%" stop-color="#b8402b"/>
+        </linearGradient>
+      </defs>
+      ${roomIconShadow(32, 56, 20, 4)}
+      <rect x="16" y="30" width="32" height="24" rx="2" fill="url(#${wallId})"/>
+      <path d="M10 32 L32 12 L54 32 L48 32 L32 18 L16 32 Z" fill="url(#${roofId})"/>
+      <rect x="27" y="40" width="10" height="14" rx="1.5" fill="#6b4226"/>
+      <rect x="20" y="36" width="6" height="6" fill="#bfe3f0" opacity="0.9"/>
+      <rect x="38" y="36" width="6" height="6" fill="#bfe3f0" opacity="0.9"/>
+    `;
+  }
+
+  function roomIconCouch(uid) {
+    const padId = `${uid}pad`;
+    return `
+      <defs>
+        <linearGradient id="${padId}" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stop-color="#8fa8d8"/>
+          <stop offset="100%" stop-color="#5c7ab8"/>
+        </linearGradient>
+      </defs>
+      ${roomIconShadow(32, 54, 22, 4)}
+      <rect x="10" y="30" width="44" height="10" rx="5" fill="url(#${padId})"/>
+      <rect x="12" y="36" width="40" height="14" rx="6" fill="url(#${padId})"/>
+      <rect x="8" y="26" width="8" height="24" rx="4" fill="url(#${padId})"/>
+      <rect x="48" y="26" width="8" height="24" rx="4" fill="url(#${padId})"/>
+      <rect x="18" y="32" width="12" height="8" rx="3" fill="#fff" opacity="0.18"/>
+      <rect x="34" y="32" width="12" height="8" rx="3" fill="#fff" opacity="0.18"/>
+    `;
+  }
+
+  function roomIconBed(uid) {
+    const blanketId = `${uid}blanket`;
+    return `
+      <defs>
+        <linearGradient id="${blanketId}" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stop-color="#f6a9c0"/>
+          <stop offset="100%" stop-color="#d9638f"/>
+        </linearGradient>
+      </defs>
+      ${roomIconShadow(32, 54, 22, 4)}
+      <rect x="10" y="22" width="12" height="14" rx="3" fill="#fff" opacity="0.92"/>
+      <rect x="12" y="24" width="8" height="8" rx="2" fill="#dfe6ee"/>
+      <rect x="10" y="34" width="44" height="18" rx="4" fill="url(#${blanketId})"/>
+      <rect x="8" y="30" width="48" height="8" rx="4" fill="#fff" opacity="0.85"/>
+    `;
+  }
+
+  function roomIconKitchen(uid) {
+    const panId = `${uid}pan`;
+    return `
+      <defs>
+        <radialGradient id="${panId}" cx="40%" cy="35%" r="65%">
+          <stop offset="0%" stop-color="#6b6f76"/>
+          <stop offset="100%" stop-color="#2d3034"/>
+        </radialGradient>
+      </defs>
+      ${roomIconShadow(30, 52, 18, 4)}
+      <circle cx="28" cy="34" r="18" fill="url(#${panId})"/>
+      <circle cx="28" cy="34" r="14" fill="#1c1e21"/>
+      <ellipse cx="28" cy="34" rx="10" ry="8" fill="#fff" opacity="0.92"/>
+      <circle cx="28" cy="34" r="4" fill="#ffc94a"/>
+      <rect x="44" y="30" width="18" height="5" rx="2.5" fill="url(#${panId})" transform="rotate(10 44 30)"/>
+    `;
+  }
+
+  function roomIconShower(uid) {
+    const headId = `${uid}head`, dropId = `${uid}drop`;
+    const drops = [0, 1, 2, 3, 4]
+      .map((i) => `<path d="M${17 + i * 8} 28 C${19 + i * 8} 33 ${19 + i * 8} 37 ${17 + i * 8} 40 C${15 + i * 8} 37 ${15 + i * 8} 33 ${17 + i * 8} 28 Z" fill="url(#${dropId})"/>`)
+      .join('');
+    return `
+      <defs>
+        <linearGradient id="${headId}" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stop-color="#cfd8de"/>
+          <stop offset="100%" stop-color="#8d9aa3"/>
+        </linearGradient>
+        <linearGradient id="${dropId}" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stop-color="#bfe3f5" stop-opacity="0.3"/>
+          <stop offset="100%" stop-color="#4fa9d8"/>
+        </linearGradient>
+      </defs>
+      <path d="M14 18 Q32 2 50 18" stroke="url(#${headId})" stroke-width="5" fill="none" stroke-linecap="round"/>
+      <rect x="12" y="18" width="40" height="7" rx="3.5" fill="url(#${headId})"/>
+      ${drops}
+      ${roomIconShadow(32, 54, 20, 4)}
+    `;
+  }
+
+  function roomIconOffice(uid) {
+    const screenId = `${uid}screen`;
+    return `
+      <defs>
+        <linearGradient id="${screenId}" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stop-color="#7fd4ff"/>
+          <stop offset="100%" stop-color="#2f8fc2"/>
+        </linearGradient>
+      </defs>
+      ${roomIconShadow(32, 54, 22, 4)}
+      <rect x="16" y="14" width="32" height="22" rx="2" fill="#30343b"/>
+      <rect x="19" y="17" width="26" height="16" rx="1" fill="url(#${screenId})"/>
+      <path d="M10 38 H54 L48 48 H16 Z" fill="#45484e"/>
+      <rect x="10" y="36" width="44" height="4" rx="2" fill="#5a5e65"/>
+    `;
+  }
+
+  function roomIconCar(uid) {
+    const bodyId = `${uid}car`;
+    return `
+      <defs>
+        <linearGradient id="${bodyId}" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stop-color="#ff8a65"/>
+          <stop offset="100%" stop-color="#d84a2b"/>
+        </linearGradient>
+      </defs>
+      ${roomIconShadow(32, 50, 22, 4)}
+      <path d="M12 38 Q14 26 24 24 H40 Q50 26 52 38 Z" fill="url(#${bodyId})"/>
+      <rect x="10" y="36" width="44" height="8" rx="4" fill="url(#${bodyId})"/>
+      <path d="M22 26 H42 L46 34 H18 Z" fill="#bfe3f5" opacity="0.85"/>
+      <circle cx="20" cy="45" r="6" fill="#26282b"/>
+      <circle cx="44" cy="45" r="6" fill="#26282b"/>
+      <circle cx="20" cy="45" r="2.4" fill="#8a8d92"/>
+      <circle cx="44" cy="45" r="2.4" fill="#8a8d92"/>
+    `;
+  }
+
+  function roomIconGarden(uid) {
+    const leafId = `${uid}leaf`, trunkId = `${uid}trunk`;
+    return `
+      <defs>
+        <radialGradient id="${leafId}" cx="35%" cy="30%" r="70%">
+          <stop offset="0%" stop-color="#9fdb86"/>
+          <stop offset="100%" stop-color="#4b9c4a"/>
+        </radialGradient>
+        <linearGradient id="${trunkId}" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="#9c6b43"/>
+          <stop offset="100%" stop-color="#6e4728"/>
+        </linearGradient>
+      </defs>
+      ${roomIconShadow(32, 56, 18, 4)}
+      <rect x="28" y="38" width="8" height="16" rx="2" fill="url(#${trunkId})"/>
+      <circle cx="24" cy="26" r="13" fill="url(#${leafId})"/>
+      <circle cx="38" cy="22" r="15" fill="url(#${leafId})"/>
+      <circle cx="40" cy="36" r="11" fill="url(#${leafId})"/>
+    `;
+  }
+
+  function roomIconLaundry(uid) {
+    const basketId = `${uid}basket`;
+    return `
+      <defs>
+        <linearGradient id="${basketId}" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stop-color="#e3bd82"/>
+          <stop offset="100%" stop-color="#a97c43"/>
+        </linearGradient>
+      </defs>
+      ${roomIconShadow(32, 56, 20, 4)}
+      <path d="M14 34 L50 34 L45 56 L19 56 Z" fill="url(#${basketId})"/>
+      <ellipse cx="32" cy="34" rx="18" ry="5" fill="#c99a5d"/>
+      <ellipse cx="26" cy="26" rx="8" ry="6" fill="#5c9bd8"/>
+      <ellipse cx="38" cy="24" rx="7" ry="6" fill="#e06a7a"/>
+      <ellipse cx="33" cy="29" rx="6" ry="5" fill="#f3d35c"/>
+    `;
+  }
+
+  function roomIconGame(uid) {
+    const bodyId = `${uid}pad`;
+    return `
+      <defs>
+        <linearGradient id="${bodyId}" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stop-color="#5c6773"/>
+          <stop offset="100%" stop-color="#2d333b"/>
+        </linearGradient>
+      </defs>
+      ${roomIconShadow(32, 50, 22, 4)}
+      <path d="M14 26 Q10 26 9 32 L7 42 Q6 48 12 48 Q16 48 18 44 L22 38 H42 L46 44 Q48 48 52 48 Q58 48 57 42 L55 32 Q54 26 50 26 Z" fill="url(#${bodyId})"/>
+      <circle cx="20" cy="33" r="2.2" fill="#9aa3ad"/>
+      <circle cx="20" cy="39" r="2.2" fill="#9aa3ad"/>
+      <circle cx="17" cy="36" r="2.2" fill="#9aa3ad"/>
+      <circle cx="23" cy="36" r="2.2" fill="#9aa3ad"/>
+      <circle cx="44" cy="33" r="2.6" fill="#ff6b6b"/>
+      <circle cx="49" cy="37" r="2.6" fill="#4fd1a0"/>
+    `;
+  }
+
+  function roomIconTv(uid) {
+    const screenId = `${uid}tv`;
+    return `
+      <defs>
+        <linearGradient id="${screenId}" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#8fd8ff"/>
+          <stop offset="100%" stop-color="#2d6fa8"/>
+        </linearGradient>
+      </defs>
+      ${roomIconShadow(32, 52, 20, 4)}
+      <rect x="10" y="14" width="44" height="28" rx="3" fill="#24262b"/>
+      <rect x="13" y="17" width="38" height="22" rx="1.5" fill="url(#${screenId})"/>
+      <rect x="28" y="42" width="8" height="6" fill="#3a3d43"/>
+      <rect x="20" y="48" width="24" height="3" rx="1.5" fill="#3a3d43"/>
+    `;
+  }
+
+  function roomIconDining(uid) {
+    const plateId = `${uid}plate`;
+    return `
+      <defs>
+        <radialGradient id="${plateId}" cx="40%" cy="35%" r="65%">
+          <stop offset="0%" stop-color="#ffffff"/>
+          <stop offset="100%" stop-color="#cfd6dc"/>
+        </radialGradient>
+      </defs>
+      ${roomIconShadow(32, 54, 20, 4)}
+      <circle cx="32" cy="32" r="17" fill="url(#${plateId})"/>
+      <circle cx="32" cy="32" r="11" fill="#e6eaee"/>
+      <rect x="12" y="18" width="4" height="26" rx="2" fill="#aeb4ba"/>
+      <rect x="10" y="16" width="2.4" height="10" rx="1.2" fill="#aeb4ba"/>
+      <rect x="13.8" y="16" width="2.4" height="10" rx="1.2" fill="#aeb4ba"/>
+      <rect x="48" y="18" width="4" height="26" rx="2" fill="#aeb4ba"/>
+    `;
+  }
+
+  function roomIconDoor(uid) {
+    const doorId = `${uid}door`;
+    return `
+      <defs>
+        <linearGradient id="${doorId}" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stop-color="#c9975f"/>
+          <stop offset="100%" stop-color="#8a5f34"/>
+        </linearGradient>
+      </defs>
+      ${roomIconShadow(32, 56, 16, 4)}
+      <rect x="18" y="10" width="28" height="46" rx="2" fill="url(#${doorId})"/>
+      <rect x="22" y="16" width="20" height="16" rx="1.5" fill="#fff" opacity="0.18"/>
+      <rect x="22" y="36" width="20" height="14" rx="1.5" fill="#fff" opacity="0.14"/>
+      <circle cx="40" cy="34" r="2.4" fill="#f3d98a"/>
+    `;
+  }
+
+  const ROOM_ICON_BUILDERS = {
+    '🏠': roomIconHouse,
+    '🛋️': roomIconCouch,
+    '🛏️': roomIconBed,
+    '🍳': roomIconKitchen,
+    '🚿': roomIconShower,
+    '💻': roomIconOffice,
+    '🚗': roomIconCar,
+    '🌳': roomIconGarden,
+    '🧺': roomIconLaundry,
+    '🎮': roomIconGame,
+    '📺': roomIconTv,
+    '🍽️': roomIconDining,
+    '🚪': roomIconDoor,
+  };
+
+  function roomIconSvg(key) {
+    const uid = nextRoomIconUid();
+    const build = ROOM_ICON_BUILDERS[key] || roomIconHouse;
+    return `<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${build(uid)}</svg>`;
+  }
 
   function domainOf(entityId) {
     return entityId.split('.')[0];
@@ -284,7 +577,7 @@
           <label class="llw-room__editor-label">${t('room', 'chooseIconTitle')}</label>
           <div class="llw-room__icon-picker">
             ${ROOM_ICONS.map(
-              (icon) => `<button type="button" class="llw-room__icon-opt ${(editorDraftIcon || ROOM_ICONS[0]) === icon ? 'is-selected' : ''}" data-icon="${icon}" aria-label="${icon}">${icon}</button>`
+              (icon) => `<button type="button" class="llw-room__icon-opt ${(editorDraftIcon || ROOM_ICONS[0]) === icon ? 'is-selected' : ''}" data-icon="${icon}" aria-label="${icon}">${roomIconSvg(icon)}</button>`
             ).join('')}
           </div>` : ''}
         <div class="llw-room__editor-actions">
@@ -629,7 +922,7 @@
       roomEl.classList.toggle('llw-room--lit', anyLightOn());
       roomEl.classList.toggle('llw-room--clickable', cfg.entities.length > 0);
       roomEl.classList.toggle('llw-room--compact', cfg.sizeVariant === 'compact');
-      compactIconEl.textContent = cfg.icon || ROOM_ICONS[0];
+      compactIconEl.innerHTML = roomIconSvg(cfg.icon || ROOM_ICONS[0]);
       syncCompactCaption();
 
       if (!cfg.entities.length) {
