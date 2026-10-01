@@ -39,9 +39,22 @@
         <div id="llw-add-widget-menu" class="llw-menu"></div>
       </div>
       <button id="llw-store-open" type="button">🧩 Widgets</button>
+      <button id="llw-ha-settings" type="button">⚙️ Home Assistant</button>
       <button id="llw-edit-toggle" type="button">Edit</button>
     </div>
   </header>
+
+  <!--
+    The toolbar above only ever shows while editing (see body.llw-edit-mode
+    in app.css) - there's no "Edit" button sitting on screen the rest of the
+    time any more. This is what you hold down to get it: press and hold
+    anywhere on the dashboard for a few seconds (see setupLongPressToEdit in
+    app.js), same as holding an app icon on iOS/Android to start rearranging
+    the home screen. Purely a visual "something is happening, keep holding"
+    cue while the hold is in progress - positioned and grown from JS, has no
+    content of its own.
+  -->
+  <div id="llw-longpress-hint" aria-hidden="true"></div>
 
   <main id="llw-loading">Loading…</main>
 

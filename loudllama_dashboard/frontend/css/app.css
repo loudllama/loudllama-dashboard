@@ -102,13 +102,59 @@ body {
      positioning already keeps it exactly where it was. */
   flex: 0 0 auto;
   z-index: 50;
-  display: flex;
+  /* Hidden outside edit mode - a clean, chrome-free screen for a wall-mounted
+     tablet/kiosk is the whole point (see the long-press gesture in app.js's
+     setupLongPressToEdit, which is now the only way in - there's no visible
+     "Edit" button to tap any more). #llw-pages-viewport's `flex: 1 1 auto`
+     (below) already absorbs whatever height this does or doesn't take up,
+     so nothing else needs to change for the rest of the page to fill the
+     gap when this disappears. */
+  display: none;
   align-items: center;
   justify-content: space-between;
+  /* Wraps the brand down onto its own row above the actions, rather than
+     clipping buttons off the right edge of the screen, once there's no
+     longer room for both on one line - see .llw-toolbar__actions below for
+     why that happens routinely now, at phone width, with five buttons
+     instead of the original four. */
+  flex-wrap: wrap;
+  row-gap: 0.4rem;
   padding: 0.7rem 1rem;
   background: rgba(20, 23, 30, 0.55);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+body.llw-edit-mode #llw-toolbar {
+  display: flex;
+}
+
+/* Visual "keep holding" cue for the long-press-to-edit gesture (see
+   setupLongPressToEdit in app.js) - a soft ring that grows from the touch
+   point over exactly the hold duration, so a press that's building up
+   doesn't just look like nothing is happening. JS positions it at the
+   pointer and toggles .llw-growing to start the grow/fade-in transition;
+   its own transition-duration is set inline from app.js so the two durations
+   can never drift apart (the easy way to break this: change HOLD_MS in JS
+   but forget a hardcoded duration here). */
+#llw-longpress-hint {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 40px;
+  height: 40px;
+  margin: -20px 0 0 -20px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 209, 102, 0.35), rgba(255, 209, 102, 0) 70%);
+  border: 2px solid rgba(255, 209, 102, 0.55);
+  pointer-events: none;
+  z-index: 2000;
+  opacity: 0;
+  transform: scale(0.4);
+}
+#llw-longpress-hint.llw-growing {
+  opacity: 1;
+  transform: scale(2.3);
+  transition: transform linear, opacity 0.15s ease;
 }
 
 .llw-toolbar__brand {
@@ -119,11 +165,24 @@ body {
 .llw-toolbar__actions {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem 0.6rem;
+  /* Lets the row above (#llw-toolbar) wrap the brand onto its own line
+     first, instead of this container being squeezed to whatever's left over
+     next to a full-width brand and THEN wrapping its own buttons - that
+     order reads oddly (brand barely shrinks, buttons wrap early) compared
+     to giving the actions their natural width first. */
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .llw-toolbar__actions button,
 .llw-bg-upload {
+  /* No per-button display:none/edit-mode-reveal dance any more - the whole
+     toolbar is the thing that's hidden outside edit mode now (see
+     #llw-toolbar above), so every button inside it is simply visible
+     whenever their shared parent is. */
   background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.14);
   color: #f4f5f7;
@@ -131,18 +190,17 @@ body {
   border-radius: 999px;
   font-size: 0.85rem;
   cursor: pointer;
-  display: none;
+  display: inline-flex;
+  align-items: center;
+  /* Wraps as a whole pill onto the next row rather than shrinking and
+     letting its own label break onto two lines - a button that's wrapped
+     whole still reads at a glance, one that's individually squeezed down to
+     "Home\nAssistant" inside a single pill doesn't. */
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 .llw-toolbar__actions button:hover,
 .llw-bg-upload:hover { background: rgba(255, 255, 255, 0.18); }
-
-#llw-edit-toggle { display: inline-flex; }
-
-body.llw-edit-mode .llw-toolbar__actions button,
-body.llw-edit-mode .llw-bg-upload {
-  display: inline-flex;
-  align-items: center;
-}
 
 .llw-bg-upload input[type="file"] { display: none; }
 

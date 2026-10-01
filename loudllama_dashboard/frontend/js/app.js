@@ -717,6 +717,80 @@
     viewport.addEventListener('pointercancel', endSwipe);
   }
 
+  // Press-and-hold-to-edit, now that there's no "Edit" button sitting on
+  // screen to tap (see #llw-toolbar in app.css: hidden outside edit mode, so
+  // a wall-mounted tablet/kiosk shows nothing but the dashboard itself).
+  // Holding anywhere on the screen for HOLD_MS without moving much enters
+  // edit mode - same gesture as holding an app icon on iOS/Android to start
+  // rearranging the home screen, deliberately long enough that it can't be
+  // triggered by an ordinary tap or scroll.
+  function setupLongPressToEdit() {
+    const HOLD_MS = 4500;
+    const MOVE_TOLERANCE = 10; // px of wiggle room before a hold counts as a drag/scroll instead
+    const hintEl = document.getElementById('llw-longpress-hint');
+    if (hintEl) hintEl.style.transitionDuration = `${HOLD_MS}ms`; // keep the visual cue's grow time locked to HOLD_MS, see app.css
+    let timer = null;
+    let pointerId = null;
+    let startX = 0;
+    let startY = 0;
+
+    function clear() {
+      if (timer) clearTimeout(timer);
+      timer = null;
+      pointerId = null;
+      if (hintEl) hintEl.classList.remove('llw-growing');
+    }
+
+    function fire() {
+      timer = null;
+      if (hintEl) hintEl.classList.remove('llw-growing');
+      setEditMode(true);
+      // The finger/mouse is still down at this point - whatever's under it
+      // (a room tile, a toggle, ...) would otherwise also receive the
+      // ordinary 'click' once it's released a moment later, right as edit
+      // mode opens underneath it. Swallow exactly that one click so holding
+      // a widget to start editing doesn't *also* trigger the widget itself.
+      const swallowOnce = (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        document.removeEventListener('click', swallowOnce, true);
+      };
+      document.addEventListener('click', swallowOnce, true);
+      setTimeout(() => document.removeEventListener('click', swallowOnce, true), 500);
+    }
+
+    document.addEventListener('pointerdown', (ev) => {
+      if (editMode) return; // toolbar's already open, and there's nothing left to "enter"
+      if (ev.button !== undefined && ev.button !== 0) return; // primary mouse button / touch / pen only
+      // Holding a text field, a slider, a <select>, or a link shouldn't
+      // flip into edit mode out from under whatever the user's actually
+      // doing with it (e.g. dragging a brightness slider for a few seconds).
+      if (ev.target.closest && ev.target.closest('input, select, textarea, a[href]')) return;
+      clear();
+      pointerId = ev.pointerId;
+      startX = ev.clientX;
+      startY = ev.clientY;
+      if (hintEl) {
+        hintEl.style.left = `${startX}px`;
+        hintEl.style.top = `${startY}px`;
+        void hintEl.offsetWidth; // force layout so the position above lands before the transition starts below
+        hintEl.classList.add('llw-growing');
+      }
+      timer = setTimeout(fire, HOLD_MS);
+    });
+
+    document.addEventListener('pointermove', (ev) => {
+      if (!timer || ev.pointerId !== pointerId) return;
+      if (Math.abs(ev.clientX - startX) > MOVE_TOLERANCE || Math.abs(ev.clientY - startY) > MOVE_TOLERANCE) clear();
+    });
+
+    ['pointerup', 'pointercancel'].forEach((type) => {
+      document.addEventListener(type, (ev) => {
+        if (ev.pointerId === pointerId) clear();
+      });
+    });
+  }
+
   function setEditMode(on) {
     editMode = on;
     document.body.classList.toggle('llw-edit-mode', editMode);
@@ -749,6 +823,8 @@
     document.getElementById('llw-bg-file').title = t('app', 'changeBackground');
     const storeBtn = document.getElementById('llw-store-open');
     if (storeBtn) storeBtn.textContent = `🧩 ${t('app', 'widgetStore')}`;
+    const haSettingsBtn = document.getElementById('llw-ha-settings');
+    if (haSettingsBtn) haSettingsBtn.textContent = `⚙️ ${t('app', 'haSettings')}`;
   }
 
   // Small representative emoji per widget type, used only as the icon shown
@@ -907,6 +983,7 @@
     // initialized once.
     syncPageCount();
     setupPagesSwipe();
+    setupLongPressToEdit();
 
     // 4. Chrome interactions.
     document.getElementById('llw-edit-toggle').addEventListener('click', () => setEditMode(!editMode));
@@ -935,6 +1012,26 @@
       storeBtn.addEventListener('click', () => {
         addMenu.classList.remove('llw-open');
         LL.openWidgetStore && LL.openWidgetStore();
+      });
+    }
+
+    // Jumps to Home Assistant's own Settings, not anything this add-on
+    // hosts itself - we're running inside an Ingress iframe under a dynamic
+    // per-session path (see the comment at the top of this file), so this
+    // can't be a plain <a href="/config/dashboard">: that would try to load
+    // Settings *inside* our own iframe, at our own Ingress path, which isn't
+    // where it lives. window.top is the actual browser tab - same-origin
+    // with the Ingress iframe either way (Ingress is just another path on
+    // the same Home Assistant host), so setting its location takes the
+    // whole tab to Home Assistant's real Settings page, leaving this
+    // dashboard entirely, same as tapping "Settings" in HA's own sidebar
+    // would. The settings button only matters at all once that sidebar is
+    // the thing that's hidden (a kiosk-mode browser, a wall tablet) - with
+    // it visible there's already a perfectly good way there.
+    const haSettingsBtn = document.getElementById('llw-ha-settings');
+    if (haSettingsBtn) {
+      haSettingsBtn.addEventListener('click', () => {
+        window.top.location.href = '/config/dashboard';
       });
     }
 

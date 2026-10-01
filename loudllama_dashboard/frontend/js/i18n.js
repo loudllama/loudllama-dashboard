@@ -29,6 +29,7 @@
         openStore: 'Open the widget store to add it',
         noWidgetsInstalled: 'No widgets added yet — open the widget store',
         chooseSize: 'Choose a size',
+        haSettings: 'Home Assistant',
       },
       store: {
         title: 'Widget store',
@@ -192,6 +193,7 @@
         openStore: 'Åbn widget-butikken for at tilføje den',
         noWidgetsInstalled: 'Ingen widgets tilføjet endnu — åbn widget-butikken',
         chooseSize: 'Vælg en størrelse',
+        haSettings: 'Home Assistant',
       },
       store: {
         title: 'Widget-butik',
@@ -355,6 +357,7 @@
         openStore: 'Öffne den Widget-Store, um es hinzuzufügen',
         noWidgetsInstalled: 'Noch keine Widgets hinzugefügt — öffne den Widget-Store',
         chooseSize: 'Größe wählen',
+        haSettings: 'Home Assistant',
       },
       store: {
         title: 'Widget-Store',
@@ -518,6 +521,7 @@
         openStore: 'Öppna widget-butiken för att lägga till den',
         noWidgetsInstalled: 'Inga widgets tillagda än — öppna widget-butiken',
         chooseSize: 'Välj en storlek',
+        haSettings: 'Home Assistant',
       },
       store: {
         title: 'Widget-butik',
@@ -681,6 +685,7 @@
         openStore: 'Åpne widget-butikken for å legge den til',
         noWidgetsInstalled: 'Ingen widgets lagt til ennå — åpne widget-butikken',
         chooseSize: 'Velg en størrelse',
+        haSettings: 'Home Assistant',
       },
       store: {
         title: 'Widget-butikk',
