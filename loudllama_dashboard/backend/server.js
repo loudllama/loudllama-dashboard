@@ -400,53 +400,47 @@ app.use(express.static(FRONTEND_DIR));
 app.use('/vendor/gridstack', express.static(path.join(__dirname, 'node_modules', 'gridstack', 'dist')));
 
 // --- Layout persistence ------------------------------------------------------
-// Every device (phone, tablet, wall-mounted panel, ...) that opens the
-// dashboard sees the *same* widgets with the *same* settings (weather
-// entity, chosen cameras, a room's entities, ...) - that part is one shared
-// "definition" list, exactly what used to be the whole of layout.json.
-// Only each widget's *size and position* is remembered separately per
-// device, so one device can be arranged however suits its screen without
-// moving anything around on anyone else's.
+// Every device (phone, tablet, wall-mounted panel, ...) gets its own fully
+// independent dashboard: its own widgets, its own settings for each one
+// (weather entity, chosen cameras, a room's entities, ...), its own sizes
+// and positions. Nothing is shared between devices any more - removing a
+// widget on your phone, or picking the compact size for it there, has no
+// effect on what your PC's browser shows. The tradeoff is the one that
+// comes with that: a widget you want on two devices has to be added and
+// configured on each of them separately - there's no single shared source
+// any more to keep two devices in sync automatically.
 //
-// Two files make this up:
-//   - layout.json                     shared: [{id, type, config, label,
-//                                      x, y, w, h}] - x/y/w/h here are the
-//                                      *default* position, used by any
-//                                      device that hasn't customized this
-//                                      widget's placement yet.
-//   - device-layouts/<deviceId>.json  per device: {positions: {widgetId:
-//                                      {x, y, w, h, dock, page}}} - only an
-//                                      override, never the widget's own
-//                                      definition. `dock` is whether this
-//                                      device pins the widget to its fixed
-//                                      bottom row instead of the scrollable
-//                                      grid; `page` is which of this
-//                                      device's swipeable dashboard pages it
-//                                      sits on (0 if never set - a device
-//                                      that predates the multi-page feature,
-//                                      or has never moved a widget off the
-//                                      first page, simply has no page in its
-//                                      saved positions and everything
-//                                      defaults there). Pages themselves have
-//                                      no separate record anywhere - which
-//                                      ones "exist" is entirely derived,
-//                                      per device, from which page numbers
-//                                      its own widgets currently use (see
-//                                      app.js's syncPageCount) - same spirit
-//                                      as x/y/w/h/dock, nothing here is
-//                                      shared across devices.
+// (Earlier versions shared one `layout.json` widget list across every
+// device, with only size/position kept per device in
+// device-layouts/<deviceId>.json - see this file's git history if you need
+// the old model. That's what made "remove a widget on my phone" also
+// remove it on every other device: the widget itself, not just its
+// position, was the shared part.)
 //
-// POSTing a layout only ever *upserts* the shared definitions (adds new
-// widgets, updates an existing one's config/label) - it never removes one
-// just because a particular device's payload doesn't happen to mention it.
-// That matters because two devices can have loaded the page at different
-// times and therefore disagree on exactly which widgets exist right now;
-// if a save from the stalest one were allowed to delete whatever it didn't
-// know about, one device resizing an unrelated widget could silently wipe
-// out something another device added minutes earlier. Removing a widget
-// for real goes through its own explicit DELETE endpoint instead, fired
-// the moment someone clicks that widget's own remove button - an
-// unambiguous, deliberate action rather than an inference from a diff.
+// Each device's *entire* dashboard now lives in one file:
+//   device-layouts/<deviceId>.json   {widgets: [{id, type, config, label,
+//                                     x, y, w, h, dock, page}]} - the full
+//                                     widget list for this device and
+//                                     nothing else, no merging with
+//                                     anyone else's.
+//
+// A device's own file is the single source of truth for that device: a
+// POST here always replaces that device's entire widget list with exactly
+// what was posted (the client already sends its whole current DOM state on
+// every save, see app.js's serializeLayout), and DELETE removes a widget
+// from that device's own file only.
+//
+// Migration: a device that was already running before this version either
+// has an old-format file (`{positions: {...}}`, no widgets of its own yet)
+// or no file at all (never customized a position). Either way, the first
+// time such a device asks for its layout under the new model, it's seeded
+// with a one-time snapshot of whatever it *used to* effectively see under
+// the old shared-layout.json + positions model (readLegacyLayoutForSeeding
+// below), then written out as that device's own independent file from then
+// on. This runs lazily per device (there's no way to migrate a device that
+// hasn't asked yet), so a device that hasn't opened the dashboard in a
+// while still gets its own faithful snapshot the next time it does,
+// whenever that is - not whatever layout.json happens to look like by then.
 const DEFAULT_LAYOUT = {
   widgets: [
     { id: 'weather-1', type: 'weather', x: 0, y: 0, w: 4, h: 4, config: { entity_id: '' } },
@@ -458,78 +452,72 @@ function sanitizeDeviceId(raw) {
   return cleaned || 'default';
 }
 
-function devicePositionsFile(deviceId) {
+function deviceLayoutFile(deviceId) {
   return path.join(DEVICE_LAYOUTS_DIR, `${deviceId}.json`);
 }
 
-function readSharedLayout() {
+function writeDeviceLayout(deviceId, widgets) {
+  fs.writeFileSync(deviceLayoutFile(deviceId), JSON.stringify({ widgets }, null, 2));
+}
+
+// Only ever used to seed a device that hasn't been migrated to the new
+// per-device-only model yet (see the big comment above) - never read or
+// written to again afterward, so it's fine that this stays frozen at
+// whatever it looked like right before the upgrade.
+function readLegacyLayoutForSeeding() {
   if (fs.existsSync(LAYOUT_FILE)) {
     try {
       const data = JSON.parse(fs.readFileSync(LAYOUT_FILE, 'utf8'));
-      if (Array.isArray(data.widgets)) return data;
+      if (Array.isArray(data.widgets)) return JSON.parse(JSON.stringify(data.widgets));
     } catch (err) {
-      console.error('[loudllama] Failed to read layout, using default:', err);
+      console.error('[loudllama] Failed to read legacy shared layout, using default:', err);
     }
   }
-  return JSON.parse(JSON.stringify(DEFAULT_LAYOUT));
+  return JSON.parse(JSON.stringify(DEFAULT_LAYOUT.widgets));
 }
 
-function writeSharedLayout(layout) {
-  fs.writeFileSync(LAYOUT_FILE, JSON.stringify(layout, null, 2));
-}
-
-function readDevicePositions(deviceId) {
-  const file = devicePositionsFile(deviceId);
+function readDeviceLayout(deviceId) {
+  const file = deviceLayoutFile(deviceId);
   if (fs.existsSync(file)) {
     try {
       const data = JSON.parse(fs.readFileSync(file, 'utf8'));
-      if (data && typeof data.positions === 'object' && data.positions) return data.positions;
-    } catch (err) {
-      console.error('[loudllama] Failed to read device layout, ignoring:', err);
-    }
-  }
-  return {};
-}
-
-function writeDevicePositions(deviceId, positions) {
-  fs.writeFileSync(devicePositionsFile(deviceId), JSON.stringify({ positions }, null, 2));
-}
-
-// Best-effort cleanup so a deleted widget's leftover position entries don't
-// pile up in every device's file forever. Never blocks the actual delete.
-function pruneWidgetFromAllDevicePositions(widgetId) {
-  let files;
-  try {
-    files = fs.readdirSync(DEVICE_LAYOUTS_DIR).filter((f) => f.endsWith('.json'));
-  } catch (err) {
-    return;
-  }
-  files.forEach((f) => {
-    const full = path.join(DEVICE_LAYOUTS_DIR, f);
-    try {
-      const data = JSON.parse(fs.readFileSync(full, 'utf8'));
-      if (data && data.positions && Object.prototype.hasOwnProperty.call(data.positions, widgetId)) {
-        delete data.positions[widgetId];
-        fs.writeFileSync(full, JSON.stringify(data, null, 2));
+      if (data && Array.isArray(data.widgets)) {
+        // Already on the new per-device-only format.
+        return data.widgets;
+      }
+      if (data && data.positions && typeof data.positions === 'object') {
+        // Old format: this device only ever had position overrides on top
+        // of the old shared layout.json, never its own widget list. Merge
+        // the two once, now, into this device's own full copy - see the
+        // migration comment above.
+        const legacyWidgets = readLegacyLayoutForSeeding();
+        const migrated = legacyWidgets.map((w) => {
+          const pos = data.positions[w.id];
+          return pos
+            ? { ...w, x: pos.x, y: pos.y, w: pos.w, h: pos.h, dock: !!pos.dock, page: Number.isFinite(pos.page) ? pos.page : 0 }
+            : { ...w, page: 0 };
+        });
+        writeDeviceLayout(deviceId, migrated);
+        return migrated;
       }
     } catch (err) {
-      /* corrupt or unrelated file - leave it alone */
+      console.error('[loudllama] Failed to read device layout, falling back to a fresh seed:', err);
     }
-  });
+  }
+  // Brand new device, or a corrupt file: seed it from whatever the old
+  // shared layout.json currently has (so an in-place upgrade doesn't make
+  // an existing device's dashboard look empty the first time it loads),
+  // falling back to DEFAULT_LAYOUT for a genuinely fresh install that never
+  // had a shared layout.json either.
+  const seed = readLegacyLayoutForSeeding();
+  writeDeviceLayout(deviceId, seed);
+  return seed;
 }
 
 app.get('/api/layout', (req, res) => {
   try {
     const deviceId = sanitizeDeviceId(req.query.device);
-    const shared = readSharedLayout();
-    const positions = readDevicePositions(deviceId);
-    const widgets = shared.widgets.map((w) => {
-      const pos = positions[w.id];
-      return pos
-        ? { ...w, x: pos.x, y: pos.y, w: pos.w, h: pos.h, dock: !!pos.dock, page: Number.isFinite(pos.page) ? pos.page : 0 }
-        : { ...w, page: 0 };
-    });
-    res.json({ widgets });
+    res.json({ widgets: readDeviceLayout(deviceId) });
   } catch (err) {
     console.error('[loudllama] Failed to read layout:', err);
     res.status(500).json({ error: 'layout_read_failed' });
@@ -540,44 +528,25 @@ app.post('/api/layout', (req, res) => {
   try {
     const deviceId = sanitizeDeviceId(req.query.device);
     const incoming = Array.isArray(req.body && req.body.widgets) ? req.body.widgets : [];
-    const shared = readSharedLayout();
-    const sharedById = new Map(shared.widgets.map((w) => [w.id, w]));
-    const positions = {};
-
-    incoming.forEach((w) => {
-      if (!w || !w.id || !w.type) return;
-      const existing = sharedById.get(w.id);
-      sharedById.set(w.id, {
+    const widgets = incoming
+      .filter((w) => w && w.id && w.type)
+      .map((w) => ({
         id: w.id,
         type: w.type,
         config: w.config || {},
-        label: typeof w.label === 'string' ? w.label : (existing ? existing.label : undefined),
-        // The *default* position is set once, when a widget is first seen,
-        // and never touched again by an upsert - only this device's own
-        // position file changes on every save. Otherwise whichever device
-        // happened to save last would keep resetting everyone else's
-        // fallback placement.
-        x: existing ? existing.x : (w.x ?? 0),
-        y: existing ? existing.y : (w.y ?? 0),
-        w: existing ? existing.w : (w.w ?? 3),
-        h: existing ? existing.h : (w.h ?? 3),
-      });
-      // dock/page: which fixed row or which swipeable page *this device*
-      // shows the widget on - same per-device treatment as x/y/w/h, since
-      // it's about where a widget sits on this particular screen, not what
-      // the widget is or does.
-      positions[w.id] = {
+        label: typeof w.label === 'string' ? w.label : '',
         x: w.x ?? 0,
         y: w.y ?? 0,
         w: w.w ?? 3,
         h: w.h ?? 3,
         dock: !!w.dock,
         page: Number.isFinite(w.page) ? w.page : 0,
-      };
-    });
-
-    writeSharedLayout({ widgets: Array.from(sharedById.values()) });
-    writeDevicePositions(deviceId, positions);
+      }));
+    // A full, authoritative replace of this device's own widget list - the
+    // client always posts its whole current DOM state (see app.js's
+    // serializeLayout), and no other device shares this file, so there's
+    // nothing to merge against.
+    writeDeviceLayout(deviceId, widgets);
     res.json({ ok: true });
   } catch (err) {
     console.error('[loudllama] Failed to save layout:', err);
@@ -587,13 +556,12 @@ app.post('/api/layout', (req, res) => {
 
 // Explicit, deliberate widget removal - see the big comment above for why
 // this is a separate endpoint instead of being inferred from a POST that
-// simply omits the widget.
+// simply omits the widget. Only ever touches this one device's own file.
 app.delete('/api/layout/widgets/:id', (req, res) => {
   try {
-    const shared = readSharedLayout();
-    shared.widgets = shared.widgets.filter((w) => w.id !== req.params.id);
-    writeSharedLayout(shared);
-    pruneWidgetFromAllDevicePositions(req.params.id);
+    const deviceId = sanitizeDeviceId(req.query.device);
+    const widgets = readDeviceLayout(deviceId).filter((w) => w.id !== req.params.id);
+    writeDeviceLayout(deviceId, widgets);
     res.json({ ok: true });
   } catch (err) {
     console.error('[loudllama] Failed to delete widget:', err);

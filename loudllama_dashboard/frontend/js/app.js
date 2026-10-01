@@ -110,9 +110,10 @@
   };
 
   // Every layout call is tagged with this device's id (see device.js) so
-  // the backend can keep this device's widget positions separate from
-  // everyone else's while the widgets themselves (which ones exist, their
-  // settings) stay the same for all.
+  // the backend can keep this device's entire dashboard - which widgets
+  // exist, their settings, their size and position - fully separate from
+  // every other device's. See the big comment above the layout endpoints
+  // in backend/server.js for why nothing is shared across devices any more.
   function layoutUrl(suffix) {
     return `api/layout${suffix}${suffix.includes('?') ? '&' : '?'}device=${encodeURIComponent(LL.deviceId || 'default')}`;
   }
