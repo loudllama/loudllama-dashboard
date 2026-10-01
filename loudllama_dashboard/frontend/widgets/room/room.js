@@ -40,6 +40,13 @@
     media: '🔊', vacuum: '🤖', security: '🔒', sensor: '📊', other: '⚙️',
   };
 
+  // Preset icons offered for the compact (1x1) size variant - see
+  // sizeVariants on registerWidget below and renderCompact()'s
+  // llw-room--compact branch. Deliberately a small curated set covering the
+  // room types people actually have, not a full icon-font picker - picking
+  // one should be a two-second tap, not its own search UI.
+  const ROOM_ICONS = ['🏠', '🛋️', '🛏️', '🍳', '🚿', '💻', '🚗', '🌳', '🧺', '🎮', '📺', '🍽️', '🚪'];
+
   function domainOf(entityId) {
     return entityId.split('.')[0];
   }
@@ -108,6 +115,17 @@
       // widget). Anything not in here just falls back to friendly_name, same
       // as always - see displayName() below.
       entityLabels: (config.entityLabels && typeof config.entityLabels === 'object') ? { ...config.entityLabels } : {},
+      // 'full' (default, for every room saved before this existed) shows the
+      // original header+glance tile; 'compact' shows just an icon with the
+      // room's name in a small caption below the tile - see
+      // renderCompact()'s llw-room--compact branch. Chosen once, when the
+      // widget is added (see app.js's size picker) - not something this
+      // widget itself offers a way to change later, same as every other
+      // widget with sizeVariants.
+      sizeVariant: config.sizeVariant === 'compact' ? 'compact' : 'full',
+      // Which of ROOM_ICONS this room shows in compact mode - '' falls back
+      // to the first entry (the plain house) rather than showing nothing.
+      icon: config.icon || '',
     };
     let liveEntities = {}; // entity_id -> live HA entity
     let pollTimer = null;
@@ -123,6 +141,7 @@
     let editorDraftEntities = [];
     let editorDraftTempEntity = '';
     let editorDraftEntityLabels = {};
+    let editorDraftIcon = '';
 
     function scheduleSaveRoom() {
       clearTimeout(saveTimer);
@@ -189,6 +208,7 @@
             <button class="llw-room__gear" type="button">⚙</button>
           </div>
           <div class="llw-room__glance"></div>
+          <div class="llw-room__compact-icon"></div>
         </div>
       </div>
     `;
@@ -196,7 +216,14 @@
     const roomEl = el.querySelector('.llw-room');
     const nameEl = el.querySelector('.llw-room__name');
     const glanceEl = el.querySelector('.llw-room__glance');
+    const compactIconEl = el.querySelector('.llw-room__compact-icon');
     const gearBtn = el.querySelector('.llw-room__gear');
+    // The compact variant's caption ("which room is this") renders OUTSIDE
+    // this widget's own box, as a sibling inside the shared shell (see
+    // .llw-widget-shell in app.css) - same spot the old per-widget caption
+    // used to live before 0.09.015 removed it for everyone. Full-size rooms
+    // never get one; see syncCompactCaption().
+    const shellEl = el.closest('.llw-widget-shell');
 
     // --- Editor (setup wizard + later edits) -----------------------------
     // Unlike the compact glance tile, the editor is a true fullscreen popup
@@ -210,6 +237,7 @@
       editorDraftEntities = cfg.entities.slice();
       editorDraftTempEntity = cfg.tempEntityId || '';
       editorDraftEntityLabels = { ...cfg.entityLabels };
+      editorDraftIcon = cfg.icon || '';
 
       const modal = document.createElement('div');
       modal.className = 'llw-room-editor-modal';
@@ -244,15 +272,34 @@
     function renderEditorStep1() {
       if (!editorBodyEl) return;
       const canCancel = !!cfg.name;
+      // Icon picker only matters for the compact (1x1) variant - a full-size
+      // room's tile has no room for an icon and never shows one, so asking a
+      // full-size room's owner to also pick one would just be noise.
+      const showIconPicker = cfg.sizeVariant === 'compact';
       editorBodyEl.innerHTML = `
         ${canCancel ? `<button type="button" class="llw-room-editor-modal__close" aria-label="${t('room', 'close')}">×</button>` : ''}
         <label class="llw-room__editor-label">${t('room', 'setupTitle')}</label>
         <input type="text" class="llw-room__name-input" placeholder="${escapeHtml(t('room', 'namePlaceholder'))}" value="${escapeHtml(editorDraftName)}" maxlength="40" />
+        ${showIconPicker ? `
+          <label class="llw-room__editor-label">${t('room', 'chooseIconTitle')}</label>
+          <div class="llw-room__icon-picker">
+            ${ROOM_ICONS.map(
+              (icon) => `<button type="button" class="llw-room__icon-opt ${(editorDraftIcon || ROOM_ICONS[0]) === icon ? 'is-selected' : ''}" data-icon="${icon}" aria-label="${icon}">${icon}</button>`
+            ).join('')}
+          </div>` : ''}
         <div class="llw-room__editor-actions">
           <button type="button" class="llw-room__next">${t('room', 'next')}</button>
         </div>
       `;
       const input = editorBodyEl.querySelector('.llw-room__name-input');
+      if (showIconPicker) {
+        editorBodyEl.querySelectorAll('.llw-room__icon-opt').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            editorDraftIcon = btn.dataset.icon;
+            editorBodyEl.querySelectorAll('.llw-room__icon-opt').forEach((b) => b.classList.toggle('is-selected', b === btn));
+          });
+        });
+      }
       const goNext = () => {
         const val = input.value.trim();
         if (!val) {
@@ -454,6 +501,8 @@
           subWidgets: cfg.subWidgets || [],
           tempEntityId: editorDraftTempEntity || '',
           entityLabels,
+          sizeVariant: cfg.sizeVariant,
+          icon: cfg.sizeVariant === 'compact' ? (editorDraftIcon || ROOM_ICONS[0]) : cfg.icon,
         };
         syncSubWidgets();
         ensureSubWidgetTypesLoaded().then(() => saveConfig(cfg));
@@ -554,11 +603,34 @@
       return `${Number.isFinite(num) ? Math.round(num * 10) / 10 : t2.value}${t2.unit}`;
     }
 
+    // Creates/updates/removes the under-card caption for the compact
+    // variant - see the shellEl comment above. Shell is display:flex;
+    // flex-direction:column (see .llw-widget-shell in app.css), so an extra
+    // child here simply appears below this widget's own box, no absolute
+    // positioning needed.
+    function syncCompactCaption() {
+      if (!shellEl) return;
+      let capEl = shellEl.querySelector(':scope > .llw-widget-caption');
+      if (cfg.sizeVariant === 'compact') {
+        if (!capEl) {
+          capEl = document.createElement('div');
+          capEl.className = 'llw-widget-caption';
+          shellEl.appendChild(capEl);
+        }
+        capEl.textContent = cfg.name || '';
+      } else if (capEl) {
+        capEl.remove();
+      }
+    }
+
     function renderCompact() {
       nameEl.textContent = cfg.name;
       roomEl.style.setProperty('--room-hue', String(hashHue(cfg.name || 'room')));
       roomEl.classList.toggle('llw-room--lit', anyLightOn());
       roomEl.classList.toggle('llw-room--clickable', cfg.entities.length > 0);
+      roomEl.classList.toggle('llw-room--compact', cfg.sizeVariant === 'compact');
+      compactIconEl.textContent = cfg.icon || ROOM_ICONS[0];
+      syncCompactCaption();
 
       if (!cfg.entities.length) {
         glanceEl.innerHTML = `<div class="llw-room__empty">${t('room', 'noEntitiesSelected')}</div>`;
@@ -1061,9 +1133,23 @@
 
   LL.registerWidget('room', {
     name: { en: 'Room', da: 'Værelse', de: 'Raum', sv: 'Rum', no: 'Rom' },
-    defaultSize: { w: 3, h: 3 },
+    defaultSize: { w: 2, h: 2 },
     minSize: { w: 1, h: 1 },
     defaultConfig: () => ({ name: '', entities: [] }),
+    // See app.js's showSizePicker: offered as a choice right when the
+    // widget is added, instead of free-dragging it to size afterward.
+    sizeVariants: {
+      full: {
+        w: 2,
+        h: 2,
+        label: { en: 'Full', da: 'Fuld', de: 'Voll', sv: 'Full', no: 'Full' },
+      },
+      compact: {
+        w: 1,
+        h: 1,
+        label: { en: 'Icon', da: 'Ikon', de: 'Symbol', sv: 'Ikon', no: 'Ikon' },
+      },
+    },
     mount,
   });
 })();

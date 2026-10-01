@@ -28,6 +28,13 @@
   box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
   border: 1px solid rgba(255, 255, 255, 0.08);
   color: #fff;
+  /* llw-pop-in is defined once in app.css (always loaded) and reused here
+     the same way llw-fade-in above already is, for the same "springs
+     open" entrance on every fullscreen popup in the app. */
+  animation: llw-pop-in 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .llw-store-modal__card { animation: none; }
 }
 
 .llw-store-modal__head {

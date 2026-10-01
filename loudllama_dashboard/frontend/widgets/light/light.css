@@ -105,6 +105,18 @@
   padding: 0.8rem 0.8rem 1.6rem;
 }
 .llw-light__settings.llw-open { display: flex; }
+
+/* Compact (1x1) size variant - see isCompact in light.js. Tighter padding
+   and a smaller toggle so the tile doesn't feel cramped at the smallest
+   grid size; name/gear row is unchanged (still the only way to reach
+   settings in this size). */
+.llw-widget-light--compact .llw-light { padding: 0.45rem 0.5rem 0.4rem; }
+.llw-widget-light--compact .llw-light__head { padding-right: 24px; }
+.llw-widget-light--compact .llw-light__toggle {
+  width: 38px;
+  height: 38px;
+  font-size: 1.1rem;
+}
 .llw-light__settings label { font-size: 0.72rem; opacity: 0.7; }
 .llw-light__select {
   width: 100%;

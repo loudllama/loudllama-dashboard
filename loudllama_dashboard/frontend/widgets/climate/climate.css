@@ -101,6 +101,16 @@
   padding: 0.8rem 0.8rem 1.6rem;
 }
 .llw-climate__settings.llw-open { display: flex; }
+
+/* Compact (1x1) size variant - see isCompact in climate.js. Name is hidden
+   (the reading's the whole point of this size) but the gear stays reachable
+   so the entity can still be changed; body shows a small icon above the
+   big reading instead of the +/- stepper. */
+.llw-widget-climate--compact .llw-climate { padding: 0.45rem 0.5rem 0.4rem; }
+.llw-widget-climate--compact .llw-climate__head { justify-content: flex-end; padding-right: 24px; }
+.llw-widget-climate--compact .llw-climate__name { display: none; }
+.llw-climate__compact-icon { font-size: 1.1rem; opacity: 0.85; }
+.llw-widget-climate--compact .llw-climate__current { font-size: 1.3rem; }
 .llw-climate__settings label { font-size: 0.72rem; opacity: 0.7; }
 .llw-climate__select {
   width: 100%;

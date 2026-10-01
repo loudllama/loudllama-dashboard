@@ -21,8 +21,16 @@
     let entity = null;
     let pollTimer = null;
     let destroyed = false;
+    // 'full' (default - also what every Light mounted inside a Room's
+    // nested grid gets, since Room never sets this) shows the on/off toggle
+    // plus a brightness slider; 'compact' is icon + name only, tap to
+    // toggle. Chosen once when the widget is added on the main dashboard
+    // (see app.js's size picker) - never offered inside a Room, where the
+    // tile is already small and always shows the full control.
+    const isCompact = config.sizeVariant === 'compact';
 
     el.classList.add('llw-widget-light');
+    if (isCompact) el.classList.add('llw-widget-light--compact');
     el.innerHTML = `
       <div class="llw-light">
         <div class="llw-light__head">
@@ -97,7 +105,10 @@
       if (!entity) return;
       const name = config.displayName || (entity.attributes && entity.attributes.friendly_name) || entity.entity_id;
       const isOn = entity.state === 'on';
-      const hasBrightness = entity.attributes && entity.attributes.brightness !== undefined && entity.attributes.brightness !== null;
+      // Compact mode never shows the slider, even when the light supports
+      // dimming - "icon + name, tap to toggle" is the whole point of the
+      // smaller tile, see the isCompact comment in mount() above.
+      const hasBrightness = !isCompact && entity.attributes && entity.attributes.brightness !== undefined && entity.attributes.brightness !== null;
       const pct = hasBrightness ? Math.round(((entity.attributes.brightness || 0) / 255) * 100) : 0;
 
       nameEl.textContent = name;
@@ -184,8 +195,25 @@
   LL.registerWidget('light', {
     name: { en: 'Light', da: 'Lys', de: 'Licht', sv: 'Belysning', no: 'Lys' },
     defaultSize: { w: 2, h: 2 },
-    minSize: { w: 2, h: 2 },
+    minSize: { w: 1, h: 1 },
     defaultConfig: () => ({ entity_id: '' }),
+    // See app.js's showSizePicker: offered as a choice right when the
+    // widget is added, instead of free-dragging it to size afterward. Only
+    // applies to a standalone dashboard Light - one mounted inside a Room's
+    // nested grid always gets the full layout, since Room never sets
+    // sizeVariant on its sub-widgets.
+    sizeVariants: {
+      full: {
+        w: 2,
+        h: 2,
+        label: { en: 'Full', da: 'Fuld', de: 'Voll', sv: 'Full', no: 'Full' },
+      },
+      compact: {
+        w: 1,
+        h: 1,
+        label: { en: 'Icon', da: 'Ikon', de: 'Symbol', sv: 'Ikon', no: 'Ikon' },
+      },
+    },
     mount,
   });
 })();

@@ -23,8 +23,16 @@
     let entity = null;
     let pollTimer = null;
     let destroyed = false;
+    // 'full' (default - also what every Media mounted inside a Room's
+    // nested grid gets) shows the track/artist line, play/pause, and a
+    // volume slider; 'compact' is icon + the player's own name only, no
+    // track info and no controls - see render()'s branch below. Only
+    // offered when adding a standalone Media widget on the main dashboard
+    // (see app.js's size picker).
+    const isCompact = config.sizeVariant === 'compact';
 
     el.classList.add('llw-widget-media');
+    if (isCompact) el.classList.add('llw-widget-media--compact');
     el.innerHTML = `
       <div class="llw-media">
         <div class="llw-media__head">
@@ -104,6 +112,14 @@
       const track = title ? `${escapeHtml(title)}${artist ? ` — ${escapeHtml(artist)}` : ''}` : t('room', `states.${stateKey}`);
 
       nameEl.textContent = name;
+
+      if (isCompact) {
+        // Icon + player name only - no track/artist, no play/pause, no
+        // volume. See isCompact's comment in mount() above.
+        bodyEl.innerHTML = `<div class="llw-media__compact-icon">🔊</div>`;
+        return;
+      }
+
       bodyEl.innerHTML = `
         <div class="llw-media__track" title="${track}">${track}</div>
         <button type="button" class="llw-media__playpause ${playing ? 'is-playing' : ''}" aria-label="${name}">${playing ? '⏸' : '▶'}</button>
@@ -178,8 +194,23 @@
   LL.registerWidget('media', {
     name: { en: 'Speaker', da: 'Højtaler', de: 'Lautsprecher', sv: 'Högtalare', no: 'Høyttaler' },
     defaultSize: { w: 2, h: 2 },
-    minSize: { w: 2, h: 2 },
+    minSize: { w: 1, h: 1 },
     defaultConfig: () => ({ entity_id: '' }),
+    // See app.js's showSizePicker. Only applies to a standalone dashboard
+    // Media - one mounted inside a Room's nested grid always gets the
+    // full layout, since Room never sets sizeVariant on its sub-widgets.
+    sizeVariants: {
+      full: {
+        w: 2,
+        h: 2,
+        label: { en: 'Full', da: 'Fuld', de: 'Voll', sv: 'Full', no: 'Full' },
+      },
+      compact: {
+        w: 1,
+        h: 1,
+        label: { en: 'Icon', da: 'Ikon', de: 'Symbol', sv: 'Ikon', no: 'Ikon' },
+      },
+    },
     mount,
   });
 })();

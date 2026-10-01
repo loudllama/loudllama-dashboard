@@ -5,6 +5,21 @@
 
 * { box-sizing: border-box; }
 
+/* Shared "pop in" entrance for a popup's card - a quick scale-up-from-
+   slightly-smaller plus fade, eased with a touch of overshoot so it reads
+   as springing open rather than just appearing flat. Lives here (always
+   loaded, unlike per-widget CSS - see index.html's comment on widget
+   CSS/JS being loaded on demand) so every fullscreen popup can use it -
+   Room's live view/editor, the widget store, Frigate's live view - without
+   each one needing Room's widget to happen to be installed first. The
+   Group widget's own bubble popup animates the same way but keeps its own
+   version (group.css) since it also needs a tap-point transform-origin
+   this generic one doesn't. */
+@keyframes llw-pop-in {
+  from { opacity: 0; transform: scale(0.92); }
+  to { opacity: 1; transform: scale(1); }
+}
+
 html, body {
   height: 100%;
   margin: 0;
@@ -158,6 +173,81 @@ body.llw-edit-mode .llw-bg-upload {
 }
 .llw-menu-item:hover { background: rgba(255, 255, 255, 0.08); }
 
+/* Size picker - replaces the menu's widget list (see showSizePicker() in
+   app.js) for any widget that declares two preset sizes instead of
+   supporting free resize. Wider than a plain text menu, since it needs room
+   for two small proportional preview rectangles side by side. */
+.llw-menu:has(.llw-size-picker) { min-width: 240px; }
+.llw-size-picker {
+  padding: 0.5rem 0.6rem 0.7rem;
+}
+.llw-size-picker__back {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  color: #f4f5f7;
+  opacity: 0.75;
+  cursor: pointer;
+  font-size: 0.78rem;
+  padding: 0.2rem 0.2rem 0.4rem;
+}
+.llw-size-picker__back:hover { opacity: 1; }
+.llw-size-picker__title {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  opacity: 0.55;
+  padding: 0 0.2rem 0.4rem;
+}
+.llw-size-picker__options {
+  display: flex;
+  gap: 0.5rem;
+}
+.llw-size-picker__opt {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 0.5rem 0.4rem;
+  cursor: pointer;
+  color: #f4f5f7;
+}
+.llw-size-picker__opt:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.22);
+}
+/* The actual "picture of the two options" the person asked for - a little
+   rectangle in the variant's own w:h proportions (not a pixel-accurate
+   mockup, just enough to read "this one's wide and short" vs "this one's
+   square") with a representative icon centered in it. */
+.llw-size-picker__preview {
+  width: 100%;
+  max-width: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  font-size: 1.1rem;
+}
+.llw-size-picker__label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-align: center;
+}
+.llw-size-picker__dims {
+  font-size: 0.62rem;
+  opacity: 0.55;
+}
+
 #llw-loading {
   display: flex;
   align-items: center;
@@ -223,6 +313,13 @@ body.llw-edit-mode .llw-bg-upload {
      scroll heuristics before JS gets a chance to see it's actually
      horizontal. */
   touch-action: pan-y;
+  /* Keeps iOS's native elastic rubber-band bounce (from
+     -webkit-overflow-scrolling: touch above) contained to this one page -
+     without it, overscrolling past this element's own scroll limit can
+     chain into the parent #llw-pages-viewport/body, which is exactly the
+     "scrolling into nothing" feeling the bounce should never cause. The
+     bounce itself stays - this only stops it from leaking sideways. */
+  overscroll-behavior-y: contain;
   padding: var(--llw-gap);
   /* Leaves room so the last row of widgets never sits behind the fixed dock
      and/or the page dots - only actually needed once one or both are
@@ -515,6 +612,26 @@ body.llw-edit-mode.llw-multi-real-pages .llw-page-move { display: flex; }
 .llw-body {
   width: 100%;
   height: 100%;
+}
+
+/* Under-card caption for a widget's compact size variant (currently just
+   Room - see room.js's syncCompactCaption()). Lives as a sibling of
+   .llw-widget inside .llw-widget-shell, which is already a flex column, so
+   it simply appears below the card with no positioning math needed - the
+   same spot the old universal widget caption used to occupy before
+   0.09.015 removed it for everyone. A widget only adds this element when it
+   actually wants one; most widgets never do. */
+.llw-widget-caption {
+  flex: 0 0 auto;
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0 2px;
 }
 
 

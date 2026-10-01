@@ -46,6 +46,23 @@
     return bestCols;
   }
 
+  // Frigate is the one widget type that was explicitly excluded from the
+  // full/compact size-picker pattern every other widget got (see app.js's
+  // showSizePicker/sizeVariants): instead of asking the user to pick a size
+  // up front, the widget's own GridStack cell grows and shrinks on its own
+  // as cameras are added/removed below. Tiers are deliberately coarse
+  // (jumping the grid size on every single checkbox tick would feel janky)
+  // and start at the widget's own minSize so a 0/1-camera widget never gets
+  // smaller than that. Columns top out at 12, matching the page's own grid.
+  function sizeForCameraCount(n) {
+    if (n <= 1) return { w: 3, h: 3 };
+    if (n === 2) return { w: 5, h: 3 };
+    if (n <= 4) return { w: 6, h: 5 };
+    if (n <= 6) return { w: 8, h: 5 };
+    if (n <= 9) return { w: 9, h: 6 };
+    return { w: 10, h: 7 };
+  }
+
   function mount(el, { config, saveConfig }) {
     let cameras = Array.isArray(config.cameras) ? config.cameras.slice() : [];
     let cameraMeta = {}; // entity_id -> { friendly_name }
@@ -107,6 +124,7 @@
           cb.addEventListener('change', () => {
             cameras = Array.from(settingsListEl.querySelectorAll('input[type="checkbox"]:checked')).map((c) => c.value);
             saveConfig({ cameras });
+            applyAutoSize();
             renderGrid();
           });
         });
@@ -117,6 +135,24 @@
 
     function cameraLabel(entityId) {
       return (cameraMeta[entityId] && cameraMeta[entityId].friendly_name) || entityId;
+    }
+
+    // Resizes the widget's own GridStack cell to match the current camera
+    // count (see sizeForCameraCount above) - a no-op when the widget isn't
+    // mounted on a GridStack grid at all (e.g. a preview context) or when
+    // the computed size already matches what's there. Manual resize is
+    // gone for every widget (see app.js's createPage comment), and Frigate
+    // never got a size picker either, so this is the only thing that ever
+    // changes this widget's size.
+    function applyAutoSize() {
+      const itemEl = el.closest('.grid-stack-item');
+      const gridRoot = itemEl && itemEl.closest('.grid-stack');
+      const gs = gridRoot && gridRoot.gridstack;
+      if (!itemEl || !gs) return;
+      const target = sizeForCameraCount(cameras.length);
+      const node = itemEl.gridstackNode;
+      if (node && node.w === target.w && node.h === target.h) return;
+      gs.update(itemEl, { w: target.w, h: target.h });
     }
 
     // Recomputes and applies the grid's column count from the widget's
@@ -352,7 +388,10 @@
       })
       .catch(() => {})
       .finally(() => {
-        if (!destroyed) renderGrid();
+        if (!destroyed) {
+          applyAutoSize();
+          renderGrid();
+        }
       });
 
     // Reacts to the widget itself being resized (dragged/resized on the

@@ -132,28 +132,6 @@
   let editMode = false;
   let saveTimer = null;
 
-  // Widgets resize to one of a curated set of sizes instead of every
-  // arbitrary integer cell count the 12-column grid technically allows -
-  // the same idea as iOS 14+ widgets only coming in small/medium/large:
-  // it's what makes a dashboard people have been freely resizing for a
-  // while still read as an ordered tile grid instead of a jumble of
-  // slightly-different rectangles. Picks whichever tier is closest to
-  // whatever size the user actually dragged to, so it still feels like a
-  // normal resize and not like fighting the grid.
-  // 1 is included here even though most widgets never reach it: pickTier()
-  // below filters candidate tiers down to whatever's >= a widget's own
-  // minSize first, so a widget whose minSize is still {w:2,h:2} (the
-  // default) simply never sees 1 as a candidate and keeps snapping exactly
-  // as before. Only a widget that explicitly declares minSize:{w:1,h:1}
-  // (e.g. Room) can actually land on it.
-  const LLW_WIDTH_TIERS = [1, 2, 3, 4, 6, 8, 12];
-  const LLW_HEIGHT_TIERS = [1, 2, 3, 4, 6];
-  function pickTier(current, tiers, min, max) {
-    const candidates = tiers.filter((t) => t >= (min || 1) && t <= (max || Infinity));
-    if (!candidates.length) return Math.max(min || 1, Math.min(current, max || current));
-    return candidates.reduce((best, t) => (Math.abs(t - current) < Math.abs(best - current) ? t : best), candidates[0]);
-  }
-
   function scheduleSave() {
     clearTimeout(saveTimer);
     saveTimer = setTimeout(saveLayout, 500);
@@ -351,8 +329,25 @@
     el.classList.add('grid-stack-item');
     el.querySelector('.llw-widget-shell').classList.add('grid-stack-item-content');
     el.setAttribute('gs-id', widgetId);
-    el.setAttribute('gs-x', size.x ?? 0);
-    el.setAttribute('gs-y', size.y ?? 0);
+    // A saved layout always has a real x/y (even 0,0 legitimately) and
+    // should land exactly there. A brand new widget - from the "+ Add
+    // widget" menu/size picker, which never passes x/y - has no position
+    // yet, and defaulting it to a hardcoded (0,0) (the old behaviour) made
+    // GridStack treat that as a *requested* spot: colliding with whatever
+    // already occupies (0,0) just pushes the new widget straight down the
+    // same column, one row below the tallest thing above it, even when a
+    // whole empty column was sitting right next to it. That's what was
+    // leaving tall blank gaps next to short compact tiles instead of
+    // packing them in beside each other. gs-auto-position tells GridStack
+    // to actually search the grid for the first free cell instead (still
+    // respecting float), which is what we want whenever there's no real
+    // saved position to honour.
+    if (node.x !== undefined && node.y !== undefined) {
+      el.setAttribute('gs-x', size.x ?? 0);
+      el.setAttribute('gs-y', size.y ?? 0);
+    } else {
+      el.setAttribute('gs-auto-position', 'true');
+    }
     el.setAttribute('gs-w', size.w ?? 3);
     el.setAttribute('gs-h', size.h ?? 3);
     syncPinButton(el);
@@ -463,11 +458,13 @@
     sourcePageEl.gridstack.removeWidget(el, false);
     const destPageEl = pageEls[targetIndex];
     destPageEl.appendChild(el);
-    // x/y deliberately omitted - 0/0 plus GridStack's own collision handling
-    // (the same thing every brand-new widget already relies on in
-    // addWidgetElement) finds it a free spot on the destination page rather
-    // than assuming its old position is free there too.
-    destPageEl.gridstack.makeWidget(el, { x: 0, y: 0, w, h });
+    // autoPosition, not a hardcoded x:0/y:0 - see addWidgetElement's own
+    // comment on gs-auto-position for why: a *requested* (0,0) just pushes
+    // straight down the same column on collision, which can leave a tall
+    // blank gap next to a free column instead of using it. autoPosition
+    // makes GridStack actually search the destination page for a free
+    // cell instead of assuming (0,0) specifically is open.
+    destPageEl.gridstack.makeWidget(el, { autoPosition: true, w, h });
     goToPage(targetIndex);
     scheduleSave();
     syncPageCount();
@@ -499,26 +496,40 @@
         marginLeft: 16,
         marginRight: 16,
         float: true,
-        disableOneColumnMode: false,
-        // No 'se'/'sw' corner handles (top-level pages only - Room/Group's
-        // own nested sub-grids still use all four and are unaffected, since
-        // their tiles don't carry these badges - see below). GridStack
-        // inline-styles every resize handle to z-index:100, and the bottom
-        // corners are exactly where .llw-pin and .llw-page-prev/-next
-        // already live; while jiggle's rotation is live, the *whole*
-        // .llw-widget-shell is its own stacking context (any actively
-        // animated `transform` creates one, per spec), which traps every
-        // badge's z-index inside it - no z-index a badge declares can ever
-        // outrank a sibling of the shell, like these handles. That leaves
-        // a genuine deadlock the moment a bottom corner has both a badge
-        // and a handle: the handle wins every hover, so the badge can never
-        // trigger the hover-pause that would stop the jiggle and lift the
-        // trap. Diagonal (corner) resizing is still fully reachable, just as
-        // two separate edge drags ('e' then 's', or vice versa) instead of
-        // one - width and height already snap to independent tiers either
-        // way (see LLW_WIDTH_TIERS/LLW_HEIGHT_TIERS), so nothing about the
-        // achievable sizes actually changes, only the gesture.
-        resizable: { handles: 'e, s, w' },
+        // GridStack's legacy "one column mode" (the old default behind
+        // disableOneColumnMode: false) collapses EVERY widget to a
+        // full-viewport-width row below its breakpoint (768px), ignoring
+        // w/x entirely - on a phone that made every widget "too big"
+        // regardless of its grid size, which was the original complaint
+        // this whole size-variant feature exists to fix, and it would also
+        // have silently defeated the feature itself: a 1x1 compact tile
+        // would still render as a full-width bar instead of a small icon,
+        // same as a 2x2 full widget. Disabling it in favor of columnOpts
+        // below keeps an actual multi-column grid at every width.
+        disableOneColumnMode: true,
+        // Column count adapts to screen width instead of staying fixed at
+        // 12, picking whatever count keeps each column close to
+        // columnWidth's 90px (matching cellHeight above, so a cell stays
+        // roughly square on any device - a phone lands around 4 columns,
+        // a tablet/desktop around 12). Without this, a fixed 12-column
+        // grid on a ~390px phone gives ~30px columns - too thin for even a
+        // compact 1x1 tile to read as a square icon. 'compact' re-packs
+        // widgets tightly whenever the column count itself changes (e.g.
+        // rotating the device), same spirit as this grid's own float
+        // packing, instead of leaving gaps or overflowing.
+        columnOpts: { columnWidth: 90, columnMax: 12, layout: 'compact' },
+        // Free-form resizing is gone entirely (was 'e, s, w' edge handles,
+        // snapping to a tier on resizestop - see wireGridEvents' git history
+        // for that code). A widget's size is now a deliberate choice made
+        // once, when it's added (see the size-variant picker in
+        // buildAddWidgetMenu): either a fixed size for widgets with only one
+        // shape, or a pick between that widget's own "full"/"compact"
+        // variants (see LL.registerWidget's sizeVariants). Dragging a tile
+        // to resize it on a phone was the single biggest source of "my
+        // dashboard looks like a jumble" complaints - two or three presets
+        // per widget, chosen with actual previews up front, reads as a tidy
+        // tile grid the way free dragging never quite managed to.
+        resizable: false,
       },
       pageEl
     );
@@ -529,26 +540,13 @@
     return pageEl;
   }
 
-  // Every page's grid needs the same "save on any change" and "snap resize
-  // to a tier" wiring addWidgetElement's single global grid used to get once
-  // at init - now it happens once per page, right when that page is created.
+  // Every page's grid needs the same "save on any change" wiring
+  // addWidgetElement's single global grid used to get once at init - now it
+  // happens once per page, right when that page is created. (Used to also
+  // snap a free resize to the nearest size tier on 'resizestop' - gone along
+  // with free resizing itself, see createPage's resizable:false.)
   function wireGridEvents(g) {
     g.on('change', scheduleSave);
-    // Snap to a size tier the instant a resize ends (not during, so the drag
-    // itself still feels smooth/free) - see LLW_WIDTH_TIERS/pickTier above.
-    g.on('resizestop', (event, el) => {
-      const node = el.gridstackNode;
-      if (!node) return;
-      const def = LL.widgetTypes[el.dataset.widgetType];
-      const minW = (def && def.minSize && def.minSize.w) || 1;
-      const minH = (def && def.minSize && def.minSize.h) || 1;
-      const snappedW = pickTier(node.w, LLW_WIDTH_TIERS, minW, 12 - node.x);
-      const snappedH = pickTier(node.h, LLW_HEIGHT_TIERS, minH, 20);
-      if (snappedW !== node.w || snappedH !== node.h) {
-        g.update(el, { w: snappedW, h: snappedH });
-        scheduleSave();
-      }
-    });
   }
 
   // Grows the page list up to (at least) minCount pages. Never shrinks -
@@ -752,6 +750,24 @@
     if (storeBtn) storeBtn.textContent = `🧩 ${t('app', 'widgetStore')}`;
   }
 
+  // Small representative emoji per widget type, used only as the icon shown
+  // inside each size option's preview rectangle in the picker below -
+  // purely decorative, doesn't touch what the widget itself renders.
+  const LLW_PREVIEW_ICON = { room: '🏠', weather: '⛅', light: '💡', climate: '🌡️', media: '🔊', frigate: '📷', sensor: '📊', group: '🧩' };
+
+  function localized(obj) {
+    return (obj && (obj[LL.i18n.lang] || obj.en)) || '';
+  }
+
+  // Adds a widget straight away - the original one-click behaviour, still
+  // used for every widget that only comes in one size (Sensor, Frigate,
+  // Group, and any widget a future update adds without declaring
+  // sizeVariants).
+  function addWidgetFromMenu(id, def) {
+    addWidgetElement({ type: id, page: currentPage, config: def.defaultConfig ? def.defaultConfig() : {} });
+    scheduleSave();
+  }
+
   // Only *installed* widgets ever end up in LL.widgetTypes (see
   // loadInstalledWidgets/LL.loadWidgetAssets above), so this menu
   // automatically reflects the widget store's install/uninstall state with
@@ -784,18 +800,70 @@
       btn.className = 'llw-menu-item';
       btn.textContent = (def.name && (def.name[LL.i18n.lang] || def.name.en)) || id;
       btn.addEventListener('click', () => {
-        // New widgets always land on whichever page is currently in view -
-        // not always page 0 - so adding something while looking at page 2
-        // puts it right where you're looking, not somewhere you'd have to
-        // go find.
-        addWidgetElement({ type: id, page: currentPage, config: def.defaultConfig ? def.defaultConfig() : {} });
-        scheduleSave();
-        menu.classList.remove('llw-open');
+        // A widget that declares two preset sizes asks which one first
+        // (see showSizePicker) instead of landing on the dashboard right
+        // away - everything else keeps the original one-click add.
+        if (def.sizeVariants) {
+          showSizePicker(id, def);
+        } else {
+          addWidgetFromMenu(id, def);
+          menu.classList.remove('llw-open');
+        }
       });
       menu.appendChild(btn);
     });
   }
   LL.refreshAddWidgetMenu = buildAddWidgetMenu;
+
+  // Replaces the add-widget menu's contents with a two-option "which size"
+  // picker for a widget that declares sizeVariants (see e.g. room.js's
+  // registerWidget call) - a small proportional preview rectangle plus a
+  // label per option, picked once up front instead of dragging a tile
+  // around afterward (free resizing is gone entirely, see createPage's
+  // resizable:false). Choosing an option adds the widget at that variant's
+  // fixed size with config.sizeVariant set to 'full'/'compact', which is
+  // what each widget's own mount() reads to decide which layout to render.
+  function showSizePicker(id, def) {
+    const menu = document.getElementById('llw-add-widget-menu');
+    const icon = LLW_PREVIEW_ICON[id] || '◻';
+    const variantKeys = ['full', 'compact'].filter((k) => def.sizeVariants[k]);
+    menu.innerHTML = `
+      <div class="llw-size-picker">
+        <button type="button" class="llw-size-picker__back">‹ ${(def.name && localized(def.name)) || id}</button>
+        <div class="llw-size-picker__title">${t('app', 'chooseSize')}</div>
+        <div class="llw-size-picker__options">
+          ${variantKeys
+            .map((key) => {
+              const variant = def.sizeVariants[key];
+              return `
+              <button type="button" class="llw-size-picker__opt" data-variant="${key}">
+                <span class="llw-size-picker__preview" style="aspect-ratio:${variant.w}/${variant.h}">
+                  <span class="llw-size-picker__icon">${icon}</span>
+                </span>
+                <span class="llw-size-picker__label">${localized(variant.label)}</span>
+                <span class="llw-size-picker__dims">${variant.w}×${variant.h}</span>
+              </button>`;
+            })
+            .join('')}
+        </div>
+      </div>
+    `;
+    menu.querySelector('.llw-size-picker__back').addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      buildAddWidgetMenu();
+    });
+    menu.querySelectorAll('.llw-size-picker__opt').forEach((btn) => {
+      btn.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        const variant = def.sizeVariants[btn.dataset.variant];
+        const config = { ...(def.defaultConfig ? def.defaultConfig() : {}), sizeVariant: btn.dataset.variant };
+        addWidgetElement({ type: id, page: currentPage, w: variant.w, h: variant.h, config });
+        scheduleSave();
+        menu.classList.remove('llw-open');
+        buildAddWidgetMenu(); // reset back to the main list for next time
+      });
+    });
+  }
 
   async function init() {
     // 1. Language + units from Home Assistant (falls back to English/metric
@@ -846,8 +914,19 @@
     const addMenu = document.getElementById('llw-add-widget-menu');
     buildAddWidgetMenu();
     addMenuBtn.addEventListener('click', () => addMenu.classList.toggle('llw-open'));
+    const addWidgetWrap = addMenuBtn.closest('.llw-add-widget-wrap');
     document.addEventListener('click', (ev) => {
-      if (!ev.target.closest('.llw-add-widget-wrap')) addMenu.classList.remove('llw-open');
+      // composedPath(), not ev.target.closest(): picking a widget with
+      // sizeVariants (see showSizePicker below) replaces this menu's
+      // innerHTML *during* this same click's bubble phase, to swap the
+      // widget list for the size picker without closing the menu - which
+      // detaches ev.target from the document before this listener runs.
+      // closest() on a detached node can never find an ancestor (there's
+      // nothing to walk up to any more), so it always said "outside" and
+      // closed the menu the instant the picker appeared. composedPath()
+      // is captured at dispatch time, before any of that mutation, so it
+      // still reflects where the click actually happened.
+      if (!ev.composedPath().includes(addWidgetWrap)) addMenu.classList.remove('llw-open');
     });
 
     const storeBtn = document.getElementById('llw-store-open');

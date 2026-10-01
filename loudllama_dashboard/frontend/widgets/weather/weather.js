@@ -438,6 +438,11 @@
     let entityId = config.entity_id || '';
     let pollTimer = null;
     let destroyed = false;
+    // 'full' (default, for every weather widget saved before this existed)
+    // shows the forecast strip below current conditions; 'compact' shows
+    // only current conditions - chosen once when the widget is added (see
+    // app.js's size picker), same as every other widget with sizeVariants.
+    const isCompact = config.sizeVariant === 'compact';
 
     el.classList.add('llw-widget-weather');
     el.innerHTML = `
@@ -524,9 +529,11 @@
       // the weather.get_forecasts service instead (see fetchAndRender()
       // below). attrs.forecast is kept as a fallback for any integration
       // that still sets it directly.
-      const rawForecast = (Array.isArray(fetchedForecast) && fetchedForecast.length)
-        ? fetchedForecast
-        : (Array.isArray(attrs.forecast) ? attrs.forecast : []);
+      const rawForecast = isCompact
+        ? []
+        : (Array.isArray(fetchedForecast) && fetchedForecast.length)
+          ? fetchedForecast
+          : (Array.isArray(attrs.forecast) ? attrs.forecast : []);
       const forecast = rawForecast.slice(0, 4);
       const forecastHtml = forecast.length
         ? `<div class="llw-weather__forecast">${forecast
@@ -572,10 +579,12 @@
         // at all rather than nothing).
         const [entity, forecastRes] = await Promise.all([
           LL.api.get(`api/hass/states/${encodeURIComponent(entityId)}`),
-          LL.api.get(`api/hass/weather_forecast/${encodeURIComponent(entityId)}?type=daily`).catch((err) => {
-            console.warn('[loudllama][weather] weather_forecast fetch failed, falling back to attrs.forecast', err);
-            return null;
-          }),
+          isCompact
+            ? Promise.resolve(null)
+            : LL.api.get(`api/hass/weather_forecast/${encodeURIComponent(entityId)}?type=daily`).catch((err) => {
+                console.warn('[loudllama][weather] weather_forecast fetch failed, falling back to attrs.forecast', err);
+                return null;
+              }),
         ]);
         if (destroyed) return;
         render(entity, forecastRes && forecastRes.forecast);
@@ -597,9 +606,23 @@
 
   LL.registerWidget('weather', {
     name: { en: 'Weather', da: 'Vejr', de: 'Wetter', sv: 'Väder', no: 'Vær' },
-    defaultSize: { w: 4, h: 4 },
+    defaultSize: { w: 4, h: 2 },
     minSize: { w: 2, h: 2 },
     defaultConfig: () => ({ entity_id: '' }),
+    // See app.js's showSizePicker: offered as a choice right when the
+    // widget is added, instead of free-dragging it to size afterward.
+    sizeVariants: {
+      full: {
+        w: 4,
+        h: 2,
+        label: { en: 'With forecast', da: 'Med vejrudsigt', de: 'Mit Vorhersage', sv: 'Med prognos', no: 'Med værmelding' },
+      },
+      compact: {
+        w: 2,
+        h: 2,
+        label: { en: 'Now only', da: 'Kun nu', de: 'Nur jetzt', sv: 'Endast nu', no: 'Kun nå' },
+      },
+    },
     mount,
   });
 })();

@@ -20,8 +20,15 @@
     let entity = null;
     let pollTimer = null;
     let destroyed = false;
+    // 'full' (default - also what every Climate mounted inside a Room's
+    // nested grid gets) shows the current reading plus a +/- target
+    // stepper; 'compact' is icon + current temperature only, read-only -
+    // see render()'s branch below. Only offered when adding a standalone
+    // Climate widget on the main dashboard (see app.js's size picker).
+    const isCompact = config.sizeVariant === 'compact';
 
     el.classList.add('llw-widget-climate');
+    if (isCompact) el.classList.add('llw-widget-climate--compact');
     el.innerHTML = `
       <div class="llw-climate">
         <div class="llw-climate__head">
@@ -97,6 +104,19 @@
       const target = entity.attributes && entity.attributes.temperature;
 
       nameEl.textContent = name;
+
+      if (isCompact) {
+        // Icon + current reading only, no target stepper - see isCompact's
+        // comment in mount() above. Read-only on purpose: a tap target
+        // small enough to misfire a +/- step on this tiny a tile would be
+        // worse than not offering the control at all.
+        bodyEl.innerHTML = `
+          <div class="llw-climate__compact-icon">🌡️</div>
+          <div class="llw-climate__current">${current !== undefined && current !== null ? `${Math.round(current * 10) / 10}°` : '--'}</div>
+        `;
+        return;
+      }
+
       bodyEl.innerHTML = `
         <div class="llw-climate__current">${current !== undefined && current !== null ? `${Math.round(current * 10) / 10}°` : '--'}</div>
         <div class="llw-climate__stepper">
@@ -162,8 +182,23 @@
   LL.registerWidget('climate', {
     name: { en: 'Thermostat', da: 'Termostat', de: 'Thermostat', sv: 'Termostat', no: 'Termostat' },
     defaultSize: { w: 2, h: 2 },
-    minSize: { w: 2, h: 2 },
+    minSize: { w: 1, h: 1 },
     defaultConfig: () => ({ entity_id: '' }),
+    // See app.js's showSizePicker. Only applies to a standalone dashboard
+    // Climate - one mounted inside a Room's nested grid always gets the
+    // full layout, since Room never sets sizeVariant on its sub-widgets.
+    sizeVariants: {
+      full: {
+        w: 2,
+        h: 2,
+        label: { en: 'Full', da: 'Fuld', de: 'Voll', sv: 'Full', no: 'Full' },
+      },
+      compact: {
+        w: 1,
+        h: 1,
+        label: { en: 'Icon', da: 'Ikon', de: 'Symbol', sv: 'Ikon', no: 'Ikon' },
+      },
+    },
     mount,
   });
 })();
