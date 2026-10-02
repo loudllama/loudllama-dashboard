@@ -1,6 +1,11 @@
 :root {
   --llw-radius: 22px;
   --llw-gap: 12px;
+  /* The LoudLlama silhouette, shared by the background's hidden easter egg
+     (#llw-background::before below) and the long-press-to-edit hint
+     (#llw-longpress-hint below) - one data URI kept in one place so the two
+     never quietly drift apart into two different llamas. */
+  --llw-llama-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 220'%3E%3Cg fill='%23ffffff'%3E%3Crect x='70' y='150' width='10' height='55' rx='5'/%3E%3Crect x='90' y='155' width='10' height='50' rx='5'/%3E%3Crect x='115' y='155' width='10' height='50' rx='5'/%3E%3Crect x='135' y='150' width='10' height='55' rx='5'/%3E%3Cellipse cx='105' cy='140' rx='50' ry='32'/%3E%3Cpath d='M155 120 Q172 114 166 136 Q157 139 152 130 Z'/%3E%3Cpath d='M75 120 C58 90 53 54 70 24 C79 9 96 7 101 19 C89 39 90 70 95 110 Z'/%3E%3Cellipse cx='78' cy='22' rx='16' ry='20'/%3E%3Cpath d='M67 8 C63 -6 72 -9 77 2 Z'/%3E%3Cpath d='M87 8 C91 -6 82 -9 77 2 Z'/%3E%3C/g%3E%3C/svg%3E");
 }
 
 * { box-sizing: border-box; }
@@ -18,6 +23,22 @@
 @keyframes llw-pop-in {
   from { opacity: 0; transform: scale(0.92); }
   to { opacity: 1; transform: scale(1); }
+}
+
+/* The exit side of the same move - every popup that pops in with
+   llw-pop-in above (and fades its backdrop in with its own llw-fade-in)
+   now also plays this, and llw-fade-out on its backdrop, when closing,
+   instead of just vanishing instantly. `forwards` so it holds its
+   faded-out end state until the element is actually removed from the DOM
+   a moment later (see LL.waitForExitAnimation in app.js, which is what
+   each widget's close function waits on before removing the element). */
+@keyframes llw-pop-out {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.92); }
+}
+@keyframes llw-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
 }
 
 html, body {
@@ -80,7 +101,7 @@ body {
   width: 36%;
   max-width: 360px;
   aspect-ratio: 200 / 220;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 220'%3E%3Cg fill='%23ffffff'%3E%3Crect x='70' y='150' width='10' height='55' rx='5'/%3E%3Crect x='90' y='155' width='10' height='50' rx='5'/%3E%3Crect x='115' y='155' width='10' height='50' rx='5'/%3E%3Crect x='135' y='150' width='10' height='55' rx='5'/%3E%3Cellipse cx='105' cy='140' rx='50' ry='32'/%3E%3Cpath d='M155 120 Q172 114 166 136 Q157 139 152 130 Z'/%3E%3Cpath d='M75 120 C58 90 53 54 70 24 C79 9 96 7 101 19 C89 39 90 70 95 110 Z'/%3E%3Cellipse cx='78' cy='22' rx='16' ry='20'/%3E%3Cpath d='M67 8 C63 -6 72 -9 77 2 Z'/%3E%3Cpath d='M87 8 C91 -6 82 -9 77 2 Z'/%3E%3C/g%3E%3C/svg%3E");
+  background-image: var(--llw-llama-mask);
   background-repeat: no-repeat;
   background-size: contain;
   background-position: bottom right;
@@ -129,32 +150,67 @@ body.llw-edit-mode #llw-toolbar {
 }
 
 /* Visual "keep holding" cue for the long-press-to-edit gesture (see
-   setupLongPressToEdit in app.js) - a soft ring that grows from the touch
-   point over exactly the hold duration, so a press that's building up
-   doesn't just look like nothing is happening. JS positions it at the
-   pointer and toggles .llw-growing to start the grow/fade-in transition;
-   its own transition-duration is set inline from app.js so the two durations
-   can never drift apart (the easy way to break this: change HOLD_MS in JS
-   but forget a hardcoded duration here). */
+   setupLongPressToEdit in app.js) - the same llama silhouette as the
+   background's hidden easter egg above (--llw-llama-mask), filling in with
+   colour from the bottom up over exactly the hold duration, so a press
+   that's building up reads as "the llama is filling, keep holding" rather
+   than looking like nothing is happening. Two layers share the one mask
+   (so only the llama's own outline ever shows, never a surrounding box):
+     .llw-longpress-hint__dim  - the full llama outline at low opacity,
+                                 visible the instant the hold starts.
+     .llw-longpress-hint__fill - the warm brand-coloured fill, clipped
+                                 away entirely at rest and revealed from
+                                 the bottom up via clip-path as the hold
+                                 builds.
+   JS positions the container at the pointer, sets the fill layer's
+   transition-duration to match HOLD_MS (so the two durations can never
+   drift apart - the easy way to break this: change HOLD_MS in JS but
+   forget to update the duration here), and toggles .llw-growing on the
+   container to start both the fade-in and the fill's bottom-up reveal. */
 #llw-longpress-hint {
   position: fixed;
   top: 0;
   left: 0;
-  width: 40px;
-  height: 40px;
-  margin: -20px 0 0 -20px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 209, 102, 0.35), rgba(255, 209, 102, 0) 70%);
-  border: 2px solid rgba(255, 209, 102, 0.55);
+  width: 72px;
+  height: 79px; /* keeps the llama artwork's 200:220 aspect ratio */
+  margin: -40px 0 0 -36px;
   pointer-events: none;
   z-index: 2000;
   opacity: 0;
-  transform: scale(0.4);
+  transition: opacity 0.15s ease;
 }
 #llw-longpress-hint.llw-growing {
   opacity: 1;
-  transform: scale(2.3);
-  transition: transform linear, opacity 0.15s ease;
+}
+.llw-longpress-hint__dim,
+.llw-longpress-hint__fill {
+  position: absolute;
+  inset: 0;
+  mask-image: var(--llw-llama-mask);
+  mask-repeat: no-repeat;
+  mask-size: contain;
+  mask-position: bottom center;
+  -webkit-mask-image: var(--llw-llama-mask);
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+  -webkit-mask-position: bottom center;
+}
+.llw-longpress-hint__dim {
+  background: rgba(255, 255, 255, 0.45);
+}
+.llw-longpress-hint__fill {
+  background: linear-gradient(180deg, #ffd166, #ff9d4d);
+  /* Fully clipped away (0% of the llama visible) at rest. transition-
+     duration is set inline from app.js, locked to HOLD_MS; .llw-growing
+     below then takes this to inset(0 0 0 0) - fully revealed - so the
+     clip line sweeps up from the bottom over exactly the hold. */
+  clip-path: inset(100% 0 0 0);
+  -webkit-clip-path: inset(100% 0 0 0);
+  transition: clip-path linear, -webkit-clip-path linear;
+}
+#llw-longpress-hint.llw-growing .llw-longpress-hint__fill {
+  clip-path: inset(0% 0 0 0);
+  -webkit-clip-path: inset(0% 0 0 0);
 }
 
 .llw-toolbar__brand {
@@ -618,23 +674,13 @@ body.llw-edit-mode.llw-multi-real-pages .llw-page-move { display: flex; }
      purely cosmetic, neither changes layout so every consumer of this
      class (the main dashboard, Room/Group's nested tiles) gets them for
      free.
-     The outer shadow is deliberately kept tighter than it first looks like
-     it should be: widgets now sit on a 16px gap (see the gap/shadow fix
-     above), and a shadow's blur radius is roughly how far it visibly
-     reaches past the element's own edge. The previous `10px 30px` shadow
-     reached ~30-40px past each edge - more than twice the gap - so on any
-     ordinary grid two/three/four neighbouring widgets' shadows overlapped
-     *inside* that shared gap, and every point where four widgets meet (an
-     actual grid corner) had up to four of those overlapping at once. Each
-     shadow alone follows the rounded corner just fine, but stacking several
-     of them right in a narrow gap reads as one solid, darker, distinctly
-     squared-off smudge - which is exactly the "square shadow in the
-     corners" look, not a rounding bug. Shrinking blur to 12px (comfortably
-     inside the 16px gap) and dropping the y-offset to 4px so it does not
-     lean into one side more than another keeps the soft-lift look on a
-     single widget while (mostly) containing each widget's own shadow to
-     its own gap instead of piling up with its neighbours'. */
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3), inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+     No outer drop-shadow any more - a previous attempt just shrank its blur
+     radius to try to stop neighbouring widgets' shadows piling up into a
+     single squared-off smudge in a shared gap (see this file's git history),
+     but on an actual grid of widgets it was still visibly there at every
+     corner, which is exactly what this is for: no shadow, so there's
+     nothing left to pile up. Just the inset highlight ring remains. */
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
   transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
   transform: scale(1);
   will-change: transform;

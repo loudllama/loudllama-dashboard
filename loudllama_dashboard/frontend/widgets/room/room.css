@@ -90,35 +90,6 @@ body.llw-edit-mode .llw-room__gear { display: inline-flex; }
   line-height: 1;
 }
 
-/* Only shown when the glance temperature actually comes from a climate.*
-   entity (see findPrimaryTemperature()/renderCompact() in room.js) - a
-   plain sensor has no target to set, so no stepper for those. */
-.llw-room__temp-stepper {
-  display: flex;
-  align-items: center;
-  gap: 0.28rem;
-}
-.llw-room__temp-btn {
-  flex-shrink: 0;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  background: rgba(255, 255, 255, 0.12);
-  color: #fff;
-  font-size: 0.85rem;
-  line-height: 1;
-  cursor: pointer;
-}
-.llw-room__temp-btn:hover { background: rgba(255, 255, 255, 0.24); }
-.llw-room__temp-target {
-  min-width: 2.6em;
-  text-align: center;
-  font-size: 0.8rem;
-  font-weight: 600;
-  opacity: 0.85;
-}
-
 .llw-room__chips {
   display: flex;
   flex-wrap: wrap;
@@ -230,6 +201,15 @@ body.llw-edit-mode .llw-room__gear { display: inline-flex; }
   justify-content: center;
   padding: 24px;
   animation: llw-fade-in 0.15s ease;
+}
+/* Played instead of just vanishing on close - see LL.waitForExitAnimation
+   in app.js, which adds this class and waits for it before removing the
+   modal. llw-pop-out/llw-fade-out are defined once in app.css. */
+.llw-room-editor-modal--closing {
+  animation: llw-fade-out 0.15s ease forwards;
+}
+.llw-room-editor-modal--closing .llw-room-editor-modal__card {
+  animation: llw-pop-out 0.18s ease forwards;
 }
 
 .llw-room-editor-modal__card {
@@ -442,6 +422,15 @@ body.llw-edit-mode .llw-room__gear { display: inline-flex; }
 @media (prefers-reduced-motion: reduce) {
   .llw-room-modal__card,
   .llw-room-editor-modal__card { animation: none; }
+}
+/* Played instead of just vanishing on close - see LL.waitForExitAnimation
+   in app.js, which adds this class and waits for it before removing the
+   modal. llw-pop-out/llw-fade-out are defined once in app.css. */
+.llw-room-modal--closing {
+  animation: llw-fade-out 0.15s ease forwards;
+}
+.llw-room-modal--closing .llw-room-modal__card {
+  animation: llw-pop-out 0.18s ease forwards;
 }
 
 .llw-room-modal__card {

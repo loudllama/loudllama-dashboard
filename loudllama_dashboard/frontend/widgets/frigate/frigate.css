@@ -15,7 +15,10 @@
 .llw-frigate__head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  /* No title label next to the gear any more ("it's a camera grid, that's
+     self-evident" - see the bug report that removed it) - just the gear,
+     pinned to the top-right same as every other widget's. */
+  justify-content: flex-end;
   gap: 0.5rem;
   padding: 0.65rem 0.7rem 0.35rem;
   /* Extra right padding keeps the gear button clear of the top-right
@@ -25,14 +28,6 @@
      free for widget-specific controls as long as they don't collide with
      each other. */
   padding-right: 30px;
-}
-
-.llw-frigate__title {
-  font-size: 0.8rem;
-  font-weight: 600;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-  opacity: 0.85;
 }
 
 .llw-frigate__gear {
@@ -182,6 +177,16 @@ body.llw-edit-mode .llw-frigate__gear { display: inline-flex; }
 @media (prefers-reduced-motion: reduce) {
   .llw-frigate-modal__img,
   .llw-frigate-modal__video { animation: none; }
+}
+/* Played instead of just vanishing on close - see LL.waitForExitAnimation
+   in app.js, which adds this class and waits for it before removing the
+   modal. llw-pop-out/llw-fade-out are defined once in app.css. */
+.llw-frigate-modal--closing {
+  animation: llw-fade-out 0.15s ease forwards;
+}
+.llw-frigate-modal--closing .llw-frigate-modal__img,
+.llw-frigate-modal--closing .llw-frigate-modal__video {
+  animation: llw-pop-out 0.18s ease forwards;
 }
 
 .llw-frigate-modal__body {

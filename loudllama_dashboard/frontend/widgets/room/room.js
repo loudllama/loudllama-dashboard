@@ -553,9 +553,13 @@
     function closeEditor() {
       if (!activeEditorModal) return;
       document.removeEventListener('keydown', onEditorKeydown);
-      activeEditorModal.remove();
+      const modalEl = activeEditorModal;
       activeEditorModal = null;
       editorBodyEl = null;
+      // Play the close animation (see .llw-room-editor-modal--closing in
+      // room.css) instead of just vanishing, then remove once it's done.
+      modalEl.classList.add('llw-room-editor-modal--closing');
+      LL.waitForExitAnimation(modalEl, 250).then(() => modalEl.remove());
     }
 
     function onEditorKeydown(ev) {
@@ -863,8 +867,12 @@
 
     // Returns {value, unit, climateEntityId?} - climateEntityId is only set
     // when the source is a climate.* entity (i.e. one with an actual
-    // settable target), which is what renderCompact() uses to decide
-    // whether to show the +/- stepper next to the glance temperature.
+    // settable target). Only used to pick which number to show on the
+    // front/glance tile these days - renderCompact() no longer offers a
+    // +/- stepper there at all (see its own comment: everything settable
+    // now lives exclusively in the popup's climate sub-widget), but the
+    // distinction is kept here since callers elsewhere may still care
+    // whether a given temperature reading came from a climate entity.
     function findPrimaryTemperature() {
       if (cfg.tempEntityId) {
         const chosen = liveEntities[cfg.tempEntityId];
@@ -931,19 +939,18 @@
       }
       const counts = groupCounts();
       const temp = findPrimaryTemperature();
-      const climateId = temp && temp.climateEntityId;
-      const climateEnt = climateId ? liveEntities[climateId] : null;
-      const target = climateEnt && climateEnt.attributes ? climateEnt.attributes.temperature : undefined;
+      // Read-only here on purpose - no +/- stepper on the glance tile any
+      // more (there used to be one when the room's temperature came from a
+      // climate.* entity). The glance tile's whole job is "tap to open the
+      // room", and a stepper living right on top of that made for an easy
+      // mis-tap (nudge the target when you meant to open the room, or vice
+      // versa) - every actual control, climate included, already lives in
+      // the popup's own climate sub-widget, which still has its full
+      // stepper. See the bug report that removed this.
       glanceEl.innerHTML = `
         ${temp ? `
           <div class="llw-room__temp-row">
             <div class="llw-room__temp">${formatGlanceTemp(temp)}</div>
-            ${climateId ? `
-              <div class="llw-room__temp-stepper">
-                <button type="button" class="llw-room__temp-btn" data-temp-action="dec" aria-label="-">−</button>
-                <span class="llw-room__temp-target">${target !== undefined && target !== null ? `${Math.round(target * 10) / 10}°` : '--'}</span>
-                <button type="button" class="llw-room__temp-btn" data-temp-action="inc" aria-label="+">+</button>
-              </div>` : ''}
           </div>` : ''}
         <div class="llw-room__chips">
           ${GROUP_ORDER.filter((g) => counts[g])
@@ -952,23 +959,6 @@
         </div>
         <div class="llw-room__hint">${t('room', 'tapToOpen')}</div>
       `;
-      // Glance tile itself is clickable (opens the full room popup), so
-      // both stepper buttons have to stop that click from reaching it -
-      // same pattern as the gear icon just above.
-      if (climateId) {
-        const stepClimateTarget = (delta) => {
-          const ent = liveEntities[climateId];
-          if (!ent) return;
-          const base = (ent.attributes && ent.attributes.temperature) || 20;
-          const next = Math.round((base + delta) * 10) / 10;
-          optimisticMutate(climateId, (e) => { e.attributes.temperature = next; });
-          callService('climate', 'set_temperature', climateId, { temperature: next });
-        };
-        const decBtn = glanceEl.querySelector('[data-temp-action="dec"]');
-        const incBtn = glanceEl.querySelector('[data-temp-action="inc"]');
-        decBtn.addEventListener('click', (ev) => { ev.stopPropagation(); stepClimateTarget(-0.5); });
-        incBtn.addEventListener('click', (ev) => { ev.stopPropagation(); stepClimateTarget(0.5); });
-      }
     }
 
     roomEl.addEventListener('click', (ev) => {
@@ -1265,9 +1255,13 @@
         try { subGrid.destroy(false); } catch (err) { /* ignore */ }
         subGrid = null;
       }
-      activeModal.remove();
+      const modalEl = activeModal;
       activeModal = null;
       arranging = false;
+      // Play the close animation (see .llw-room-modal--closing in room.css)
+      // instead of just vanishing, then remove once it's done.
+      modalEl.classList.add('llw-room-modal--closing');
+      LL.waitForExitAnimation(modalEl, 250).then(() => modalEl.remove());
     }
     function onModalKeydown(ev) {
       if (ev.key === 'Escape') closeModal();

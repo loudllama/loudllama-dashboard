@@ -483,7 +483,15 @@
     closeBtn.addEventListener('click', () => settingsEl.classList.remove('llw-open'));
     selectEl.addEventListener('change', () => {
       entityId = selectEl.value;
-      saveConfig({ entity_id: entityId });
+      // ...config, not a bare { entity_id } - saveConfig() REPLACES this
+      // widget's entire saved config (see app.js's mountWidget), so sending
+      // only the one field that changed silently dropped everything else -
+      // sizeVariant included, which is how a compact 2x2 weather widget
+      // quietly turned back into the full forecast layout the next time the
+      // dashboard loaded, even though it kept looking right until then (the
+      // *mounted* widget never re-reads its own saved config, only a fresh
+      // page load does).
+      saveConfig({ ...config, entity_id: entityId });
       settingsEl.classList.remove('llw-open');
       fetchAndRender();
     });

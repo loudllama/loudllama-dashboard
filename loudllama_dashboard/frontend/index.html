@@ -48,13 +48,20 @@
     The toolbar above only ever shows while editing (see body.llw-edit-mode
     in app.css) - there's no "Edit" button sitting on screen the rest of the
     time any more. This is what you hold down to get it: press and hold
-    anywhere on the dashboard for a few seconds (see setupLongPressToEdit in
-    app.js), same as holding an app icon on iOS/Android to start rearranging
-    the home screen. Purely a visual "something is happening, keep holding"
-    cue while the hold is in progress - positioned and grown from JS, has no
-    content of its own.
+    anywhere on the dashboard for a couple of seconds (see
+    setupLongPressToEdit in app.js), same as holding an app icon on
+    iOS/Android to start rearranging the home screen. Purely a visual
+    "something is happening, keep holding" cue while the hold is in
+    progress - the same llama silhouette as the background's hidden easter
+    egg (see #llw-background::before in app.css), filling with colour from
+    the bottom up as the hold builds. Positioned and grown from JS; the two
+    inner layers (a dim base shape, and the colour fill clipped over it) are
+    the only content it ever has.
   -->
-  <div id="llw-longpress-hint" aria-hidden="true"></div>
+  <div id="llw-longpress-hint" aria-hidden="true">
+    <div class="llw-longpress-hint__dim"></div>
+    <div class="llw-longpress-hint__fill"></div>
+  </div>
 
   <main id="llw-loading">Loading…</main>
 

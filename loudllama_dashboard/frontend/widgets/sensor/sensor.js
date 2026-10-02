@@ -82,7 +82,11 @@
     selectEl.addEventListener('click', (ev) => ev.stopPropagation());
     selectEl.addEventListener('change', () => {
       entityId = selectEl.value;
-      saveConfig({ entity_id: entityId });
+      // ...config, not a bare { entity_id } - see weather.js's identical fix
+      // for why: saveConfig() replaces the whole saved config, so any other
+      // field this widget picks up in the future would otherwise be
+      // silently dropped the moment someone (re)picks an entity.
+      saveConfig({ ...config, entity_id: entityId });
       settingsEl.classList.remove('llw-open');
       fetchAndRender();
     });

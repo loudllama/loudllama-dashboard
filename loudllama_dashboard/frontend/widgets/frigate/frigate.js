@@ -75,8 +75,7 @@
     el.innerHTML = `
       <div class="llw-frigate">
         <div class="llw-frigate__head">
-          <span class="llw-frigate__title">${t('frigate', 'title')}</span>
-          <button class="llw-frigate__gear" type="button">⚙</button>
+          <button class="llw-frigate__gear" type="button" title="${t('frigate', 'chooseCameras')}">⚙</button>
         </div>
         <div class="llw-frigate__grid"></div>
         <div class="llw-frigate__settings">
@@ -123,7 +122,11 @@
         settingsListEl.querySelectorAll('input[type="checkbox"]').forEach((cb) => {
           cb.addEventListener('change', () => {
             cameras = Array.from(settingsListEl.querySelectorAll('input[type="checkbox"]:checked')).map((c) => c.value);
-            saveConfig({ cameras });
+            // ...config, not a bare { cameras } - see weather.js's identical
+            // fix for why: saveConfig() replaces the whole saved config, so
+            // any other field this widget picks up later would otherwise be
+            // silently dropped the moment the camera selection changes.
+            saveConfig({ ...config, cameras });
             applyAutoSize();
             renderGrid();
           });
@@ -203,8 +206,12 @@
       document.removeEventListener('keydown', onModalKeydown);
       clearTimeout(activeModal._llwWatchdog);
       clearInterval(activeModal._llwFallbackTimer);
-      activeModal.remove();
+      const modalEl = activeModal;
       activeModal = null;
+      // Play the close animation (see .llw-frigate-modal--closing in
+      // frigate.css) instead of just vanishing, then remove once it's done.
+      modalEl.classList.add('llw-frigate-modal--closing');
+      LL.waitForExitAnimation(modalEl, 250).then(() => modalEl.remove());
     }
 
     function onModalKeydown(ev) {

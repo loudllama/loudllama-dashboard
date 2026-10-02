@@ -63,7 +63,12 @@
     selectEl.addEventListener('click', (ev) => ev.stopPropagation());
     selectEl.addEventListener('change', () => {
       entityId = selectEl.value;
-      saveConfig({ entity_id: entityId });
+      // ...config, not a bare { entity_id } - see weather.js's identical fix
+      // for why: saveConfig() replaces the whole saved config, so this used
+      // to silently drop sizeVariant (and any Room-set displayName) the
+      // moment someone picked an entity, only surfacing as "it's back to
+      // full size" on the next full page load.
+      saveConfig({ ...config, entity_id: entityId });
       settingsEl.classList.remove('llw-open');
       fetchAndRender();
     });

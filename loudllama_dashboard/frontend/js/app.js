@@ -20,6 +20,40 @@
   LL.widgetMeta = {}; // id -> {name, description, icon, ...} from /api/widgets, incl. NOT-YET-installed ones
   LL.installedWidgetIds = [];
 
+  // Every popup (Room's view/editor, Group's bubble, Frigate's fullscreen
+  // view, the widget store) used to just call .remove() the instant it
+  // closed - fine for the open side, which has a nice llw-pop-in/llw-fade-in
+  // animation (see app.css), but jarring for the close side, which had
+  // nothing. A close function now instead adds a `--closing` class (see
+  // llw-pop-out/llw-fade-out in app.css) and awaits this before removing the
+  // element, so the same spring-in motion plays in reverse on the way out.
+  // Resolves on whichever of 'animationend'/'transitionend' fires first (an
+  // element might use either, e.g. Group's card closes via a plain CSS
+  // transition rather than a keyframe animation), or after `fallbackMs`
+  // regardless - so a browser quirk, or prefers-reduced-motion having
+  // already removed the animation in CSS, can never leave a popup stuck on
+  // screen forever. Resolves immediately when the user has asked for
+  // reduced motion, so turning that on doesn't add a pointless delay to
+  // every close with nothing to show for it.
+  LL.waitForExitAnimation = function waitForExitAnimation(el, fallbackMs) {
+    if (!el || (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches)) {
+      return Promise.resolve();
+    }
+    return new Promise((resolve) => {
+      let done = false;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        el.removeEventListener('animationend', finish);
+        el.removeEventListener('transitionend', finish);
+        resolve();
+      };
+      el.addEventListener('animationend', finish);
+      el.addEventListener('transitionend', finish);
+      setTimeout(finish, fallbackMs || 300);
+    });
+  };
+
   // Injects a widget's CSS + JS into the page and resolves once the script
   // has run (and therefore called LL.registerWidget). Safe to call more than
   // once for the same id - e.g. from the widget store right after a user
@@ -725,10 +759,14 @@
   // rearranging the home screen, deliberately long enough that it can't be
   // triggered by an ordinary tap or scroll.
   function setupLongPressToEdit() {
-    const HOLD_MS = 4500;
+    const HOLD_MS = 2500;
     const MOVE_TOLERANCE = 10; // px of wiggle room before a hold counts as a drag/scroll instead
     const hintEl = document.getElementById('llw-longpress-hint');
-    if (hintEl) hintEl.style.transitionDuration = `${HOLD_MS}ms`; // keep the visual cue's grow time locked to HOLD_MS, see app.css
+    // Only the fill layer's clip-path needs to be locked to HOLD_MS (the dim
+    // base layer and the container's own fade-in keep their fixed CSS
+    // timings) - see the .llw-longpress-hint__fill rule in app.css.
+    const hintFillEl = hintEl ? hintEl.querySelector('.llw-longpress-hint__fill') : null;
+    if (hintFillEl) hintFillEl.style.transitionDuration = `${HOLD_MS}ms`;
     let timer = null;
     let pointerId = null;
     let startX = 0;
@@ -789,6 +827,116 @@
         if (ev.pointerId === pointerId) clear();
       });
     });
+  }
+
+  // Kiosk mode: hide Home Assistant's OWN chrome around our dashboard - its
+  // left sidebar on desktop, and the little top bar with a hamburger/back
+  // button and a panel title that it puts above an Ingress panel on a
+  // narrow screen (phone, tablet, the mobile companion app). On by default,
+  // because the whole point of this dashboard is a clean, wall-mounted-
+  // tablet-style screen with nothing on it but itself - see the long-press-
+  // to-edit gesture above, which exists for exactly the same reason.
+  //
+  // This is inherently best-effort: it reaches into Home Assistant's own
+  // frontend DOM (through its Shadow DOM, same-origin since Ingress just
+  // mounts us on a path under the same HA host), which is NOT part of this
+  // add-on and NOT something a future HA frontend release owes us any
+  // stability on. Every lookup below is wrapped so that if HA's internal
+  // structure doesn't match what's expected - a different HA version, a
+  // custom frontend theme/fork, or this page loaded outside Ingress at all
+  // (e.g. local development, where window.frameElement is simply null) -
+  // this quietly does nothing instead of breaking the dashboard itself. If
+  // it ever stops working after a Home Assistant update, the well-maintained
+  // community "kiosk-mode" HACS integration is a solid, actively-updated
+  // fallback that isn't tied to this add-on's own release cycle.
+  function applyKioskMode() {
+    // Walks into every shadow root under `root` looking for `selector`,
+    // since Home Assistant's frontend is built almost entirely of custom
+    // elements with their own (open) shadow DOM - a plain querySelectorAll
+    // on the top document alone would never reach ha-sidebar etc.
+    function deepQueryAll(root, selector, out) {
+      out = out || [];
+      try {
+        root.querySelectorAll(selector).forEach((el) => out.push(el));
+        root.querySelectorAll('*').forEach((el) => {
+          if (el.shadowRoot) deepQueryAll(el.shadowRoot, selector, out);
+        });
+      } catch (err) {
+        // Ignore and keep whatever was already found - a detached node or a
+        // shadow root that disappeared mid-walk shouldn't abort the sweep.
+      }
+      return out;
+    }
+
+    // parentElement doesn't cross a shadow boundary - when `node` is a
+    // direct child of a shadow root, its siblings are that root's own
+    // .children, and the next step up is the root's .host (the custom
+    // element the shadow root belongs to), not node.parentElement (null).
+    function siblingsOf(node) {
+      if (node.parentElement) return Array.from(node.parentElement.children);
+      const root = node.getRootNode();
+      return root && root.children ? Array.from(root.children) : [];
+    }
+    function stepUp(node) {
+      if (node.parentElement) return node.parentElement;
+      const root = node.getRootNode();
+      return (root && root.host) || null;
+    }
+
+    function hide(el) {
+      if (el && el.style.display !== 'none') el.style.display = 'none';
+    }
+
+    function sweep(topDoc, frame) {
+      // The desktop sidebar and the button that opens/closes it - a single,
+      // long-stable custom element name across Home Assistant releases.
+      deepQueryAll(topDoc, 'ha-sidebar').forEach(hide);
+      deepQueryAll(topDoc, 'ha-menu-button').forEach(hide);
+
+      // The Ingress wrapper's own top bar sits a few shadow-DOM levels
+      // above our <iframe> - walk up from our OWN frame element and hide
+      // only a toolbar/header-looking sibling we actually pass on the way
+      // up, rather than every "toolbar" anywhere in Home Assistant (which
+      // would also catch dialogs, more-info popups, etc. that have nothing
+      // to do with our own panel).
+      let node = frame;
+      for (let i = 0; i < 8 && node; i++) {
+        siblingsOf(node).forEach((sibling) => {
+          if (sibling === node) return;
+          const tag = sibling.tagName ? sibling.tagName.toLowerCase() : '';
+          const cls = typeof sibling.className === 'string' ? sibling.className : '';
+          if (/toolbar|app-bar|header/i.test(tag) || /toolbar|app-bar|header/i.test(cls)) hide(sibling);
+        });
+        node = stepUp(node);
+      }
+    }
+
+    try {
+      // window.frameElement is only non-null when we're same-origin inside
+      // an iframe - exactly the Ingress case, and reliably null everywhere
+      // else (local development, or this page opened directly), so it also
+      // doubles as the "are we even running inside Home Assistant" check.
+      const frame = window.frameElement;
+      if (!frame) return;
+      const topDoc = window.top.document;
+
+      // Home Assistant's own UI can still be mid-render (or re-render, e.g.
+      // reconnecting after the mobile app resumes from the background) the
+      // first time we look, so sweep a few times early on rather than just
+      // once, then settle - this isn't meant to run forever in the
+      // background.
+      [0, 400, 1200, 2500, 5000].forEach((delay) => {
+        setTimeout(() => sweep(topDoc, frame), delay);
+      });
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') sweep(topDoc, frame);
+      });
+    } catch (err) {
+      // Most likely cause: not actually same-origin with window.top for
+      // some reason, or HA's frontend isn't there at all. Either way, the
+      // dashboard itself works fine without this - just log and move on.
+      console.warn('[loudllama] Kiosk mode: could not reach Home Assistant\'s own UI, leaving it as-is', err);
+    }
   }
 
   function setEditMode(on) {
@@ -984,6 +1132,7 @@
     syncPageCount();
     setupPagesSwipe();
     setupLongPressToEdit();
+    applyKioskMode();
 
     // 4. Chrome interactions.
     document.getElementById('llw-edit-toggle').addEventListener('click', () => setEditMode(!editMode));

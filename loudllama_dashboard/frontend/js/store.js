@@ -35,8 +35,12 @@
   function closeStore() {
     if (!activeModal) return;
     document.removeEventListener('keydown', onKeydown);
-    activeModal.remove();
+    const modalEl = activeModal;
     activeModal = null;
+    // Play the close animation (see .llw-store-modal--closing in store.css)
+    // instead of just vanishing, then remove once it's done.
+    modalEl.classList.add('llw-store-modal--closing');
+    LL.waitForExitAnimation(modalEl, 250).then(() => modalEl.remove());
   }
 
   function onKeydown(ev) {

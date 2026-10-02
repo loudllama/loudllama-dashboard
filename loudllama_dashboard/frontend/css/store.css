@@ -17,6 +17,16 @@
   padding: 24px;
   animation: llw-fade-in 0.15s ease;
 }
+/* Played instead of just vanishing on close - see LL.waitForExitAnimation
+   in app.js, which adds this class and waits for it before removing the
+   modal. llw-pop-out/llw-fade-out are defined once in app.css (always
+   loaded), same as llw-pop-in already is. */
+.llw-store-modal--closing {
+  animation: llw-fade-out 0.15s ease forwards;
+}
+.llw-store-modal--closing .llw-store-modal__card {
+  animation: llw-pop-out 0.18s ease forwards;
+}
 
 .llw-store-modal__card {
   width: 100%;

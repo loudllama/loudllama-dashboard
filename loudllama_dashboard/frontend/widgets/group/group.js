@@ -167,9 +167,19 @@
         try { subGrid.destroy(false); } catch (err) { /* ignore */ }
         subGrid = null;
       }
-      activeModal.remove();
+      const modalEl = activeModal;
       activeModal = null;
       arranging = false;
+      // Mirror image of openModal's entrance: fade the backdrop out (see
+      // .llw-group-modal--closing in group.css) and drop the card's own
+      // --placed class, which - thanks to .llw-group-modal__card's existing
+      // transition - shrinks it back down toward the exact point
+      // (--llw-pop-x/--llw-pop-y) it originally grew out of, rather than
+      // just vanishing. Remove once that's finished playing.
+      modalEl.classList.add('llw-group-modal--closing');
+      const cardEl = modalEl.querySelector('.llw-group-modal__card');
+      if (cardEl) cardEl.classList.remove('llw-group-modal__card--placed');
+      LL.waitForExitAnimation(cardEl || modalEl, 250).then(() => modalEl.remove());
     }
     function onModalKeydown(ev) {
       if (ev.key === 'Escape') closeModal();

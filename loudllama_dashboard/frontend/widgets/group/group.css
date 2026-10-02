@@ -222,6 +222,14 @@ body.llw-edit-mode .llw-group__gear { display: inline-flex; }
   from { opacity: 0; }
   to { opacity: 1; }
 }
+/* Played instead of just vanishing on close - see LL.waitForExitAnimation
+   and closeModal() in group.js. The card itself doesn't need an animation
+   here: dropping its own --placed class (below) already transitions it
+   back down via the transition it opens with. llw-fade-out is defined once
+   in app.css. */
+.llw-group-modal--closing {
+  animation: llw-fade-out 0.15s ease forwards;
+}
 
 .llw-group-modal__card {
   position: absolute;
