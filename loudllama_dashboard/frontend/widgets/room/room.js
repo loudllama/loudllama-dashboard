@@ -409,15 +409,18 @@
       // as always - see displayName() below.
       entityLabels: (config.entityLabels && typeof config.entityLabels === 'object') ? { ...config.entityLabels } : {},
       // 'full' (default, for every room saved before this existed) shows the
-      // original header+glance tile; 'compact' shows just an icon with the
-      // room's name in a small caption below the tile - see
-      // renderCompact()'s llw-room--compact branch. Chosen once, when the
-      // widget is added (see app.js's size picker) - not something this
-      // widget itself offers a way to change later, same as every other
-      // widget with sizeVariants.
-      sizeVariant: config.sizeVariant === 'compact' ? 'compact' : 'full',
-      // Which of ROOM_ICONS this room shows in compact mode - '' falls back
-      // to the first entry (the plain house) rather than showing nothing.
+      // original header+glance tile (2x2); 'compact' shows just an icon
+      // with the room's name in a small caption below the tile (1x1); 'wide'
+      // is the same icon, but side-by-side with the name/temperature
+      // instead of standing alone, in a short 2x1 strip - see
+      // renderCompact()'s llw-room--compact/llw-room--wide branches. Chosen
+      // once, when the widget is added (see app.js's size picker) - not
+      // something this widget itself offers a way to change later, same as
+      // every other widget with sizeVariants.
+      sizeVariant: ['compact', 'wide'].includes(config.sizeVariant) ? config.sizeVariant : 'full',
+      // Which of ROOM_ICONS this room shows in compact/wide mode - '' falls
+      // back to the first entry (the plain house) rather than showing
+      // nothing.
       icon: config.icon || '',
     };
     let liveEntities = {}; // entity_id -> live HA entity
@@ -569,10 +572,11 @@
     function renderEditorStep1() {
       if (!editorBodyEl) return;
       const canCancel = !!cfg.name;
-      // Icon picker only matters for the compact (1x1) variant - a full-size
-      // room's tile has no room for an icon and never shows one, so asking a
-      // full-size room's owner to also pick one would just be noise.
-      const showIconPicker = cfg.sizeVariant === 'compact';
+      // Icon picker only matters for the compact (1x1) and wide (2x1)
+      // variants - a full-size room's tile has no room for an icon and
+      // never shows one, so asking a full-size room's owner to also pick
+      // one would just be noise.
+      const showIconPicker = cfg.sizeVariant === 'compact' || cfg.sizeVariant === 'wide';
       editorBodyEl.innerHTML = `
         ${canCancel ? `<button type="button" class="llw-room-editor-modal__close" aria-label="${t('room', 'close')}">×</button>` : ''}
         <label class="llw-room__editor-label">${t('room', 'setupTitle')}</label>
@@ -799,7 +803,7 @@
           tempEntityId: editorDraftTempEntity || '',
           entityLabels,
           sizeVariant: cfg.sizeVariant,
-          icon: cfg.sizeVariant === 'compact' ? (editorDraftIcon || ROOM_ICONS[0]) : cfg.icon,
+          icon: (cfg.sizeVariant === 'compact' || cfg.sizeVariant === 'wide') ? (editorDraftIcon || ROOM_ICONS[0]) : cfg.icon,
         };
         syncSubWidgets();
         ensureSubWidgetTypesLoaded().then(() => saveConfig(cfg));
@@ -930,6 +934,11 @@
       roomEl.classList.toggle('llw-room--lit', anyLightOn());
       roomEl.classList.toggle('llw-room--clickable', cfg.entities.length > 0);
       roomEl.classList.toggle('llw-room--compact', cfg.sizeVariant === 'compact');
+      // Wide (2x1) keeps the header+glance tile (unlike compact, which hides
+      // both in favour of a single icon) - it's just laid out as a row
+      // instead of a column, with the same icon compact uses sitting beside
+      // it rather than standing alone. See .llw-room--wide in room.css.
+      roomEl.classList.toggle('llw-room--wide', cfg.sizeVariant === 'wide');
       compactIconEl.innerHTML = roomIconSvg(cfg.icon || ROOM_ICONS[0]);
       syncCompactCaption();
 
@@ -1430,6 +1439,11 @@
         w: 2,
         h: 2,
         label: { en: 'Full', da: 'Fuld', de: 'Voll', sv: 'Full', no: 'Full' },
+      },
+      wide: {
+        w: 2,
+        h: 1,
+        label: { en: 'Wide', da: 'Bred', de: 'Breit', sv: 'Bred', no: 'Bred' },
       },
       compact: {
         w: 1,

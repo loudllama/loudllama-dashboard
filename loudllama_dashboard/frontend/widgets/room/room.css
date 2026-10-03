@@ -85,7 +85,11 @@ body.llw-edit-mode .llw-room__gear { display: inline-flex; }
 }
 
 .llw-room__temp {
-  font-size: 1.9rem;
+  /* Was 1.9rem - big enough to read as the tile's single headline number,
+     which crowded out everything else (the room's own name, the group
+     chips) on an already-small 2x2 tile. Still clearly the most prominent
+     number on the tile, just no longer dominating it. */
+  font-size: 1.3rem;
   font-weight: 700;
   line-height: 1;
 }
@@ -157,8 +161,67 @@ body.llw-edit-mode .llw-room__gear { display: inline-flex; }
   filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.35));
 }
 
+/* --- Wide (2x1) size variant ------------------------------------------------
+   Unlike compact, this keeps the header (name + gear) and glance
+   (temperature) that full/2x2 shows - just arranged as a single row instead
+   of stacked, with the same icon compact uses sitting at the left instead
+   of standing alone. A short 1-row-tall tile has no room left for the group
+   chips or the "tap to open" hint that full and compact can each still fit,
+   so both are dropped here. */
+.llw-room--wide .llw-room__content {
+  flex-direction: row;
+  align-items: center;
+  padding: 0.4rem 0.6rem;
+  gap: 0.4rem;
+}
+.llw-room--wide .llw-room__compact-icon {
+  /* DOM order is head, glance, compact-icon (see the shared markup in
+     room.js's mount) - pulled to the front here so the icon reads as
+     "leading" the row rather than trailing it. */
+  order: -1;
+  display: flex;
+  flex: 0 0 auto;
+  width: 1.6rem;
+  height: 1.6rem;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+.llw-room--wide .llw-room__compact-icon svg {
+  width: 100%;
+  height: 100%;
+  max-width: 26px;
+  max-height: 26px;
+}
+.llw-room--wide .llw-room__head {
+  /* flex-basis of 3rem, not 0 - gives the name a reasonable floor to start
+     shrinking from instead of yielding every last pixel to icon/glance
+     first; it still shrinks all the way to nothing (min-width:0) on a
+     genuinely tight tile, which is what lets the name's own existing
+     ellipsis (see .llw-room__name) kick in there instead of silently
+     overflowing. */
+  flex: 1 1 3rem;
+  min-width: 0;
+  padding-right: 0;
+}
+.llw-room--wide .llw-room__glance {
+  flex: 0 0 auto;
+  min-height: 0;
+}
+.llw-room--wide .llw-room__chips,
+.llw-room--wide .llw-room__hint {
+  display: none;
+}
+.llw-room--wide .llw-room__temp-row { gap: 0; }
+.llw-room--wide .llw-room__temp { font-size: 1rem; }
+.llw-room--wide .llw-room__empty {
+  flex: 1;
+  font-size: 0.78rem;
+  padding: 0;
+}
+
 /* Icon picker in the editor's name step - only rendered at all for a room
-   being set up as the compact variant (see renderEditorStep1). */
+   being set up as the compact or wide variant (see renderEditorStep1). */
 .llw-room__icon-picker {
   display: grid;
   grid-template-columns: repeat(6, 1fr);

@@ -887,10 +887,75 @@
       if (el && el.style.display !== 'none') el.style.display = 'none';
     }
 
+    // display:none takes `el` itself out of layout completely, but that
+    // alone doesn't always give its space back - an app-shell CSS Grid
+    // commonly reserves a column/row via an *explicit* track size on the
+    // GRID CONTAINER (not the item), which stays exactly that size whether
+    // or not anything is sitting inside it; a sibling with a margin/padding
+    // hand-tuned to the hidden element's own width is the same problem
+    // under a flex/box layout instead. Both are why hiding ha-sidebar alone
+    // was leaving a blank column the width of the old sidebar. This also
+    // tries to claim that space back, but only when the numbers actually
+    // match what was just hidden (within a handful of pixels) - a strong
+    // enough signal it really was reserved for `el` specifically, so an
+    // unrelated grid/margin elsewhere in Home Assistant's UI is never
+    // touched by accident.
+    function hideAndReclaimSpace(el) {
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const width = rect.width;
+      const height = rect.height;
+      hide(el);
+      if (width < 8 && height < 8) return; // was already collapsed - nothing to reclaim
+      const parent = stepUp(el);
+      if (!parent) return;
+      try {
+        const cs = getComputedStyle(parent);
+        if (cs.display.indexOf('grid') !== -1) {
+          const matchesTrack = (size) => size !== '0px' && Math.abs(parseFloat(size) - width) < 6;
+          if (width >= 8) {
+            const cols = cs.gridTemplateColumns.split(' ').filter(Boolean);
+            const idx = Array.from(parent.children).indexOf(el);
+            if (idx !== -1 && cols[idx] && matchesTrack(cols[idx])) {
+              cols[idx] = '0px';
+              parent.style.gridTemplateColumns = cols.join(' ');
+            }
+          }
+          if (height >= 8) {
+            const matchesRow = (size) => size !== '0px' && Math.abs(parseFloat(size) - height) < 6;
+            const rows = cs.gridTemplateRows.split(' ').filter(Boolean);
+            const idx = Array.from(parent.children).indexOf(el);
+            if (idx !== -1 && rows[idx] && matchesRow(rows[idx])) {
+              rows[idx] = '0px';
+              parent.style.gridTemplateRows = rows.join(' ');
+            }
+          }
+        }
+      } catch (err) {
+        // Best-effort - if reading/writing the grid template fails for any
+        // reason, the element is still hidden either way, just possibly
+        // with its old space left blank.
+      }
+      Array.from(parent.children).forEach((sib) => {
+        if (sib === el) return;
+        const scs = getComputedStyle(sib);
+        if (width >= 8) {
+          ['marginLeft', 'marginRight', 'paddingLeft', 'paddingRight'].forEach((prop) => {
+            if (Math.abs(parseFloat(scs[prop]) - width) < 6) sib.style[prop] = '0px';
+          });
+        }
+        if (height >= 8) {
+          ['marginTop', 'marginBottom', 'paddingTop', 'paddingBottom'].forEach((prop) => {
+            if (Math.abs(parseFloat(scs[prop]) - height) < 6) sib.style[prop] = '0px';
+          });
+        }
+      });
+    }
+
     function sweep(topDoc, frame) {
       // The desktop sidebar and the button that opens/closes it - a single,
       // long-stable custom element name across Home Assistant releases.
-      deepQueryAll(topDoc, 'ha-sidebar').forEach(hide);
+      deepQueryAll(topDoc, 'ha-sidebar').forEach(hideAndReclaimSpace);
       deepQueryAll(topDoc, 'ha-menu-button').forEach(hide);
 
       // The Ingress wrapper's own top bar sits a few shadow-DOM levels
@@ -905,7 +970,7 @@
           if (sibling === node) return;
           const tag = sibling.tagName ? sibling.tagName.toLowerCase() : '';
           const cls = typeof sibling.className === 'string' ? sibling.className : '';
-          if (/toolbar|app-bar|header/i.test(tag) || /toolbar|app-bar|header/i.test(cls)) hide(sibling);
+          if (/toolbar|app-bar|header/i.test(tag) || /toolbar|app-bar|header/i.test(cls)) hideAndReclaimSpace(sibling);
         });
         node = stepUp(node);
       }
@@ -1040,18 +1105,21 @@
   }
   LL.refreshAddWidgetMenu = buildAddWidgetMenu;
 
-  // Replaces the add-widget menu's contents with a two-option "which size"
-  // picker for a widget that declares sizeVariants (see e.g. room.js's
-  // registerWidget call) - a small proportional preview rectangle plus a
-  // label per option, picked once up front instead of dragging a tile
-  // around afterward (free resizing is gone entirely, see createPage's
-  // resizable:false). Choosing an option adds the widget at that variant's
-  // fixed size with config.sizeVariant set to 'full'/'compact', which is
-  // what each widget's own mount() reads to decide which layout to render.
+  // Replaces the add-widget menu's contents with a "which size" picker for
+  // a widget that declares sizeVariants (see e.g. room.js's registerWidget
+  // call) - a small proportional preview rectangle plus a label per option,
+  // picked once up front instead of dragging a tile around afterward (free
+  // resizing is gone entirely, see createPage's resizable:false). Choosing
+  // an option adds the widget at that variant's fixed size with
+  // config.sizeVariant set accordingly, which is what each widget's own
+  // mount() reads to decide which layout to render. Biggest-to-smallest
+  // order - only 'full'/'wide'/'compact' are ever actually declared
+  // anywhere today, but a widget is free to offer any subset of these (or,
+  // if a future one needs a size this list doesn't name, just add it here).
   function showSizePicker(id, def) {
     const menu = document.getElementById('llw-add-widget-menu');
     const icon = LLW_PREVIEW_ICON[id] || '◻';
-    const variantKeys = ['full', 'compact'].filter((k) => def.sizeVariants[k]);
+    const variantKeys = ['full', 'wide', 'compact'].filter((k) => def.sizeVariants[k]);
     menu.innerHTML = `
       <div class="llw-size-picker">
         <button type="button" class="llw-size-picker__back">‹ ${(def.name && localized(def.name)) || id}</button>
