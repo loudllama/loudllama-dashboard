@@ -952,11 +952,53 @@
       });
     }
 
+    // Our OWN <iframe> (Ingress embeds this whole dashboard inside one, in
+    // Home Assistant's own frontend) not actually reaching the full height
+    // of the phone screen - reported repeatedly as a band at the very
+    // bottom that never gets the dashboard's background, surviving two
+    // earlier attempts that only ever touched *our own* page's CSS
+    // (viewport-fit=cover, safe-area padding, 100dvh fallbacks - see
+    // app.css and this file's CHANGELOG history). Every one of those is
+    // powerless against this specific cause: env(safe-area-inset-*) and
+    // 100dvh inside our page only ever describe OUR iframe's own box, not
+    // the physical screen - if HA's frontend sizes that iframe itself a bit
+    // short (its own layout math, not ours to influence from in here under
+    // normal circumstances), there's empty space between the iframe's
+    // bottom edge and the real bottom of the screen that nothing we do
+    // inside the iframe can ever paint over, no matter how correct our own
+    // background/safe-area handling is.
+    // Comparing our iframe's own measured box (from the top window's point
+    // of view) against that top window's own actual viewport is what can
+    // finally tell the two cases apart; forcing the iframe to a plain,
+    // unconditional full-bleed fixed box sidesteps whatever layout HA's
+    // frontend was trying to do and is the same "just take the space back"
+    // spirit as hideAndReclaimSpace above, just aimed at our own element
+    // instead of something else's.
+    function fixIframeHeight(frame) {
+      const topWin = window.top;
+      const rect = frame.getBoundingClientRect();
+      const shortBy = topWin.innerHeight - rect.bottom;
+      // A few px of slack for ordinary rounding/subpixel layout - only act
+      // once the gap is clearly real, and only grow downward (never touch
+      // top/left, which already line up correctly in every report so far).
+      if (shortBy > 4 || rect.top > 4) {
+        frame.style.position = 'fixed';
+        frame.style.top = '0';
+        frame.style.left = '0';
+        frame.style.right = '0';
+        frame.style.bottom = '0';
+        frame.style.width = '100%';
+        frame.style.height = '100%';
+        frame.style.border = '0';
+      }
+    }
+
     function sweep(topDoc, frame) {
       // The desktop sidebar and the button that opens/closes it - a single,
       // long-stable custom element name across Home Assistant releases.
       deepQueryAll(topDoc, 'ha-sidebar').forEach(hideAndReclaimSpace);
       deepQueryAll(topDoc, 'ha-menu-button').forEach(hide);
+      fixIframeHeight(frame);
 
       // The Ingress wrapper's own top bar sits a few shadow-DOM levels
       // above our <iframe> - walk up from our OWN frame element and hide

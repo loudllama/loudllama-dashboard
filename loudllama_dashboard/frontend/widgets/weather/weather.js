@@ -438,6 +438,12 @@
     let entityId = config.entity_id || '';
     let pollTimer = null;
     let destroyed = false;
+    // Tracks whichever condition the floating cloud/rain/snow/etc. particles
+    // in .llw-weather__fx were last built for - see render()'s use of this
+    // below, which is what stops the animation restarting from scratch on
+    // every ordinary 60s poll (see POLL_MS) even when the weather hasn't
+    // actually changed.
+    let lastFxCondition = null;
     // 'full' (default, for every weather widget saved before this existed)
     // shows the forecast strip below current conditions; 'compact' shows
     // only current conditions - chosen once when the widget is added (see
@@ -525,6 +531,12 @@
     function renderEmpty(message) {
       bgEl.className = 'llw-weather__bg llw-bg-unknown';
       fxEl.innerHTML = '';
+      // Also clears the particles directly, bypassing render()'s normal
+      // "skip if unchanged" check above - so if a real condition comes back
+      // afterwards (even the same one as before this empty state), render()
+      // correctly sees it as changed from this blank state and rebuilds the
+      // particles instead of assuming there's nothing to do.
+      lastFxCondition = null;
       stateEl.innerHTML = `<div class="llw-weather__empty">${message}</div>`;
     }
 
@@ -534,7 +546,21 @@
       const tempUnit = attrs.temperature_unit || (LL.haConfig.unit_system && LL.haConfig.unit_system.temperature) || '°C';
 
       bgEl.className = `llw-weather__bg llw-bg-${normalizeCondition(condition)}`;
-      renderFx(fxEl, condition);
+      // render() runs on every poll (every 60s, see POLL_MS/fetchAndRender),
+      // not just when the weather actually changes - renderFx() rebuilds its
+      // particles from a blank container every time it's called, which
+      // instantly snaps every cloud/raindrop/snowflake back to its animation's
+      // starting position and restarts it, even mid-flight. Skipping the
+      // rebuild when the condition hasn't moved since the last render is what
+      // lets the animation keep running smoothly across an ordinary poll
+      // instead of visibly stuttering/restarting once a minute - reported
+      // directly ("skyer kan pludselig forsvinde og starte forfra"). A real
+      // condition change (sunny -> rainy, etc.) still rebuilds exactly as
+      // before, which is the one case that actually should restart it.
+      if (condition !== lastFxCondition) {
+        renderFx(fxEl, condition);
+        lastFxCondition = condition;
+      }
 
       // Current Home Assistant versions (core 2023.9+) no longer put
       // forecast data on the entity's own state - it has to be fetched via

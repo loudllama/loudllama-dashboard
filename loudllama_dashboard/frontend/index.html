@@ -35,6 +35,31 @@
   -->
 </head>
 <body>
+  <!--
+    Shared "squircle" (iOS-style continuous-corner) clip shape, referenced
+    by app.css as `clip-path: url(#llw-squircle)` on compact 1x1 icon
+    tiles (Room/Light/Climate/Media's own `--compact` variant - see the
+    .llw-widget:has(...) rule in app.css). Plain CSS border-radius draws a
+    circular arc; the iPhone's own home-screen icons use a flatter,
+    smoother "superellipse" curve instead, which reads as a distinctly
+    different, more polished shape even at the same nominal corner
+    radius - requested directly after comparing our compact icons
+    side-by-side with the real home screen. There's no native CSS
+    primitive for that curve, so this is one pre-computed path (an n=5
+    superellipse, sampled at 80 points - plenty smooth at icon sizes)
+    normalized to a 0-1 box via clipPathUnits="objectBoundingBox", which is
+    what lets ONE path here resize correctly to fit any tile automatically
+    instead of needing a separate path per size. Hidden - this element
+    never renders anything itself, only defines something other CSS can
+    point at.
+  -->
+  <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+    <defs>
+      <clipPath id="llw-squircle" clipPathUnits="objectBoundingBox">
+        <path d="M 1.0000,0.5000 L 0.9994,0.6806 L 0.9975,0.7381 L 0.9944,0.7794 L 0.9901,0.8126 L 0.9844,0.8405 L 0.9774,0.8646 L 0.9691,0.8857 L 0.9594,0.9043 L 0.9481,0.9207 L 0.9353,0.9353 L 0.9207,0.9481 L 0.9043,0.9594 L 0.8857,0.9691 L 0.8646,0.9774 L 0.8405,0.9844 L 0.8126,0.9901 L 0.7794,0.9944 L 0.7381,0.9975 L 0.6806,0.9994 L 0.5000,1.0000 L 0.3194,0.9994 L 0.2619,0.9975 L 0.2206,0.9944 L 0.1874,0.9901 L 0.1595,0.9844 L 0.1354,0.9774 L 0.1143,0.9691 L 0.0957,0.9594 L 0.0793,0.9481 L 0.0647,0.9353 L 0.0519,0.9207 L 0.0406,0.9043 L 0.0309,0.8857 L 0.0226,0.8646 L 0.0156,0.8405 L 0.0099,0.8126 L 0.0056,0.7794 L 0.0025,0.7381 L 0.0006,0.6806 L 0.0000,0.5000 L 0.0006,0.3194 L 0.0025,0.2619 L 0.0056,0.2206 L 0.0099,0.1874 L 0.0156,0.1595 L 0.0226,0.1354 L 0.0309,0.1143 L 0.0406,0.0957 L 0.0519,0.0793 L 0.0647,0.0647 L 0.0793,0.0519 L 0.0957,0.0406 L 0.1143,0.0309 L 0.1354,0.0226 L 0.1595,0.0156 L 0.1874,0.0099 L 0.2206,0.0056 L 0.2619,0.0025 L 0.3194,0.0006 L 0.5000,0.0000 L 0.6806,0.0006 L 0.7381,0.0025 L 0.7794,0.0056 L 0.8126,0.0099 L 0.8405,0.0156 L 0.8646,0.0226 L 0.8857,0.0309 L 0.9043,0.0406 L 0.9207,0.0519 L 0.9353,0.0647 L 0.9481,0.0793 L 0.9594,0.0957 L 0.9691,0.1143 L 0.9774,0.1354 L 0.9844,0.1595 L 0.9901,0.1874 L 0.9944,0.2206 L 0.9975,0.2619 L 0.9994,0.3194 Z" />
+      </clipPath>
+    </defs>
+  </svg>
   <div id="llw-background"></div>
 
   <header id="llw-toolbar">

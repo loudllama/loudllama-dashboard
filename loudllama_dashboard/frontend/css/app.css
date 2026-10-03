@@ -607,15 +607,16 @@ body.llw-has-dock .llw-dock {
      lives. Bottom-right is the one spot no widget header reserves, and
      body content rarely extends into the exact last few pixels of a
      corner. */
-  /* bottom:20px, not a snugger 6px - the south resize handle (see
-     createPage()'s resizable.handles in app.js) occupies roughly the last
-     8-18px of the item's height, nearly full width. This tile used to have
-     a caption strip below .llw-widget that happened to buy exactly this
-     much clearance for free; now that the caption's gone, the offset has to
-     do that job explicitly or the handle intercepts clicks meant for this
-     button (confirmed via test-regression.js's pinInfo check). */
+  /* Was bottom:20px, to clear a south resize handle that used to run most
+     of the item's width - that handle is gone now that createPage() sets
+     resizable:false (manual resize was dropped entirely in favour of each
+     widget's own size-variant picker), so that clearance is stale. Worse,
+     on a small 1x1 tile the extra 14px it was eating actually pushed this
+     button close enough to .llw-remove (top:6px) for the two to visually
+     collide/be hard to tell apart - reported directly. A snug 6px, matching
+     .llw-remove's own top offset, is both correct now and fixes that. */
   position: absolute;
-  bottom: 20px;
+  bottom: 6px;
   right: 6px;
   z-index: 5;
   width: 22px;
@@ -647,10 +648,11 @@ body.llw-edit-mode .llw-pin { display: flex; }
    that needs disabling/greying out, so unlike .llw-pin there's no extra
    state class here. */
 .llw-page-move {
-  /* Same reasoning as .llw-pin above: needs to clear the south resize
-     handle now that the caption strip no longer buys that clearance. */
+  /* Same reasoning as .llw-pin above - snug 6px, not the old 20px kept for
+     a south resize handle that resizable:false (createPage() in app.js)
+     removed entirely. */
   position: absolute;
-  bottom: 20px;
+  bottom: 6px;
   z-index: 5;
   width: 20px;
   height: 20px;
@@ -758,6 +760,27 @@ body.llw-edit-mode.llw-multi-real-pages .llw-page-move { display: flex; }
        what's behind it. */
     background: rgba(30, 34, 44, 0.6);
   }
+}
+/* A compact 1x1 widget (Room/Light/Climate/Media's own `--compact` variant
+   - each just an icon, nothing else) functions exactly like a phone's own
+   home-screen app icon, so it's compared directly against one - and a
+   plain border-radius circular corner reads as visibly different from the
+   flatter, smoother "squircle" curve those actually use, even at a
+   similar nominal radius. :has() lets this reach the actual widget tile
+   (the element that paints the background/blur this corner shape needs to
+   clip) from outside, without every compact widget type having to set its
+   own clip-path redundantly. #llw-squircle (defined once, hidden, near the
+   top of index.html) is a single superellipse path normalized to a 0-1
+   box, so it resizes correctly to any tile automatically. Weather's own
+   `--compact` is deliberately excluded - that's a smaller information
+   CARD (temperature/condition/humidity), not a bare icon, and reads better
+   as a card than as an "app icon". border-radius stays set underneath as
+   the fallback shape for a browser without :has()/clip-path support. */
+.llw-widget:has(.llw-room--compact),
+.llw-widget:has(.llw-widget-light--compact),
+.llw-widget:has(.llw-widget-climate--compact),
+.llw-widget:has(.llw-widget-media--compact) {
+  clip-path: url(#llw-squircle);
 }
 /* Same fix as .grid-stack-item-content.llw-widget-shell above, for the
    other place a GridStack item's content can be a bare .llw-widget with no

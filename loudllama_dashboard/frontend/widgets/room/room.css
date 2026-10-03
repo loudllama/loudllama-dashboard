@@ -164,6 +164,26 @@ body.llw-edit-mode .llw-room__gear { display: inline-flex; }
   max-height: 64px;
   filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.35));
 }
+/* Pinning a compact room to the dock made its icon render noticeably
+   BIGGER than the same tile sitting on the grid, not smaller - the
+   opposite of what app.css's `.llw-dock-item .llw-body { zoom: 0.68 }` is
+   meant to achieve, and confirmed in testing: ~44px rendered in the dock
+   vs ~29-33px on the grid. Root cause: the dock tile's own box (88x108px)
+   is a fixed size bigger than an ordinary 1x1 grid tile's actual content
+   area (roughly 65x74px, after GridStack's own margins), and that 0.68
+   zoom only shrinks the RENDERED result - it doesn't change how big a
+   logical canvas the icon's own 62%-with-a-64px-cap sizing above measures
+   itself against first. Against the dock's bigger logical canvas, 62%
+   overshoots the 64px cap long before it would on the grid, so the icon
+   renders at the full capped 64px and only *then* gets zoomed down to
+   ~44px - still bigger than the ~29-33px it was on the grid. A smaller,
+   dock-specific cap (chosen so cap x 0.68 lands close to the grid-tile
+   size) fixes the actual rendered size without touching how every other
+   widget type's own text/layout relies on that same zoom. */
+.llw-dock-item .llw-room__compact-icon svg {
+  max-width: 47px;
+  max-height: 47px;
+}
 
 /* --- Wide (2x1) size variant ------------------------------------------------
    Unlike compact, this keeps the header (name + gear) and glance
