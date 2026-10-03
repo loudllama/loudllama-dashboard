@@ -64,6 +64,19 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  /* Keeps the toolbar and the page grid clear of a phone's status bar/
+     notch/Dynamic Island/punch-hole camera at the top and its home-
+     indicator gesture bar at the bottom (and either side, in landscape) -
+     without this, that system UI draws directly on top of whatever we put
+     at the very edge of the screen instead of our content automatically
+     leaving room for it, which is exactly what a notch/safe-area is for.
+     Needs viewport-fit=cover on the <meta name="viewport"> tag in
+     index.html - without that, every env(safe-area-inset-*) below is just
+     always 0. #llw-background and #llw-longpress-hint are both
+     `position: fixed`, so this padding doesn't affect them - they still
+     paint full-bleed behind the status bar as before, only the actual
+     toolbar/widget content shifts in from the edges. */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
 /* Default dashboard background: a soft, iOS-wallpaper-style mesh of
@@ -457,7 +470,10 @@ body.llw-has-dock.llw-multi-page .llw-page {
   position: fixed;
   left: 0;
   right: 0;
-  bottom: 0;
+  /* position:fixed, so (unlike the toolbar/page grid) this doesn't get
+     body's own safe-area padding below - needs its own, so the dots don't
+     end up sitting right on top of a phone's home-indicator gesture bar. */
+  bottom: env(safe-area-inset-bottom, 0px);
   z-index: 41;
   display: none;
   align-items: center;
@@ -476,7 +492,7 @@ body.llw-multi-page #llw-page-dots {
   display: flex;
 }
 body.llw-has-dock #llw-page-dots {
-  bottom: 118px;
+  bottom: calc(118px + env(safe-area-inset-bottom, 0px));
 }
 .llw-dot {
   width: 7px;
