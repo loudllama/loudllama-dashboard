@@ -16,8 +16,13 @@
   position: absolute;
   inset: 0;
   z-index: 0;
-  transition: background 0.8s ease;
+  transition: background 0.8s ease, opacity 0.8s ease;
   background: linear-gradient(160deg, #4a6fa5, #33475f);
+  /* Lets the widget's own frosted-glass tile (.llw-widget's backdrop-filter
+     in app.css) actually show through the condition gradient instead of
+     this opaque layer hiding it completely - same reasoning as Room's
+     __bg and Frigate's background right below. */
+  opacity: 0.62;
 }
 
 /* One gradient per HA weather condition slug */

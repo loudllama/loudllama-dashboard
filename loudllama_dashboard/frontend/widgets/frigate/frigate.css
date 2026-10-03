@@ -6,7 +6,13 @@
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: #14171d;
+  /* Semi-transparent instead of a flat opaque #14171d, so the tile's own
+     frosted-glass background (.llw-widget's backdrop-filter in app.css)
+     actually shows through around/behind the camera grid - same reasoning
+     as Room's __bg and Weather's __bg. The camera thumbnails themselves
+     are unaffected (still plain opaque images, see .llw-frigate__cam img
+     below), only the empty frame around them. */
+  background: rgba(20, 23, 29, 0.5);
   color: #fff;
   border-radius: inherit;
   overflow: hidden;

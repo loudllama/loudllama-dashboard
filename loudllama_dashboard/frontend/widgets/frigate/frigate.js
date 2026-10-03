@@ -51,11 +51,22 @@
   // showSizePicker/sizeVariants): instead of asking the user to pick a size
   // up front, the widget's own GridStack cell grows and shrinks on its own
   // as cameras are added/removed below. Tiers are deliberately coarse
-  // (jumping the grid size on every single checkbox tick would feel janky)
-  // and start at the widget's own minSize so a 0/1-camera widget never gets
-  // smaller than that. Columns top out at 12, matching the page's own grid.
+  // (jumping the grid size on every single checkbox tick would feel janky).
+  // Columns top out at 12, matching the page's own grid.
+  //
+  // Each tier's w:h ratio is chosen to roughly match CAMERA_ASPECT (16:9)
+  // once laid out - the page's grid uses the same 90px for both cellHeight
+  // and columnWidth (see app.js's createPage), so a grid cell's own pixel
+  // shape already tracks its w:h ratio directly. The single-camera tier
+  // used to be a square {w:3,h:3} (1:1), which is nothing like 16:9 - the
+  // camera tile itself (aspect-ratio:16/9 in frigate.css) only ever filled
+  // the top ~56% of that square cell, leaving a large empty dark band below
+  // the actual picture for exactly the single-camera case most people
+  // actually have. {w:5,h:3} (the same tier already used for 2 cameras,
+  // ratio 1.67) is much closer to 16:9 and was verified to all but close
+  // that gap.
   function sizeForCameraCount(n) {
-    if (n <= 1) return { w: 3, h: 3 };
+    if (n <= 1) return { w: 5, h: 3 };
     if (n === 2) return { w: 5, h: 3 };
     if (n <= 4) return { w: 6, h: 5 };
     if (n <= 6) return { w: 8, h: 5 };
