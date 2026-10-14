@@ -30,6 +30,8 @@
         noWidgetsInstalled: 'No widgets added yet — open the widget store',
         chooseSize: 'Choose a size',
         haSettings: 'Home Assistant',
+        kioskModeOn: 'Kiosk mode: On',
+        kioskModeOff: 'Kiosk mode: Off',
       },
       store: {
         title: 'Widget store',
@@ -194,6 +196,8 @@
         noWidgetsInstalled: 'Ingen widgets tilføjet endnu — åbn widget-butikken',
         chooseSize: 'Vælg en størrelse',
         haSettings: 'Home Assistant',
+        kioskModeOn: 'Kiosk-tilstand: Til',
+        kioskModeOff: 'Kiosk-tilstand: Fra',
       },
       store: {
         title: 'Widget-butik',
@@ -358,6 +362,8 @@
         noWidgetsInstalled: 'Noch keine Widgets hinzugefügt — öffne den Widget-Store',
         chooseSize: 'Größe wählen',
         haSettings: 'Home Assistant',
+        kioskModeOn: 'Kiosk-Modus: An',
+        kioskModeOff: 'Kiosk-Modus: Aus',
       },
       store: {
         title: 'Widget-Store',
@@ -522,6 +528,8 @@
         noWidgetsInstalled: 'Inga widgets tillagda än — öppna widget-butiken',
         chooseSize: 'Välj en storlek',
         haSettings: 'Home Assistant',
+        kioskModeOn: 'Kioskläge: På',
+        kioskModeOff: 'Kioskläge: Av',
       },
       store: {
         title: 'Widget-butik',
@@ -686,6 +694,8 @@
         noWidgetsInstalled: 'Ingen widgets lagt til ennå — åpne widget-butikken',
         chooseSize: 'Velg en størrelse',
         haSettings: 'Home Assistant',
+        kioskModeOn: 'Kioskmodus: På',
+        kioskModeOff: 'Kioskmodus: Av',
       },
       store: {
         title: 'Widget-butikk',

@@ -156,33 +156,44 @@ body.llw-edit-mode .llw-room__gear { display: inline-flex; }
 /* Hand-built gradient-shaded SVG (see room.js's roomIconSvg) instead of a
    flat emoji character - a plain emoji read as too "cartoonish" next to the
    rest of the dashboard's shaded, dimensional look (same complaint that
-   already shaped the weather widget's own icons). */
+   already shaped the weather widget's own icons).
+   width/height was originally 62% (max 64px) - measured at only ~34x29px
+   inside a ~68x59px tile, i.e. the glyph took up roughly half the tile with
+   a wide margin all around. Real iOS/Android home-screen icons draw their
+   artwork almost edge-to-edge inside the rounded-square mask (the squircle
+   shape itself, see index.html's clip-path, is what reads as "padding" -
+   there's barely any extra gap inside it on a real icon) - reported back as
+   the icons still having "a slightly wrong size" even after the squircle
+   corner fix. 80% (measured ~44x37px in the same tile) reads much closer to
+   that, while still leaving a small margin so the glyph never touches the
+   clipped corner. */
 .llw-room__compact-icon svg {
-  width: 62%;
-  height: 62%;
-  max-width: 64px;
-  max-height: 64px;
+  width: 80%;
+  height: 80%;
+  max-width: 90px;
+  max-height: 90px;
   filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.35));
 }
 /* Pinning a compact room to the dock made its icon render noticeably
    BIGGER than the same tile sitting on the grid, not smaller - the
    opposite of what app.css's `.llw-dock-item .llw-body { zoom: 0.68 }` is
-   meant to achieve, and confirmed in testing: ~44px rendered in the dock
-   vs ~29-33px on the grid. Root cause: the dock tile's own box (88x108px)
-   is a fixed size bigger than an ordinary 1x1 grid tile's actual content
-   area (roughly 65x74px, after GridStack's own margins), and that 0.68
-   zoom only shrinks the RENDERED result - it doesn't change how big a
-   logical canvas the icon's own 62%-with-a-64px-cap sizing above measures
-   itself against first. Against the dock's bigger logical canvas, 62%
-   overshoots the 64px cap long before it would on the grid, so the icon
-   renders at the full capped 64px and only *then* gets zoomed down to
-   ~44px - still bigger than the ~29-33px it was on the grid. A smaller,
-   dock-specific cap (chosen so cap x 0.68 lands close to the grid-tile
-   size) fixes the actual rendered size without touching how every other
-   widget type's own text/layout relies on that same zoom. */
+   meant to achieve. Root cause: the dock tile's own box (88x108px) is a
+   fixed size bigger than an ordinary 1x1 grid tile's actual content area,
+   and that 0.68 zoom only shrinks the RENDERED result - it doesn't change
+   how big a logical canvas the icon's own percentage-with-a-cap sizing
+   above measures itself against first. Against the dock's bigger logical
+   canvas, the percentage above overshoots its cap long before it would on
+   the grid, so the icon renders at the full capped size and only *then*
+   gets zoomed down - still ending up bigger than the grid version. A
+   smaller, dock-specific cap (kept in the same ~0.75 ratio to the base cap
+   above as before, so cap x 0.68 lands close to the grid-tile size) fixes
+   the actual rendered size without touching how every other widget type's
+   own text/layout relies on that same zoom - re-measured after the 80%
+   change above to confirm grid (~44x37px) and dock (~41x41px) still land
+   close together. */
 .llw-dock-item .llw-room__compact-icon svg {
-  max-width: 47px;
-  max-height: 47px;
+  max-width: 60px;
+  max-height: 60px;
 }
 
 /* --- Wide (2x1) size variant ------------------------------------------------

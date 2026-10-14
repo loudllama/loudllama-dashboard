@@ -166,6 +166,11 @@
   let currentPage = 0;
   let editMode = false;
   let saveTimer = null;
+  // Whether OUR OWN kiosk-mode logic (applyKioskMode below) should run at
+  // all - loaded from /api/settings in init() and flipped by the toolbar's
+  // kiosk toggle button. Defaults to true so a fresh install behaves exactly
+  // like every version before this toggle existed.
+  let kioskModeSetting = true;
 
   function scheduleSave() {
     clearTimeout(saveTimer);
@@ -760,21 +765,39 @@
   // triggered by an ordinary tap or scroll.
   function setupLongPressToEdit() {
     const HOLD_MS = 2500;
+    // How long an ordinary tap/scroll/click gets to start and finish before
+    // the llama hint is even allowed to become visible. Without this, every
+    // single tap anywhere on the dashboard flashed the hint into view for a
+    // split second, which read as "it's about to enter edit mode" even
+    // though nothing was actually about to happen - the hold timer below was
+    // always running for the full HOLD_MS regardless, only the premature
+    // *visibility* was the problem. A plain tap (well under this delay)
+    // never shows the hint at all now.
+    const HINT_DELAY_MS = 350;
     const MOVE_TOLERANCE = 10; // px of wiggle room before a hold counts as a drag/scroll instead
     const hintEl = document.getElementById('llw-longpress-hint');
-    // Only the fill layer's clip-path needs to be locked to HOLD_MS (the dim
-    // base layer and the container's own fade-in keep their fixed CSS
-    // timings) - see the .llw-longpress-hint__fill rule in app.css.
+    // Only the fill layer's clip-path needs to be locked to a duration (the
+    // dim base layer and the container's own fade-in keep their fixed CSS
+    // timings) - see the .llw-longpress-hint__fill rule in app.css. The fill
+    // only starts animating once the hint becomes visible at HINT_DELAY_MS,
+    // but fire() below still happens at a fixed HOLD_MS from the original
+    // pointerdown - so the fill's own transition is given the *remaining*
+    // time (HOLD_MS - HINT_DELAY_MS), not the full HOLD_MS, which is what
+    // keeps "llama fully filled" and "edit mode actually opens" landing at
+    // the same instant instead of the fill finishing visibly late.
     const hintFillEl = hintEl ? hintEl.querySelector('.llw-longpress-hint__fill') : null;
-    if (hintFillEl) hintFillEl.style.transitionDuration = `${HOLD_MS}ms`;
+    if (hintFillEl) hintFillEl.style.transitionDuration = `${HOLD_MS - HINT_DELAY_MS}ms`;
     let timer = null;
+    let visibleTimer = null;
     let pointerId = null;
     let startX = 0;
     let startY = 0;
 
     function clear() {
       if (timer) clearTimeout(timer);
+      if (visibleTimer) clearTimeout(visibleTimer);
       timer = null;
+      visibleTimer = null;
       pointerId = null;
       if (hintEl) hintEl.classList.remove('llw-growing');
     }
@@ -808,12 +831,21 @@
       pointerId = ev.pointerId;
       startX = ev.clientX;
       startY = ev.clientY;
+      // Position the (still invisible) hint right away, but don't start
+      // showing it until HINT_DELAY_MS has actually passed - see the
+      // comment on HINT_DELAY_MS above for why. The hold timer itself still
+      // starts counting immediately, same as before.
       if (hintEl) {
         hintEl.style.left = `${startX}px`;
         hintEl.style.top = `${startY}px`;
-        void hintEl.offsetWidth; // force layout so the position above lands before the transition starts below
-        hintEl.classList.add('llw-growing');
       }
+      visibleTimer = setTimeout(() => {
+        visibleTimer = null;
+        if (hintEl) {
+          void hintEl.offsetWidth; // force layout so the position above lands before the transition starts below
+          hintEl.classList.add('llw-growing');
+        }
+      }, HINT_DELAY_MS);
       timer = setTimeout(fire, HOLD_MS);
     });
 
@@ -849,7 +881,20 @@
   // it ever stops working after a Home Assistant update, the well-maintained
   // community "kiosk-mode" HACS integration is a solid, actively-updated
   // fallback that isn't tied to this add-on's own release cycle.
+  //
+  // Respects two things before touching anything: the toolbar's own on/off
+  // toggle (kioskModeSetting, persisted server-side - some people run this
+  // on a screen that should keep HA's normal chrome, or already have the
+  // community "kiosk-mode" integration configured exactly how they want it
+  // and don't want us fighting it), and, even when switched on, whether the
+  // sidebar is ALREADY not taking up space by the time we look (see
+  // sidebarAlreadyHidden inside sweep() below) - if something else (that
+  // same community integration, a custom theme, a narrow-screen HA default,
+  // anything) has already dealt with it, we defer to that instead of
+  // reclaiming space that's already been reclaimed, rather than trying to
+  // specifically fingerprint any one integration's implementation.
   function applyKioskMode() {
+    if (!kioskModeSetting) return;
     // Walks into every shadow root under `root` looking for `selector`,
     // since Home Assistant's frontend is built almost entirely of custom
     // elements with their own (open) shadow DOM - a plain querySelectorAll
@@ -979,9 +1024,17 @@
       const rect = frame.getBoundingClientRect();
       const shortBy = topWin.innerHeight - rect.bottom;
       // A few px of slack for ordinary rounding/subpixel layout - only act
-      // once the gap is clearly real, and only grow downward (never touch
-      // top/left, which already line up correctly in every report so far).
-      if (shortBy > 4 || rect.top > 4) {
+      // once a gap is clearly real. This used to only ever check the
+      // bottom/top edges (shortBy / rect.top), on the assumption that any
+      // leftover gap would be a height problem - but the persistent strip
+      // reported in the wide-desktop-browser screenshot sits on the LEFT
+      // edge instead (rect.left > 0, while rect.top and shortBy are both
+      // ~0), which that older check could never catch at all: nothing was
+      // short, so the fix never even tried to run. Checking rect.left (and,
+      // symmetrically, the right edge via rect.right vs the window's width)
+      // closes that gap too, the same full-bleed way.
+      const shortRightBy = topWin.innerWidth - rect.right;
+      if (shortBy > 4 || rect.top > 4 || rect.left > 4 || shortRightBy > 4) {
         frame.style.position = 'fixed';
         frame.style.top = '0';
         frame.style.left = '0';
@@ -996,7 +1049,23 @@
     function sweep(topDoc, frame) {
       // The desktop sidebar and the button that opens/closes it - a single,
       // long-stable custom element name across Home Assistant releases.
-      deepQueryAll(topDoc, 'ha-sidebar').forEach(hideAndReclaimSpace);
+      // Before hiding it ourselves, check whether it's already not taking
+      // up any layout space - a width/height of a handful of pixels or
+      // less is as good as gone already. That can happen because the
+      // community "kiosk-mode" integration (or a custom theme, or HA's own
+      // narrow-screen behaviour) already dealt with it; piling our own
+      // display:none + grid-template-columns rewrite on top of whatever
+      // mechanism already did that is, at best, redundant, and at worst
+      // fights whatever that other mechanism is doing on its own timer.
+      // "Not already handled" is also true the very first time this sweep
+      // ever runs on an ordinary HA install with no such integration, which
+      // is exactly when we DO still want to do the hiding ourselves - this
+      // only ever skips work that's already done, never work that's needed.
+      deepQueryAll(topDoc, 'ha-sidebar').forEach((sidebar) => {
+        const rect = sidebar.getBoundingClientRect();
+        const alreadyHandled = getComputedStyle(sidebar).display === 'none' || (rect.width < 8 && rect.height < 8);
+        if (!alreadyHandled) hideAndReclaimSpace(sidebar);
+      });
       deepQueryAll(topDoc, 'ha-menu-button').forEach(hide);
       fixIframeHeight(frame);
 
@@ -1080,6 +1149,17 @@
     if (storeBtn) storeBtn.textContent = `🧩 ${t('app', 'widgetStore')}`;
     const haSettingsBtn = document.getElementById('llw-ha-settings');
     if (haSettingsBtn) haSettingsBtn.textContent = `⚙️ ${t('app', 'haSettings')}`;
+    updateKioskToggleButton();
+  }
+
+  // Reflects kioskModeSetting on the toolbar button - its own function
+  // (rather than being folded into localizeChrome) since it also needs
+  // re-running right after the setting is toggled, not just on language
+  // changes/startup.
+  function updateKioskToggleButton() {
+    const btn = document.getElementById('llw-kiosk-toggle');
+    if (!btn) return;
+    btn.textContent = `🖥️ ${kioskModeSetting ? t('app', 'kioskModeOn') : t('app', 'kioskModeOff')}`;
   }
 
   // Small representative emoji per widget type, used only as the icon shown
@@ -1211,12 +1291,16 @@
     LL.i18n.setLang(LL.haConfig.language);
     localizeChrome();
 
-    // 2. Background image.
+    // 2. Background image + kiosk mode on/off (both live in the same small
+    //    settings.json on the backend).
     try {
-      applyBackground(await LL.api.get('api/settings'));
+      const settings = await LL.api.get('api/settings');
+      applyBackground(settings);
+      kioskModeSetting = settings.kioskMode !== false;
     } catch (err) {
       console.warn('[loudllama] Could not load settings', err);
     }
+    updateKioskToggleButton();
 
     // 2b. Widget store: load the catalog + which widgets are installed, and
     //     fetch the JS/CSS for the installed ones. Must happen before the
@@ -1291,6 +1375,28 @@
     if (haSettingsBtn) {
       haSettingsBtn.addEventListener('click', () => {
         window.top.location.href = '/config/dashboard';
+      });
+    }
+
+    const kioskToggleBtn = document.getElementById('llw-kiosk-toggle');
+    if (kioskToggleBtn) {
+      kioskToggleBtn.addEventListener('click', async () => {
+        kioskModeSetting = !kioskModeSetting;
+        updateKioskToggleButton();
+        try {
+          await LL.api.post('api/settings', { kioskMode: kioskModeSetting });
+        } catch (err) {
+          console.warn('[loudllama] Could not save kiosk mode setting', err);
+        }
+        // Cleanly reversing every display:none / grid-template-columns /
+        // iframe-style change applyKioskMode may have already made (to turn
+        // it off) - or deciding safely whether it's now safe to apply them
+        // (to turn it on) - without just re-running the exact same logic a
+        // plain reload already gives us for free, is not worth the extra
+        // complexity: a reload re-runs init() from scratch, which reads the
+        // setting we just saved and applies (or skips) kiosk mode exactly
+        // the same way a normal page load would.
+        window.location.reload();
       });
     }
 

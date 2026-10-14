@@ -569,16 +569,23 @@ app.delete('/api/layout/widgets/:id', (req, res) => {
   }
 });
 
-// --- Settings (background image etc.) ---------------------------------------
+// --- Settings (background image, kiosk mode, etc.) --------------------------
+// Defaults merged *underneath* whatever's actually on disk, so a settings.json
+// written by an older version of this add-on (before a given field existed -
+// e.g. every settings.json saved before kioskMode was added below) still
+// comes back with a sensible value for the new field instead of `undefined`.
+const SETTINGS_DEFAULTS = { backgroundUrl: null, kioskMode: true };
+
 function readSettings() {
   if (fs.existsSync(SETTINGS_FILE)) {
     try {
-      return JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'));
+      const saved = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'));
+      return { ...SETTINGS_DEFAULTS, ...saved };
     } catch {
       /* fall through to default */
     }
   }
-  return { backgroundUrl: null };
+  return { ...SETTINGS_DEFAULTS };
 }
 
 function writeSettings(settings) {
@@ -587,6 +594,25 @@ function writeSettings(settings) {
 
 app.get('/api/settings', (req, res) => {
   res.json(readSettings());
+});
+
+// Generic partial-update endpoint for simple on/off style settings (kiosk
+// mode today, anything similar later) - unlike /api/background below, there's
+// no file upload involved, just a small JSON merge onto whatever's already
+// saved. Only fields this endpoint explicitly recognizes are ever accepted,
+// so a stray/garbled request body can't silently inject arbitrary keys into
+// settings.json.
+app.post('/api/settings', (req, res) => {
+  try {
+    const settings = readSettings();
+    const body = req.body || {};
+    if (typeof body.kioskMode === 'boolean') settings.kioskMode = body.kioskMode;
+    writeSettings(settings);
+    res.json(settings);
+  } catch (err) {
+    console.error('[loudllama] Failed to save settings:', err);
+    res.status(500).json({ error: 'settings_write_failed' });
+  }
 });
 
 const upload = multer({

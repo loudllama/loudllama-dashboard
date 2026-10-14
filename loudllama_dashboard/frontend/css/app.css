@@ -170,7 +170,7 @@ body {
   /* Wraps the brand down onto its own row above the actions, rather than
      clipping buttons off the right edge of the screen, once there's no
      longer room for both on one line - see .llw-toolbar__actions below for
-     why that happens routinely now, at phone width, with five buttons
+     why that happens routinely now, at phone width, with six buttons
      instead of the original four. */
   flex-wrap: wrap;
   row-gap: 0.4rem;
