@@ -1,6 +1,25 @@
 :root {
   --llw-radius: 22px;
   --llw-gap: 12px;
+  /* Caps how wide the actual widget grid gets to on a very wide screen (an
+     ultrawide monitor, a big wall-mounted panel) before extra space starts
+     being left as centering margin instead of just sitting empty down one
+     side. GridStack's own columnOpts (app.js's createPage) already caps out
+     at 12 columns around columnWidth:90px each - natural "full" grid width
+     lands well under this value - so on any ordinary laptop/tablet screen
+     this never engages at all (see the max(0px, ...) in .llw-page below);
+     it only starts pulling the grid inward once the page is wider than this.
+     Without it, a sparse dashboard (a handful of widgets, not yet enough to
+     fill 12 columns) on a 2000px+ wide browser window renders pinned to the
+     top-left with a large, lopsided empty area to the right - which reads
+     as a broken/cut-off layout even though every widget is actually exactly
+     where it was placed. This was being reported as a kiosk-mode bug, but
+     reproduces identically with kiosk mode off too (see fixIframeHeight's
+     own comment above applyKioskMode): GridStack was never stretching
+     widgets to fill unused columns to begin with, kiosk mode only ever
+     affected how much of Home Assistant's own chrome got hidden around the
+     page, not how the grid itself fills whatever space it's given. */
+  --llw-max-content-width: 1600px;
   /* The LoudLlama silhouette, shared by the background's hidden easter egg
      (#llw-background::before below) and the long-press-to-edit hint
      (#llw-longpress-hint below) - one data URI kept in one place so the two
@@ -455,6 +474,26 @@ body.llw-edit-mode #llw-toolbar {
   min-height: 0;
   position: relative;
   overflow: hidden;
+  /* Caps how wide the swipeable track (and therefore every .llw-page/
+     GridStack instance inside it - see createPage() in app.js, which reads
+     *this* element's rendered width indirectly through .llw-page's own
+     100%-of-parent width) gets to on a very wide screen, centering the
+     leftover space instead of leaving it all down the right side - see
+     --llw-max-content-width's own comment (:root, top of this file) for the
+     full story on why this is needed, and why it had to go here rather than
+     as padding on .llw-page itself: .llw-page's children are GridStack's
+     own position:absolute items, and percentage sizing on an absolutely
+     positioned element resolves against its containing block's *padding*
+     box, not its content box - so padding on .llw-page is invisible to
+     them and narrowing the width has to happen up here instead, on an
+     ordinary (non-abs-pos-parent) ancestor, where width really does mean
+     width. flex's own `stretch` default (body's align-items, unset =
+     stretch) is what makes this fill 100% of the toolbar's width normally;
+     max-width here simply clamps that, and margin:auto does the centering,
+     exactly like a plain centered page layout would. */
+  width: 100%;
+  max-width: var(--llw-max-content-width);
+  margin: 0 auto;
 }
 #llw-pages-track {
   display: flex;

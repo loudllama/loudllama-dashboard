@@ -29,5 +29,6 @@
     { id: 'people', js: 'widgets/people/people.js', css: 'widgets/people/people.css' },
     { id: 'energy', js: 'widgets/energy/energy.js', css: 'widgets/energy/energy.css' },
     { id: 'alarm', js: 'widgets/alarm/alarm.js', css: 'widgets/alarm/alarm.css' },
+    { id: 'todo', js: 'widgets/todo/todo.js', css: 'widgets/todo/todo.css' },
   ];
 })();

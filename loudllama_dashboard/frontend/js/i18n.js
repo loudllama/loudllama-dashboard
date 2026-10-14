@@ -229,6 +229,15 @@
           triggered: 'ALARM!',
         },
       },
+      todo: {
+        chooseEntity: 'Choose a to-do list',
+        noEntity: 'No to-do list selected',
+        noEntities: 'No to-do lists found in Home Assistant',
+        addPlaceholder: 'Add an item…',
+        add: 'Add',
+        empty: 'Nothing on the list',
+        remove: 'Remove',
+      },
     },
     da: {
       app: {
@@ -449,6 +458,15 @@
           disarming: 'Frakobler',
           triggered: 'ALARM!',
         },
+      },
+      todo: {
+        chooseEntity: 'Vælg en gøremålsliste',
+        noEntity: 'Ingen gøremålsliste valgt',
+        noEntities: 'Fandt ingen gøremålslister i Home Assistant',
+        addPlaceholder: 'Tilføj et punkt…',
+        add: 'Tilføj',
+        empty: 'Intet på listen',
+        remove: 'Fjern',
       },
     },
     de: {
@@ -671,6 +689,15 @@
           triggered: 'ALARM!',
         },
       },
+      todo: {
+        chooseEntity: 'Liste auswählen',
+        noEntity: 'Keine Liste ausgewählt',
+        noEntities: 'Keine Listen in Home Assistant gefunden',
+        addPlaceholder: 'Punkt hinzufügen…',
+        add: 'Hinzufügen',
+        empty: 'Nichts auf der Liste',
+        remove: 'Entfernen',
+      },
     },
     sv: {
       app: {
@@ -892,6 +919,15 @@
           triggered: 'LARM!',
         },
       },
+      todo: {
+        chooseEntity: 'Välj en att göra-lista',
+        noEntity: 'Ingen att göra-lista vald',
+        noEntities: 'Hittade inga att göra-listor i Home Assistant',
+        addPlaceholder: 'Lägg till en post…',
+        add: 'Lägg till',
+        empty: 'Inget på listan',
+        remove: 'Ta bort',
+      },
     },
     no: {
       app: {
@@ -1112,6 +1148,15 @@
           disarming: 'Frakobler',
           triggered: 'ALARM!',
         },
+      },
+      todo: {
+        chooseEntity: 'Velg en gjøremålsliste',
+        noEntity: 'Ingen gjøremålsliste valgt',
+        noEntities: 'Fant ingen gjøremålslister i Home Assistant',
+        addPlaceholder: 'Legg til et punkt…',
+        add: 'Legg til',
+        empty: 'Ingenting på listen',
+        remove: 'Fjern',
       },
     },
   };

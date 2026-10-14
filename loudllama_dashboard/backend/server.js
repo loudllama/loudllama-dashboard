@@ -119,6 +119,28 @@ const ROOM_MOCK_ENTITIES = {
   'script.movie_night': { entity_id: 'script.movie_night', state: 'off', attributes: { friendly_name: 'Biografaften' } },
   'sensor.power_now': { entity_id: 'sensor.power_now', state: '842', attributes: { friendly_name: 'Effekt lige nu', unit_of_measurement: 'W', device_class: 'power' } },
   'sensor.energy_today': { entity_id: 'sensor.energy_today', state: '4.7', attributes: { friendly_name: 'Forbrug i dag', unit_of_measurement: 'kWh', device_class: 'energy' } },
+  // `todo.*` entities don't carry their items in `attributes` the way most
+  // other domains carry their data - the item list lives behind the
+  // `todo.get_items`/`add_item`/`update_item`/`remove_item` *services*
+  // instead (see /api/hass/todo_items and applyMockService's 'todo' branch
+  // below), so this entity's own state is just a HA-standard item count
+  // (`attributes.friendly_name` is still what the widget's entity picker
+  // shows, same as everywhere else).
+  'todo.indkobsliste': { entity_id: 'todo.indkobsliste', state: '3', attributes: { friendly_name: 'Indkøbsliste' } },
+};
+
+// Mock items behind the mock todo.indkobsliste list above - kept separate
+// from ROOM_MOCK_ENTITIES since a to-do list's items aren't entity
+// attributes in real HA either (see that entity's own comment). uid is a
+// plain incrementing counter here; real HA's uids are opaque strings, and
+// the widget never assumes anything about their shape.
+let mockTodoNextUid = 4;
+const MOCK_TODO_ITEMS = {
+  'todo.indkobsliste': [
+    { uid: '1', summary: 'Mælk', status: 'needs_action' },
+    { uid: '2', summary: 'Rugbrød', status: 'needs_action' },
+    { uid: '3', summary: 'Kaffe', status: 'completed' },
+  ],
 };
 
 // Mutates ROOM_MOCK_ENTITIES to roughly emulate what the real HA service
@@ -154,6 +176,28 @@ function applyMockService(domain, service, payload) {
     } else if (domain === 'vacuum') {
       if (service === 'start') entity.state = 'cleaning';
       if (service === 'stop') entity.state = 'docked';
+    } else if (domain === 'todo') {
+      const items = MOCK_TODO_ITEMS[id] || (MOCK_TODO_ITEMS[id] = []);
+      if (service === 'add_item' && payload.item) {
+        items.push({ uid: String(mockTodoNextUid++), summary: payload.item, status: 'needs_action' });
+      } else if (service === 'update_item' && payload.item) {
+        // Real HA accepts either the item's uid or its current summary in
+        // this field to identify which one to update - mirrored here so
+        // the widget doesn't need to know or care which one mock mode
+        // happens to be matching against.
+        const target = items.find((it) => it.uid === payload.item || it.summary === payload.item);
+        if (target) {
+          if (payload.rename !== undefined) target.summary = payload.rename;
+          if (payload.status !== undefined) target.status = payload.status;
+        }
+      } else if (service === 'remove_item' && payload.item) {
+        const toRemove = [].concat(payload.item);
+        MOCK_TODO_ITEMS[id] = items.filter((it) => !toRemove.includes(it.uid) && !toRemove.includes(it.summary));
+      }
+      // Keep the entity's own state (HA's standard "N" open-items count) in
+      // sync with the mutated item list, same as a real todo integration
+      // would after any of the three services above.
+      if (entity) entity.state = String((MOCK_TODO_ITEMS[id] || []).filter((it) => it.status !== 'completed').length);
     } else if (domain === 'alarm_control_panel') {
       // Mock mode doesn't model security seriously (there's no real alarm
       // panel behind it to protect) - any code is accepted here, unlike a
@@ -509,6 +553,27 @@ const WIDGETS = [
       de: 'Eine Alarmanlagen-Entität scharf-/unscharf schalten (Alarmo und die meisten anderen funktionieren). Wähle beim Hinzufügen, ob einfache Ein-Tipp-Tasten verwendet werden oder zuerst ein PIN-Code abgefragt wird.',
       sv: 'Till-/frånkoppla en larm-entitet (Alarmo och de flesta andra fungerar). Välj vid tillägg om den ska använda enkla ett-tryck-knappar eller fråga om en PIN-kod först.',
       no: 'Til-/frakobl en alarm-enhet (Alarmo og de fleste andre fungerer). Velg ved tillegg om den skal bruke enkle ett-trykk-knapper eller spørre om en PIN-kode først.',
+    },
+  },
+  {
+    id: 'todo',
+    version: '1.0.0',
+    icon: 'format-list-checks',
+    defaultSize: { w: 2, h: 3 },
+    minSize: { w: 2, h: 2 },
+    name: {
+      da: 'Gøremål/indkøbsliste',
+      en: 'To-do/shopping list',
+      de: 'Aufgaben/Einkaufsliste',
+      sv: 'Att göra/inköpslista',
+      no: 'Gjøremål/handleliste',
+    },
+    description: {
+      da: 'Viser og redigerer en af Home Assistants indbyggede to-do-lister (fx den klassiske indkøbsliste, eller enhver anden du har oprettet) direkte fra dashboardet - tilføj, afkryds og fjern punkter.',
+      en: "Shows and edits one of Home Assistant's built-in to-do lists (e.g. the classic shopping list, or any other you've created) straight from the dashboard - add, check off and remove items.",
+      de: 'Zeigt eine von Home Assistants eingebauten Aufgabenlisten (z. B. die klassische Einkaufsliste oder eine andere, die du erstellt hast) direkt vom Dashboard aus an - Punkte hinzufügen, abhaken und entfernen.',
+      sv: 'Visar och redigerar en av Home Assistants inbyggda att göra-listor (t.ex. den klassiska inköpslistan, eller någon annan du skapat) direkt från dashboarden - lägg till, bocka av och ta bort punkter.',
+      no: 'Viser og redigerer en av Home Assistants innebygde gjøremålslister (f.eks. den klassiske handlelisten, eller en annen du har opprettet) direkte fra dashbordet - legg til, kryss av og fjern punkter.',
     },
   },
 ];
@@ -937,6 +1002,41 @@ app.get('/api/hass/weather_forecast/:entityId', async (req, res) => {
     res.json({ forecast });
   } catch (err) {
     console.error('[loudllama] /api/hass/weather_forecast failed:', err.message);
+    res.status(502).json({ error: 'ha_unreachable' });
+  }
+});
+
+// A `todo.*` entity's items live behind the `todo.get_items` *service*, not
+// in its own attributes (see MOCK_TODO_ITEMS's comment above for why) - same
+// "wrap a return_response service call as a plain GET" shape as
+// /api/hass/weather_forecast just above, for exactly the same reason: the
+// widget shouldn't have to know or care that this is a service call
+// underneath rather than ordinary entity state.
+app.get('/api/hass/todo_items/:entityId', async (req, res) => {
+  const { entityId } = req.params;
+  if (MOCK_MODE) {
+    return res.json({ items: MOCK_TODO_ITEMS[entityId] || [] });
+  }
+  try {
+    const upstream = await fetch(`${HA_API_BASE}/services/todo/get_items?return_response`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${SUPERVISOR_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ entity_id: entityId }),
+    });
+    if (!upstream.ok) {
+      const detail = await upstream.text().catch(() => '');
+      console.error(`[loudllama] todo.get_items -> ${upstream.status}: ${detail}`);
+      return res.status(502).json({ error: 'ha_service_failed' });
+    }
+    const body = await upstream.json();
+    // Response shape: { changed_states: [...], service_response: { "<entity_id>": { items: [...] } } }
+    const items = (body && body.service_response && body.service_response[entityId] && body.service_response[entityId].items) || [];
+    res.json({ items });
+  } catch (err) {
+    console.error('[loudllama] /api/hass/todo_items failed:', err.message);
     res.status(502).json({ error: 'ha_unreachable' });
   }
 });

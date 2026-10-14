@@ -1167,7 +1167,7 @@
   // purely decorative, doesn't touch what the widget itself renders.
   const LLW_PREVIEW_ICON = {
     room: '🏠', weather: '⛅', light: '💡', climate: '🌡️', media: '🔊', frigate: '📷', sensor: '📊', group: '🧩',
-    clock: '🕐', shortcuts: '🎬', people: '🧑‍🤝‍🧑', energy: '⚡', alarm: '🔒',
+    clock: '🕐', shortcuts: '🎬', people: '🧑‍🤝‍🧑', energy: '⚡', alarm: '🔒', todo: '📝',
   };
 
   function localized(obj) {
