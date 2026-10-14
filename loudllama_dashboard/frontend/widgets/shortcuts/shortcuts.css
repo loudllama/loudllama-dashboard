@@ -1,0 +1,130 @@
+.llw-shortcuts {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  font-family: inherit;
+  padding: 0.6rem 0.7rem 0.5rem;
+}
+
+.llw-shortcuts__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+  margin-bottom: 0.4rem;
+  /* Clears the outer "remove widget" (x) button - see the same note in
+     weather.css. */
+  padding-right: 30px;
+}
+.llw-shortcuts__name {
+  font-size: 0.78rem;
+  font-weight: 600;
+  opacity: 0.8;
+}
+.llw-shortcuts__gear {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  cursor: pointer;
+  font-size: 0.85rem;
+  line-height: 1;
+}
+.llw-shortcuts__gear:hover { background: rgba(255, 255, 255, 0.18); }
+
+.llw-shortcuts__grid {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 0.5rem;
+  overflow: auto;
+  min-height: 0;
+}
+
+.llw-shortcuts__btn {
+  flex: 1 1 calc(50% - 0.5rem);
+  min-width: 84px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  padding: 0.6rem 0.4rem;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+.llw-shortcuts__btn:hover { background: rgba(255, 255, 255, 0.12); }
+.llw-shortcuts__btn.is-firing {
+  background: rgba(255, 209, 102, 0.3);
+  border-color: #ffd166;
+  transform: scale(0.96);
+}
+.llw-shortcuts__icon { font-size: 1.3rem; line-height: 1; }
+.llw-shortcuts__label {
+  font-size: 0.72rem;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.llw-shortcuts__empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 0.85rem;
+  opacity: 0.8;
+  padding: 0.6rem;
+}
+
+.llw-shortcuts__settings {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  background: rgba(15, 18, 24, 0.92);
+  backdrop-filter: blur(2px);
+  display: none;
+  flex-direction: column;
+  gap: 0.4rem;
+  border-radius: inherit;
+  padding: 0.9rem 0.9rem 1.6rem;
+}
+.llw-shortcuts__settings.llw-open { display: flex; }
+.llw-shortcuts__settings > label:first-child { font-size: 0.72rem; opacity: 0.7; }
+.llw-shortcuts__settings-list {
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.llw-shortcuts__settings-list label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+}
+.llw-shortcuts__close {
+  align-self: flex-end;
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: #fff;
+  padding: 0.3rem 0.7rem;
+  border-radius: 6px;
+  cursor: pointer;
+}

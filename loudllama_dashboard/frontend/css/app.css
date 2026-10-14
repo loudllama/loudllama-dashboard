@@ -396,6 +396,44 @@ body.llw-edit-mode #llw-toolbar {
   opacity: 0.55;
 }
 
+/* Setup-choice picker (see app.js's showSetupChoicePicker, e.g. Alarm's
+   "simple" vs "PIN code" question) - reuses .llw-size-picker's own wrapper/
+   back-button styling above, but stacks its options as full-width rows with
+   a label + a line of explanation instead of side-by-side size previews,
+   since there's no little rectangle that could sensibly depict "asks for a
+   code first". */
+.llw-menu:has(.llw-choice-picker__options) { min-width: 260px; }
+.llw-choice-picker__options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.llw-choice-picker__opt {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 0.55rem 0.7rem;
+  cursor: pointer;
+  color: #f4f5f7;
+}
+.llw-choice-picker__opt:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.22);
+}
+.llw-choice-picker__label {
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.llw-choice-picker__desc {
+  font-size: 0.7rem;
+  opacity: 0.6;
+}
+
 #llw-loading {
   display: flex;
   align-items: center;

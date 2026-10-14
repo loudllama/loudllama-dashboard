@@ -34,6 +34,13 @@ for (const dir of [DATA_DIR, WWW_DIR, DEVICE_LAYOUTS_DIR]) {
 // Core REST API is reachable at http://supervisor/core/api.
 const SUPERVISOR_TOKEN = process.env.SUPERVISOR_TOKEN || null;
 const HA_API_BASE = 'http://supervisor/core/api';
+// Same host as HA_API_BASE, but without the `/api` suffix - used only by the
+// entity_picture proxy below, since a picture path can be either a Core API
+// path (`/api/image/serve/...`) or a plain static one HA's frontend itself
+// serves (`/local/...`, an uploaded person photo) - the two live under
+// different prefixes on the same Home Assistant host, and Supervisor's own
+// core proxy forwards both.
+const HA_CORE_BASE = 'http://supervisor/core';
 const MOCK_MODE = !SUPERVISOR_TOKEN;
 
 if (MOCK_MODE) {
@@ -101,6 +108,17 @@ const ROOM_MOCK_ENTITIES = {
   'climate.living_room': { entity_id: 'climate.living_room', state: 'heat', attributes: { friendly_name: 'Termostat', current_temperature: 21.4, temperature: 22, hvac_action: 'heating' } },
   'cover.living_room_blinds': { entity_id: 'cover.living_room_blinds', state: 'closed', attributes: { friendly_name: 'Persienner' } },
   'lock.front_door': { entity_id: 'lock.front_door', state: 'locked', attributes: { friendly_name: 'Hoveddør' } },
+  // --- Mock entities for the newer, non-Room widgets (Alarm/People/
+  // Shortcuts/Energy) - same mutable dict/mechanism as the Room-oriented
+  // entities above (mutated by applyMockService below), just not actually
+  // specific to a room.
+  'alarm_control_panel.home': { entity_id: 'alarm_control_panel.home', state: 'disarmed', attributes: { friendly_name: 'Alarm', code_format: 'number' } },
+  'person.anders': { entity_id: 'person.anders', state: 'home', attributes: { friendly_name: 'Anders' } },
+  'person.gaest': { entity_id: 'person.gaest', state: 'not_home', attributes: { friendly_name: 'Gæst' } },
+  'scene.good_night': { entity_id: 'scene.good_night', state: 'scening', attributes: { friendly_name: 'Godnat' } },
+  'script.movie_night': { entity_id: 'script.movie_night', state: 'off', attributes: { friendly_name: 'Biografaften' } },
+  'sensor.power_now': { entity_id: 'sensor.power_now', state: '842', attributes: { friendly_name: 'Effekt lige nu', unit_of_measurement: 'W', device_class: 'power' } },
+  'sensor.energy_today': { entity_id: 'sensor.energy_today', state: '4.7', attributes: { friendly_name: 'Forbrug i dag', unit_of_measurement: 'kWh', device_class: 'energy' } },
 };
 
 // Mutates ROOM_MOCK_ENTITIES to roughly emulate what the real HA service
@@ -136,6 +154,21 @@ function applyMockService(domain, service, payload) {
     } else if (domain === 'vacuum') {
       if (service === 'start') entity.state = 'cleaning';
       if (service === 'stop') entity.state = 'docked';
+    } else if (domain === 'alarm_control_panel') {
+      // Mock mode doesn't model security seriously (there's no real alarm
+      // panel behind it to protect) - any code is accepted here, unlike a
+      // real alarm_control_panel integration which would reject a wrong one
+      // by failing the service call itself (see alarm.js's own comment on
+      // how the widget tells the difference).
+      const ARM_SERVICE_TO_STATE = {
+        alarm_arm_home: 'armed_home',
+        alarm_arm_away: 'armed_away',
+        alarm_arm_night: 'armed_night',
+        alarm_arm_vacation: 'armed_vacation',
+      };
+      if (ARM_SERVICE_TO_STATE[service]) entity.state = ARM_SERVICE_TO_STATE[service];
+      else if (service === 'alarm_disarm') entity.state = 'disarmed';
+      else if (service === 'alarm_trigger') entity.state = 'triggered';
     }
   });
 }
@@ -371,6 +404,111 @@ const WIDGETS = [
       de: 'Ein leerer, benennbarer Container für andere Widgets. Gib ihm einen Namen, klicke hinein und füge die Widgets hinzu, die du zusammen gruppieren möchtest - sie lassen sich unabhängig vom Hauptdashboard verschieben und in der Größe ändern.',
       sv: 'En tom, namngivningsbar behållare för andra widgets. Ge den ett namn, klicka in i den och lägg till de widgets du vill gruppera tillsammans - de kan flyttas och storleksändras oberoende av huvudpanelen.',
       no: 'En tom, navngivbar beholder for andre widgets. Gi den et navn, klikk inn i den, og legg til de widgetene du vil samle ett sted - de kan flyttes og endres i størrelse uavhengig av hoveddashbordet.',
+    },
+  },
+  {
+    id: 'clock',
+    version: '1.0.0',
+    icon: 'clock-outline',
+    defaultSize: { w: 2, h: 2 },
+    minSize: { w: 1, h: 1 },
+    name: {
+      da: 'Klokke',
+      en: 'Clock',
+      de: 'Uhr',
+      sv: 'Klocka',
+      no: 'Klokke',
+    },
+    description: {
+      da: 'Tid og dato, opdateres hvert sekund. Ingen opsætning nødvendig - vælg bare 12- eller 24-timers format.',
+      en: 'Time and date, updating every second. No setup needed beyond picking 12- or 24-hour format.',
+      de: 'Uhrzeit und Datum, aktualisiert jede Sekunde. Keine Einrichtung nötig außer der Wahl von 12- oder 24-Stunden-Format.',
+      sv: 'Tid och datum, uppdateras varje sekund. Ingen inställning behövs utöver att välja 12- eller 24-timmarsformat.',
+      no: 'Tid og dato, oppdateres hvert sekund. Ingen oppsett nødvendig utover å velge 12- eller 24-timersformat.',
+    },
+  },
+  {
+    id: 'shortcuts',
+    version: '1.0.0',
+    icon: 'gesture-tap-button',
+    defaultSize: { w: 4, h: 2 },
+    minSize: { w: 2, h: 2 },
+    name: {
+      da: 'Genveje',
+      en: 'Shortcuts',
+      de: 'Verknüpfungen',
+      sv: 'Genvägar',
+      no: 'Genveier',
+    },
+    description: {
+      da: 'En lille gitter af knapper der hver kører en Home Assistant-scene eller -script med ét tryk ("Godnat", "Biografaften", osv).',
+      en: 'A small grid of buttons, each running one Home Assistant scene or script with a single tap ("Good night", "Movie night", etc).',
+      de: 'Ein kleines Raster von Schaltflächen, die jeweils eine Home-Assistant-Szene oder ein Skript mit einem Tipp ausführen ("Gute Nacht", "Kinoabend" usw).',
+      sv: 'Ett litet rutnät med knappar som var och en kör en Home Assistant-scen eller -skript med ett tryck ("God natt", "Filmkväll" osv).',
+      no: 'Et lite rutenett med knapper som hver kjører en Home Assistant-scene eller -skript med ett trykk ("God natt", "Filmkveld" osv).',
+    },
+  },
+  {
+    id: 'people',
+    version: '1.0.0',
+    icon: 'account-group',
+    defaultSize: { w: 2, h: 3 },
+    minSize: { w: 2, h: 2 },
+    name: {
+      da: 'Hvem er hjemme',
+      en: 'Who’s home',
+      de: 'Wer ist da',
+      sv: 'Vem är hemma',
+      no: 'Hvem er hjemme',
+    },
+    description: {
+      da: 'Lister alle person-enheder i Home Assistant med billede og hjemme/ude-status. Ingen opsætning nødvendig - viser alle som standard.',
+      en: 'Lists every person entity in Home Assistant with their photo and home/away status. No setup needed - shows everyone by default.',
+      de: 'Listet alle Personen-Entitäten in Home Assistant mit Foto und Zuhause/Unterwegs-Status auf. Keine Einrichtung nötig - zeigt standardmäßig alle an.',
+      sv: 'Listar alla person-entiteter i Home Assistant med foto och hemma/borta-status. Ingen inställning behövs - visar alla som standard.',
+      no: 'Lister alle person-enheter i Home Assistant med bilde og hjemme/ute-status. Ingen oppsett nødvendig - viser alle som standard.',
+    },
+  },
+  {
+    id: 'energy',
+    version: '1.0.0',
+    icon: 'lightning-bolt',
+    defaultSize: { w: 2, h: 2 },
+    minSize: { w: 2, h: 1 },
+    name: {
+      da: 'Energi',
+      en: 'Energy',
+      de: 'Energie',
+      sv: 'Energi',
+      no: 'Energi',
+    },
+    description: {
+      da: 'Aktuelt strømforbrug og/eller dagens forbrug, fra to valgfrie sensor-entiteter du selv vælger.',
+      en: 'Current power draw and/or today’s usage, from two optional sensor entities you pick yourself.',
+      de: 'Aktuelle Leistungsaufnahme und/oder heutiger Verbrauch, aus zwei optionalen, selbst gewählten Sensor-Entitäten.',
+      sv: 'Aktuell strömförbrukning och/eller dagens förbrukning, från två valfria sensor-entiteter du själv väljer.',
+      no: 'Nåværende strømforbruk og/eller dagens forbruk, fra to valgfrie sensor-enheter du selv velger.',
+    },
+  },
+  {
+    id: 'alarm',
+    version: '1.0.0',
+    icon: 'shield-lock',
+    defaultSize: { w: 2, h: 2 },
+    minSize: { w: 2, h: 2 },
+    name: {
+      da: 'Alarm',
+      en: 'Alarm',
+      de: 'Alarm',
+      sv: 'Larm',
+      no: 'Alarm',
+    },
+    description: {
+      da: 'Til-/frakobl en alarm-enhed (Alarmo og de fleste andre virker). Vælg ved tilføjelse om den skal bruge simple et-tryk-knapper eller spørge om en PIN-kode først.',
+      en: 'Arm/disarm an alarm entity (Alarmo and most others work). Choose when adding it whether it uses simple one-tap buttons or asks for a PIN code first.',
+      de: 'Eine Alarmanlagen-Entität scharf-/unscharf schalten (Alarmo und die meisten anderen funktionieren). Wähle beim Hinzufügen, ob einfache Ein-Tipp-Tasten verwendet werden oder zuerst ein PIN-Code abgefragt wird.',
+      sv: 'Till-/frånkoppla en larm-entitet (Alarmo och de flesta andra fungerar). Välj vid tillägg om den ska använda enkla ett-tryck-knappar eller fråga om en PIN-kod först.',
+      no: 'Til-/frakobl en alarm-enhet (Alarmo og de fleste andre fungerer). Velg ved tillegg om den skal bruke enkle ett-trykk-knapper eller spørre om en PIN-kode først.',
     },
   },
 ];
@@ -834,6 +972,38 @@ app.get('/api/hass/camera_snapshot/:entityId', async (req, res) => {
     upstream.body.pipe(res);
   } catch (err) {
     console.error('[loudllama] camera_snapshot failed:', err.message);
+    res.status(502).end();
+  }
+});
+
+// --- Entity picture proxy (People widget) ------------------------------------
+// A person entity's `entity_picture` attribute is a path on Home Assistant's
+// OWN host, not ours - this page runs inside an Ingress iframe under a
+// different, per-session path, so the browser can't just load that path
+// directly (and in production, authless anyway - HA requires the same
+// Authorization this backend already holds for everything else). Mirrors
+// the existing camera_snapshot proxy below in spirit: fetch it from the HA
+// side with our Supervisor token and pipe the bytes straight through.
+app.get('/api/hass/entity_picture/:entityId', async (req, res) => {
+  const { entityId } = req.params;
+  if (MOCK_MODE) return res.status(404).end(); // no mock entity has a real photo - frontend falls back to initials
+  try {
+    const entity = await haFetch(`/states/${encodeURIComponent(entityId)}`);
+    const picturePath = entity && entity.attributes && entity.attributes.entity_picture;
+    if (!picturePath) return res.status(404).end();
+    // See HA_CORE_BASE above: a Core API path and a plain static one live
+    // under different prefixes on the same host.
+    const upstreamUrl = picturePath.startsWith('/api/')
+      ? `${HA_API_BASE}${picturePath.slice(4)}`
+      : `${HA_CORE_BASE}${picturePath}`;
+    const upstream = await fetch(upstreamUrl, {
+      headers: { Authorization: `Bearer ${SUPERVISOR_TOKEN}` },
+    });
+    if (!upstream.ok) return res.status(502).end();
+    res.set('Content-Type', upstream.headers.get('content-type') || 'image/jpeg');
+    upstream.body.pipe(res);
+  } catch (err) {
+    console.error('[loudllama] entity_picture proxy failed:', err.message);
     res.status(502).end();
   }
 });

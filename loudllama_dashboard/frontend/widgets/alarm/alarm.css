@@ -1,0 +1,242 @@
+.llw-alarm {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  font-family: inherit;
+  padding: 0.7rem 0.8rem 0.6rem;
+}
+
+.llw-alarm__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+  /* Clears the outer "remove widget" (x) button - see the same note in
+     weather.css. */
+  padding-right: 30px;
+}
+.llw-alarm__name {
+  font-size: 0.78rem;
+  font-weight: 600;
+  opacity: 0.8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.llw-alarm__gear {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  cursor: pointer;
+  font-size: 0.85rem;
+  line-height: 1;
+}
+.llw-alarm__gear:hover { background: rgba(255, 255, 255, 0.18); }
+
+.llw-alarm__body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  min-height: 0;
+}
+
+.llw-alarm__empty {
+  font-size: 0.75rem;
+  opacity: 0.55;
+  text-align: center;
+  padding: 0 0.4rem;
+}
+
+.llw-alarm__status {
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-align: center;
+  padding: 0.3rem 0.8rem;
+  border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.llw-alarm__status.is-disarmed {
+  color: #8ee6a8;
+  background: rgba(142, 230, 168, 0.14);
+}
+.llw-alarm__status.is-armed {
+  color: #8ab4ff;
+  background: rgba(138, 180, 255, 0.14);
+}
+.llw-alarm__status.is-busy {
+  color: #ffd166;
+  background: rgba(255, 209, 102, 0.16);
+  animation: llw-alarm-pulse 1.2s ease-in-out infinite;
+}
+.llw-alarm__status.is-triggered {
+  color: #fff;
+  background: #e0453f;
+  animation: llw-alarm-pulse 0.6s ease-in-out infinite;
+}
+@keyframes llw-alarm-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+.llw-alarm__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  justify-content: center;
+}
+.llw-alarm__action {
+  padding: 0.45rem 0.8rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.llw-alarm__action:hover { background: rgba(255, 255, 255, 0.16); }
+.llw-alarm__action--disarm {
+  border-color: #8ee6a8;
+  background: rgba(142, 230, 168, 0.18);
+}
+
+.llw-alarm__settings {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  background: rgba(20, 24, 32, 0.9);
+  backdrop-filter: blur(2px);
+  display: none;
+  flex-direction: column;
+  gap: 0.35rem;
+  border-radius: inherit;
+  padding: 0.8rem 0.8rem 1.6rem;
+}
+.llw-alarm__settings.llw-open { display: flex; }
+.llw-alarm__settings label { font-size: 0.72rem; opacity: 0.7; }
+.llw-alarm__select {
+  width: 100%;
+  padding: 0.4rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+.llw-alarm__select option { color: #111; }
+.llw-alarm__mode-row { display: flex; gap: 0.4rem; }
+.llw-alarm__mode-opt {
+  flex: 1;
+  padding: 0.4rem 0.3rem;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  cursor: pointer;
+  font-size: 0.75rem;
+}
+.llw-alarm__mode-opt.is-active {
+  border-color: #ffd166;
+  background: rgba(255, 209, 102, 0.22);
+}
+.llw-alarm__close {
+  align-self: flex-end;
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: #fff;
+  padding: 0.3rem 0.7rem;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+/* --- Code keypad overlay ---------------------------------------------------
+   Only used when this widget's mode is 'code' (see alarm.js's requestAction)
+   - a self-contained numeric keypad covering the tile, same inset-overlay
+   approach as .llw-alarm__settings above rather than the app's shared
+   fullscreen-popup system, since this never needs to be bigger than the
+   widget's own tile. */
+.llw-alarm__keypad {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  background: rgba(10, 12, 16, 0.95);
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: inherit;
+  padding: 0.6rem;
+}
+.llw-alarm__keypad.llw-open { display: flex; }
+.llw-alarm__keypad-dots {
+  min-height: 1.4rem;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.llw-alarm__keypad-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #ffd166;
+}
+.llw-alarm__keypad-placeholder {
+  font-size: 0.72rem;
+  opacity: 0.55;
+}
+.llw-alarm__keypad-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.3rem;
+  width: 100%;
+  max-width: 180px;
+}
+.llw-alarm__keypad-key {
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+.llw-alarm__keypad-key:hover { background: rgba(255, 255, 255, 0.16); }
+.llw-alarm__keypad-key--ok {
+  grid-column: span 1;
+  border-color: #8ee6a8;
+  background: rgba(142, 230, 168, 0.18);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+.llw-alarm__keypad-actions {
+  display: flex;
+  gap: 0.5rem;
+  width: 100%;
+  max-width: 180px;
+}
+.llw-alarm__keypad-cancel {
+  flex: 1;
+  padding: 0.35rem;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: transparent;
+  color: #fff;
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+.llw-alarm__keypad-error {
+  font-size: 0.7rem;
+  color: #ff8a80;
+  min-height: 1em;
+}

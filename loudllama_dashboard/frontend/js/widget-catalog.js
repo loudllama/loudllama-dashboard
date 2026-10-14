@@ -24,5 +24,10 @@
     { id: 'sensor', js: 'widgets/sensor/sensor.js', css: 'widgets/sensor/sensor.css' },
     { id: 'media', js: 'widgets/media/media.js', css: 'widgets/media/media.css' },
     { id: 'group', js: 'widgets/group/group.js', css: 'widgets/group/group.css' },
+    { id: 'clock', js: 'widgets/clock/clock.js', css: 'widgets/clock/clock.css' },
+    { id: 'shortcuts', js: 'widgets/shortcuts/shortcuts.js', css: 'widgets/shortcuts/shortcuts.css' },
+    { id: 'people', js: 'widgets/people/people.js', css: 'widgets/people/people.css' },
+    { id: 'energy', js: 'widgets/energy/energy.js', css: 'widgets/energy/energy.css' },
+    { id: 'alarm', js: 'widgets/alarm/alarm.js', css: 'widgets/alarm/alarm.css' },
   ];
 })();

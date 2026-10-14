@@ -1165,7 +1165,10 @@
   // Small representative emoji per widget type, used only as the icon shown
   // inside each size option's preview rectangle in the picker below -
   // purely decorative, doesn't touch what the widget itself renders.
-  const LLW_PREVIEW_ICON = { room: '🏠', weather: '⛅', light: '💡', climate: '🌡️', media: '🔊', frigate: '📷', sensor: '📊', group: '🧩' };
+  const LLW_PREVIEW_ICON = {
+    room: '🏠', weather: '⛅', light: '💡', climate: '🌡️', media: '🔊', frigate: '📷', sensor: '📊', group: '🧩',
+    clock: '🕐', shortcuts: '🎬', people: '🧑‍🤝‍🧑', energy: '⚡', alarm: '🔒',
+  };
 
   function localized(obj) {
     return (obj && (obj[LL.i18n.lang] || obj.en)) || '';
@@ -1212,10 +1215,15 @@
       btn.className = 'llw-menu-item';
       btn.textContent = (def.name && (def.name[LL.i18n.lang] || def.name.en)) || id;
       btn.addEventListener('click', () => {
-        // A widget that declares two preset sizes asks which one first
-        // (see showSizePicker) instead of landing on the dashboard right
-        // away - everything else keeps the original one-click add.
-        if (def.sizeVariants) {
+        // A widget that declares a setupChoice (see e.g. alarm.js) asks a
+        // one-off question that ISN'T about size - picked once up front
+        // the same way a size is, just saved into config under its own key
+        // instead of becoming w/h. A widget that declares sizeVariants
+        // instead asks which preset size first (see showSizePicker).
+        // Everything else keeps the original one-click add.
+        if (def.setupChoice) {
+          showSetupChoicePicker(id, def);
+        } else if (def.sizeVariants) {
           showSizePicker(id, def);
         } else {
           addWidgetFromMenu(id, def);
@@ -1273,6 +1281,49 @@
         const variant = def.sizeVariants[btn.dataset.variant];
         const config = { ...(def.defaultConfig ? def.defaultConfig() : {}), sizeVariant: btn.dataset.variant };
         addWidgetElement({ type: id, page: currentPage, w: variant.w, h: variant.h, config });
+        scheduleSave();
+        menu.classList.remove('llw-open');
+        buildAddWidgetMenu(); // reset back to the main list for next time
+      });
+    });
+  }
+
+  // Same spirit as showSizePicker above, but for a one-off setup QUESTION
+  // that isn't about size at all - e.g. the Alarm widget's "simple one-tap
+  // buttons, or ask for a PIN code first?" (see alarm.js's registerWidget
+  // call, def.setupChoice). The picked value is saved into config under
+  // def.setupChoice.key, at the widget's own defaultSize - a widget needing
+  // this kind of choice has one fixed size, size and setup-choice pickers
+  // are never both declared on the same widget.
+  function showSetupChoicePicker(id, def) {
+    const menu = document.getElementById('llw-add-widget-menu');
+    const choice = def.setupChoice;
+    menu.innerHTML = `
+      <div class="llw-size-picker">
+        <button type="button" class="llw-size-picker__back">‹ ${(def.name && localized(def.name)) || id}</button>
+        <div class="llw-choice-picker__options">
+          ${choice.options
+            .map(
+              (opt) => `
+              <button type="button" class="llw-choice-picker__opt" data-value="${opt.value}">
+                <span class="llw-choice-picker__label">${localized(opt.label)}</span>
+                <span class="llw-choice-picker__desc">${localized(opt.desc)}</span>
+              </button>`
+            )
+            .join('')}
+        </div>
+      </div>
+    `;
+    menu.querySelector('.llw-size-picker__back').addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      buildAddWidgetMenu();
+    });
+    menu.querySelectorAll('.llw-choice-picker__opt').forEach((btn) => {
+      btn.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        const size = def.defaultSize || { w: 2, h: 2 };
+        const config = { ...(def.defaultConfig ? def.defaultConfig() : {}), [choice.key]: btn.dataset.value };
+        addWidgetElement({ type: id, page: currentPage, w: size.w, h: size.h, config });
         scheduleSave();
         menu.classList.remove('llw-open');
         buildAddWidgetMenu(); // reset back to the main list for next time

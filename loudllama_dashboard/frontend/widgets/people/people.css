@@ -1,0 +1,153 @@
+.llw-people {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  font-family: inherit;
+  padding: 0.6rem 0.7rem 0.5rem;
+}
+
+.llw-people__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+  margin-bottom: 0.3rem;
+  /* Clears the outer "remove widget" (x) button - see the same note in
+     weather.css. */
+  padding-right: 30px;
+}
+.llw-people__name {
+  font-size: 0.78rem;
+  font-weight: 600;
+  opacity: 0.8;
+}
+.llw-people__gear {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  cursor: pointer;
+  font-size: 0.85rem;
+  line-height: 1;
+}
+.llw-people__gear:hover { background: rgba(255, 255, 255, 0.18); }
+
+.llw-people__list {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  overflow: auto;
+  min-height: 0;
+}
+
+.llw-people__row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.llw-people__avatar {
+  position: relative;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #5b6472, #343b45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+.llw-people__initials {
+  font-size: 0.8rem;
+  font-weight: 700;
+  opacity: 0.85;
+}
+.llw-people__photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0; /* only shown once it's actually loaded - see .has-photo */
+}
+.llw-people__avatar.has-photo .llw-people__photo { opacity: 1; }
+.llw-people__avatar.has-photo .llw-people__initials { visibility: hidden; }
+
+.llw-people__info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.llw-people__person-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.llw-people__state {
+  font-size: 0.72rem;
+  opacity: 0.65;
+  text-transform: capitalize;
+}
+.llw-people__state.is-home {
+  color: #8ee6a8;
+  opacity: 1;
+}
+
+.llw-people__empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 0.85rem;
+  opacity: 0.8;
+  padding: 0.6rem;
+}
+
+.llw-people__settings {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  background: rgba(15, 18, 24, 0.92);
+  backdrop-filter: blur(2px);
+  display: none;
+  flex-direction: column;
+  gap: 0.4rem;
+  border-radius: inherit;
+  padding: 0.9rem 0.9rem 1.6rem;
+}
+.llw-people__settings.llw-open { display: flex; }
+.llw-people__settings > label:first-child { font-size: 0.72rem; opacity: 0.7; }
+.llw-people__settings-list {
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.llw-people__settings-list label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+}
+.llw-people__close {
+  align-self: flex-end;
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: #fff;
+  padding: 0.3rem 0.7rem;
+  border-radius: 6px;
+  cursor: pointer;
+}
