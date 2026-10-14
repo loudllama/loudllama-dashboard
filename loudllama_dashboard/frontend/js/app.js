@@ -1064,7 +1064,27 @@
       deepQueryAll(topDoc, 'ha-sidebar').forEach((sidebar) => {
         const rect = sidebar.getBoundingClientRect();
         const alreadyHandled = getComputedStyle(sidebar).display === 'none' || (rect.width < 8 && rect.height < 8);
-        if (!alreadyHandled) hideAndReclaimSpace(sidebar);
+        if (!alreadyHandled) {
+          hideAndReclaimSpace(sidebar);
+          // The thin vertical bar some Home Assistant frontend versions
+          // render right next to the sidebar (to drag-resize it) is its OWN
+          // separate sibling element, not part of ha-sidebar itself - hiding
+          // the sidebar alone leaves this behind as a persistent hairline
+          // running down the screen exactly where the sidebar used to be,
+          // reported directly: "der er stadig den streg ned gennem, der hvor
+          // sidepanelet ville have gået". It has no stable, version-proof
+          // name to look for the way ha-sidebar/ha-menu-button do, so this
+          // finds it by *shape* instead, right where it would have to be
+          // (a sibling of the sidebar we just hid): unmistakably a thin
+          // vertical bar (narrow, but far taller than it is wide) rather
+          // than any real panel content, which nothing legitimate on this
+          // page should ever look like.
+          siblingsOf(sidebar).forEach((sib) => {
+            if (sib === sidebar) return;
+            const sr = sib.getBoundingClientRect();
+            if (sr.width > 0 && sr.width < 12 && sr.height > 100 && sr.height > sr.width * 10) hide(sib);
+          });
+        }
       });
       deepQueryAll(topDoc, 'ha-menu-button').forEach(hide);
       fixIframeHeight(frame);
@@ -1446,7 +1466,25 @@
         // complexity: a reload re-runs init() from scratch, which reads the
         // setting we just saved and applies (or skips) kiosk mode exactly
         // the same way a normal page load would.
-        window.location.reload();
+        //
+        // Was `window.location.reload()` - that only reloads THIS page, i.e.
+        // our own content *inside* the Ingress <iframe>. applyKioskMode()
+        // doesn't touch anything in here, though - every mutation it makes
+        // (hiding ha-sidebar, rewriting the app-shell's own
+        // grid-template-columns, forcing our iframe to a fixed full-bleed
+        // box, hiding its toolbar) lives on window.top's document, i.e. Home
+        // Assistant's own top-level page around us. Reloading only the
+        // iframe left every one of those changes sitting there completely
+        // untouched - turning kiosk mode back off visibly saved the setting
+        // and reloaded, yet the sidebar never came back, because nothing
+        // had actually asked window.top to reload. window.top.location is
+        // the same physical browser tab/window Ingress is simply hosting us
+        // inside of (same-origin, like the Settings link above) - reloading
+        // that reloads Home Assistant's entire own UI from a clean slate
+        // (sidebar and all), which naturally reloads this iframe along with
+        // it and then re-runs init() exactly as intended, just for real
+        // this time.
+        window.top.location.reload();
       });
     }
 
