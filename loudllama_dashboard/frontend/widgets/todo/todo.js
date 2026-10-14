@@ -32,7 +32,7 @@
       <div class="llw-todo">
         <div class="llw-todo__head">
           <span class="llw-todo__name">${t('todo', 'chooseEntity')}</span>
-          <button class="llw-todo__gear" type="button" title="${t('todo', 'chooseEntity')}">⚙</button>
+          <button class="llw-todo__gear" type="button" title="${t('todo', 'chooseEntity')}">${LL.icons.gear()}</button>
         </div>
         <form class="llw-todo__add-row">
           <input type="text" class="llw-todo__add-input" placeholder="${t('todo', 'addPlaceholder')}" maxlength="200" />

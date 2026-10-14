@@ -78,6 +78,14 @@
   filter: grayscale(1) opacity(0.5);
   transition: all 0.2s ease;
 }
+/* Sizes the hand-drawn bulb SVG widget-icons.js now gives this button -
+   the grayscale-when-off/glow-when-on look above (filter, box-shadow) still
+   applies to the whole button regardless of what's inside it, so that part
+   needed no change; only the plain 💡 character's own font-size-based
+   sizing needed an explicit replacement, since an <svg> doesn't respond to
+   font-size. */
+.llw-light__bulb svg { width: 1.6rem; height: 1.6rem; display: block; }
+.llw-widget-light--compact .llw-light__bulb svg { width: 1.3rem; height: 1.3rem; }
 .llw-light__toggle.is-on {
   border-color: #ffd166;
   background: rgba(255, 209, 102, 0.18);

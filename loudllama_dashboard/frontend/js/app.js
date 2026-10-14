@@ -1145,10 +1145,17 @@
     document.getElementById('llw-add-widget').textContent = `+ ${t('app', 'addWidget')}`;
     document.getElementById('llw-bg-label').textContent = t('app', 'background');
     document.getElementById('llw-bg-file').title = t('app', 'changeBackground');
+    // Toolbar icon() helper: wraps one of widget-icons.js's hand-drawn SVGs
+    // in a small sizing span - these buttons used to just be
+    // `${emoji} ${label}` plain text (textContent), which doesn't work for
+    // markup, so these three now build innerHTML instead. See
+    // widget-icons.js's own top comment for why a flat platform emoji
+    // (🧩/⚙️/🖥️ before this) looked out of place next to Room/Weather's
+    // already-hand-drawn icons.
     const storeBtn = document.getElementById('llw-store-open');
-    if (storeBtn) storeBtn.textContent = `🧩 ${t('app', 'widgetStore')}`;
+    if (storeBtn) storeBtn.innerHTML = `<span class="llw-toolbar__icon">${LL.icons.puzzle()}</span> ${t('app', 'widgetStore')}`;
     const haSettingsBtn = document.getElementById('llw-ha-settings');
-    if (haSettingsBtn) haSettingsBtn.textContent = `⚙️ ${t('app', 'haSettings')}`;
+    if (haSettingsBtn) haSettingsBtn.innerHTML = `<span class="llw-toolbar__icon">${LL.icons.gear()}</span> ${t('app', 'haSettings')}`;
     updateKioskToggleButton();
   }
 
@@ -1159,16 +1166,8 @@
   function updateKioskToggleButton() {
     const btn = document.getElementById('llw-kiosk-toggle');
     if (!btn) return;
-    btn.textContent = `🖥️ ${kioskModeSetting ? t('app', 'kioskModeOn') : t('app', 'kioskModeOff')}`;
+    btn.innerHTML = `<span class="llw-toolbar__icon">${LL.icons.monitor()}</span> ${kioskModeSetting ? t('app', 'kioskModeOn') : t('app', 'kioskModeOff')}`;
   }
-
-  // Small representative emoji per widget type, used only as the icon shown
-  // inside each size option's preview rectangle in the picker below -
-  // purely decorative, doesn't touch what the widget itself renders.
-  const LLW_PREVIEW_ICON = {
-    room: '🏠', weather: '⛅', light: '💡', climate: '🌡️', media: '🔊', frigate: '📷', sensor: '📊', group: '🧩',
-    clock: '🕐', shortcuts: '🎬', people: '🧑‍🤝‍🧑', energy: '⚡', alarm: '🔒', todo: '📝',
-  };
 
   function localized(obj) {
     return (obj && (obj[LL.i18n.lang] || obj.en)) || '';
@@ -1248,7 +1247,7 @@
   // if a future one needs a size this list doesn't name, just add it here).
   function showSizePicker(id, def) {
     const menu = document.getElementById('llw-add-widget-menu');
-    const icon = LLW_PREVIEW_ICON[id] || '◻';
+    const icon = LL.icons.widgetType(id) || '◻';
     const variantKeys = ['full', 'wide', 'compact'].filter((k) => def.sizeVariants[k]);
     menu.innerHTML = `
       <div class="llw-size-picker">

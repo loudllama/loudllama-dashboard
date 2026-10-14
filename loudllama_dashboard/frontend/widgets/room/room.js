@@ -35,10 +35,12 @@
   const OPENING_DEVICE_CLASSES = ['door', 'window', 'garage_door', 'opening'];
 
   const GROUP_ORDER = ['light', 'switch', 'climate', 'cover', 'fan', 'media', 'vacuum', 'security', 'sensor', 'other'];
-  const GROUP_ICON = {
-    light: '💡', switch: '🔌', climate: '🌡️', cover: '🪟', fan: '🌀',
-    media: '🔊', vacuum: '🤖', security: '🔒', sensor: '📊', other: '⚙️',
-  };
+  // One hand-drawn SVG per entity-domain category (see widget-icons.js's
+  // CATEGORY_ICON) - replaces what used to be a flat emoji per GROUP_ORDER
+  // entry.
+  function groupIcon(g) {
+    return LL.icons.category(g);
+  }
 
   // Preset icons offered for the compact (1x1) size variant - see
   // sizeVariants on registerWidget below and renderCompact()'s
@@ -501,7 +503,7 @@
         <div class="llw-room__content">
           <div class="llw-room__head">
             <span class="llw-room__name"></span>
-            <button class="llw-room__gear" type="button">⚙</button>
+            <button class="llw-room__gear" type="button">${LL.icons.gear()}</button>
           </div>
           <div class="llw-room__glance"></div>
           <div class="llw-room__compact-icon"></div>
@@ -744,7 +746,7 @@
           .map(
             (g) => `
             <div class="llw-room__editor-group">
-              <div class="llw-room__editor-group-label">${GROUP_ICON[g]} ${t('room', `groups.${g}`)}</div>
+              <div class="llw-room__editor-group-label">${groupIcon(g)} ${t('room', `groups.${g}`)}</div>
               ${byGroup[g]
                 .map(
                   (e) => `
@@ -963,7 +965,7 @@
           </div>` : ''}
         <div class="llw-room__chips">
           ${GROUP_ORDER.filter((g) => counts[g])
-            .map((g) => `<span class="llw-room__chip" title="${t('room', `groups.${g}`)}">${GROUP_ICON[g]}<b>${counts[g]}</b></span>`)
+            .map((g) => `<span class="llw-room__chip" title="${t('room', `groups.${g}`)}">${groupIcon(g)}<b>${counts[g]}</b></span>`)
             .join('')}
         </div>
         <div class="llw-room__hint">${t('room', 'tapToOpen')}</div>
@@ -1170,7 +1172,7 @@
         .map(
           (g) => `
           <div class="llw-room-modal__group">
-            <div class="llw-room-modal__group-label">${GROUP_ICON[g]} ${t('room', `groups.${g}`)}</div>
+            <div class="llw-room-modal__group-label">${groupIcon(g)} ${t('room', `groups.${g}`)}</div>
             ${byGroup[g].map(rowHtml).join('')}
           </div>`
         )

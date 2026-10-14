@@ -100,6 +100,7 @@ body.llw-edit-mode .llw-group__gear { display: inline-flex; }
   font-size: 1.1rem;
   aspect-ratio: 1;
 }
+.llw-group__stack-cell svg { width: 60%; height: 60%; display: block; }
 /* Fewer than 4 items still lays out as a proper 2x2 grid (empty cells just
    stay blank) rather than stretching 1-3 tiles to fill the space. */
 .llw-group__stack-cell:nth-child(1) { grid-area: 1 / 1; }

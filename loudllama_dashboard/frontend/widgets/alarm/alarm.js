@@ -46,7 +46,7 @@
       <div class="llw-alarm">
         <div class="llw-alarm__head">
           <span class="llw-alarm__name">${t('alarm', 'chooseEntity')}</span>
-          <button class="llw-alarm__gear" type="button" title="${t('alarm', 'chooseEntity')}">⚙</button>
+          <button class="llw-alarm__gear" type="button" title="${t('alarm', 'chooseEntity')}">${LL.icons.gear()}</button>
         </div>
         <div class="llw-alarm__body"></div>
         <div class="llw-alarm__keypad">

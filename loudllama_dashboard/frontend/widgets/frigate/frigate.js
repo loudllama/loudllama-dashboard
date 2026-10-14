@@ -86,7 +86,7 @@
     el.innerHTML = `
       <div class="llw-frigate">
         <div class="llw-frigate__head">
-          <button class="llw-frigate__gear" type="button" title="${t('frigate', 'chooseCameras')}">⚙</button>
+          <button class="llw-frigate__gear" type="button" title="${t('frigate', 'chooseCameras')}">${LL.icons.gear()}</button>
         </div>
         <div class="llw-frigate__grid"></div>
         <div class="llw-frigate__settings">

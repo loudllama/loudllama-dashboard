@@ -31,7 +31,7 @@
       <div class="llw-energy">
         <div class="llw-energy__head">
           <span class="llw-energy__name">${t('energy', 'title')}</span>
-          <button class="llw-energy__gear" type="button" title="${t('energy', 'settings')}">⚙</button>
+          <button class="llw-energy__gear" type="button" title="${t('energy', 'settings')}">${LL.icons.gear()}</button>
         </div>
         <div class="llw-energy__body"></div>
         <div class="llw-energy__settings">

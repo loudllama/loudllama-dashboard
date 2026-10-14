@@ -37,7 +37,7 @@
       <div class="llw-media">
         <div class="llw-media__head">
           <span class="llw-media__name">${t('media', 'chooseEntity')}</span>
-          <button class="llw-media__gear" type="button" title="${t('media', 'chooseEntity')}">⚙</button>
+          <button class="llw-media__gear" type="button" title="${t('media', 'chooseEntity')}">${LL.icons.gear()}</button>
         </div>
         <div class="llw-media__body"></div>
         <div class="llw-media__settings">
@@ -121,7 +121,7 @@
       if (isCompact) {
         // Icon + player name only - no track/artist, no play/pause, no
         // volume. See isCompact's comment in mount() above.
-        bodyEl.innerHTML = `<div class="llw-media__compact-icon">🔊</div>`;
+        bodyEl.innerHTML = `<div class="llw-media__compact-icon">${LL.icons.widgetType('media')}</div>`;
         return;
       }
 

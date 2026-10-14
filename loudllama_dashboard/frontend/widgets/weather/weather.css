@@ -120,6 +120,8 @@ body.llw-edit-mode .llw-weather__gear { display: inline-flex; }
   opacity: 0.9;
 }
 .llw-weather__meta span { display: flex; align-items: center; gap: 0.25rem; }
+.llw-weather__meta-icon { display: inline-flex; width: 0.95rem; height: 0.95rem; flex-shrink: 0; }
+.llw-weather__meta-icon svg { width: 100%; height: 100%; display: block; }
 
 .llw-weather__forecast {
   display: flex;
@@ -186,6 +188,7 @@ body.llw-edit-mode .llw-weather__gear { display: inline-flex; }
   gap: 0.15rem;
   font-size: 0.64rem;
 }
+.llw-weather--compact .llw-weather__meta-icon { width: 0.8rem; height: 0.8rem; }
 
 .llw-weather__empty {
   flex: 1;

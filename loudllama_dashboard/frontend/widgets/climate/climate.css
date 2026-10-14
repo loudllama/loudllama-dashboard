@@ -110,6 +110,7 @@
 .llw-widget-climate--compact .llw-climate__head { justify-content: flex-end; padding-right: 24px; }
 .llw-widget-climate--compact .llw-climate__name { display: none; }
 .llw-climate__compact-icon { font-size: 1.1rem; opacity: 0.85; }
+.llw-climate__compact-icon svg { width: 1.6rem; height: 1.6rem; display: block; }
 .llw-widget-climate--compact .llw-climate__current { font-size: 1.3rem; }
 .llw-climate__settings label { font-size: 0.72rem; opacity: 0.7; }
 .llw-climate__select {

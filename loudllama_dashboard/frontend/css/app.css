@@ -311,6 +311,22 @@ body.llw-edit-mode #llw-toolbar {
 .llw-toolbar__actions button:hover,
 .llw-bg-upload:hover { background: rgba(255, 255, 255, 0.18); }
 
+/* Sizes the hand-drawn SVG icons widget-icons.js hands to the Widgets/Home
+   Assistant/Kiosk mode toolbar buttons (localizeChrome/
+   updateKioskToggleButton in app.js) - these replaced a plain inline emoji
+   character, which sized itself off the button's own font-size with no CSS
+   needed; an <svg> needs an explicit box or it renders at the browser's own
+   (much bigger) intrinsic default. vertical-align keeps it level with the
+   button's text baseline instead of sitting a few px low. */
+.llw-toolbar__icon {
+  display: inline-flex;
+  width: 1.1em;
+  height: 1.1em;
+  vertical-align: -0.2em;
+  margin-right: 0.15em;
+}
+.llw-toolbar__icon svg { width: 100%; height: 100%; display: block; }
+
 .llw-bg-upload input[type="file"] { display: none; }
 
 .llw-add-widget-wrap { position: relative; }
@@ -405,6 +421,16 @@ body.llw-edit-mode #llw-toolbar {
   border-radius: 8px;
   font-size: 1.1rem;
 }
+/* Sizes the hand-drawn SVG widget-icons.js now puts inside the preview
+   rectangle above, same reasoning as .llw-toolbar__icon in this file - an
+   <svg> needs an explicit box, unlike the plain emoji character this used
+   to hold which just sized itself off font-size. */
+.llw-size-picker__icon {
+  display: inline-flex;
+  width: 1.7rem;
+  height: 1.7rem;
+}
+.llw-size-picker__icon svg { width: 100%; height: 100%; display: block; }
 .llw-size-picker__label {
   font-size: 0.72rem;
   font-weight: 600;
@@ -1047,6 +1073,15 @@ body.llw-edit-mode .grid-stack-item-content {
 .llw-widget-shell:has(.llw-remove:hover, .llw-pin:hover, .llw-page-prev:hover, .llw-page-next:hover, [class*="__gear"]:hover) {
   animation: none !important;
 }
+
+/* Sizes widget-icons.js's hand-drawn gear SVG inside every widget's own
+   settings button (same [class*="__gear"] selector as above, for the same
+   "one rule instead of enumerating every widget" reason) - these used to
+   hold a plain ⚙ character sized by each button's own font-size, which an
+   <svg> doesn't respond to, so it needs an explicit size instead. 60% of
+   the button's own box reproduces roughly how much of the circle the old
+   character glyph visually filled. */
+[class*="__gear"] svg { width: 60%; height: 60%; display: block; }
 
 .llw-error {
   padding: 1rem;

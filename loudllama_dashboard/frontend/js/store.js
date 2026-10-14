@@ -15,15 +15,6 @@
   const LL = (window.LoudLlama = window.LoudLlama || {});
   const { t } = LL.i18n;
 
-  // Purely decorative fallback so the store has *something* to show next to
-  // each widget without pulling in an icon font. Unknown future widget ids
-  // just get a generic puzzle piece.
-  const EMOJI = {
-    weather: '🌤️',
-    frigate: '📷',
-    room: '🚪',
-  };
-
   let activeModal = null;
   let pendingIds = null; // in-flight optimistic install/uninstall state
 
@@ -74,7 +65,7 @@
       const row = document.createElement('div');
       row.className = 'llw-store-item';
       row.innerHTML = `
-        <div class="llw-store-item__icon">${EMOJI[widget.id] || '🧩'}</div>
+        <div class="llw-store-item__icon">${LL.icons.widgetType(widget.id) || LL.icons.puzzle()}</div>
         <div class="llw-store-item__text">
           <div class="llw-store-item__name">${pick(widget.name, widget.id)}</div>
           <div class="llw-store-item__desc">${pick(widget.description, '')}</div>

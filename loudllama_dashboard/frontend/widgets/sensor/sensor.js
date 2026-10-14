@@ -13,33 +13,11 @@
 
   const POLL_MS = 15 * 1000;
 
-  // Emoji icon per Home Assistant device_class - no icon font/SVG sheet is
-  // loaded on the frontend, and pulling one in just for this would be a lot
-  // of weight for what's meant to be a small, simple widget. Falls back to a
-  // generic gauge glyph for anything not in this list.
-  const DEVICE_CLASS_ICON = {
-    temperature: '🌡️',
-    humidity: '💧',
-    power: '⚡',
-    energy: '🔌',
-    battery: '🔋',
-    illuminance: '💡',
-    pressure: '🧭',
-    gas: '🔥',
-    current: '⚡',
-    voltage: '⚡',
-    co2: '🫧',
-    carbon_dioxide: '🫧',
-    moisture: '💧',
-    wind_speed: '🌬',
-    precipitation: '🌧',
-    signal_strength: '📶',
-  };
-  const DEFAULT_ICON = '📊';
-
+  // Per-device_class icon, one hand-drawn SVG per reading type (see
+  // widget-icons.js's SENSOR_CLASS_ICON) - falls back to a generic chart
+  // glyph for anything not in that list, same as the old DEFAULT_ICON did.
   function iconFor(attrs) {
-    const dc = attrs && attrs.device_class;
-    return (dc && DEVICE_CLASS_ICON[dc]) || DEFAULT_ICON;
+    return LL.icons.sensorClass(attrs && attrs.device_class);
   }
 
   function mount(el, { config, saveConfig }) {
@@ -52,7 +30,7 @@
       <div class="llw-sensor">
         <div class="llw-sensor__head">
           <span class="llw-sensor__name">${t('sensor', 'title')}</span>
-          <button class="llw-sensor__gear" type="button" title="${t('sensor', 'chooseEntity')}">⚙</button>
+          <button class="llw-sensor__gear" type="button" title="${t('sensor', 'chooseEntity')}">${LL.icons.gear()}</button>
         </div>
         <div class="llw-sensor__body"></div>
         <div class="llw-sensor__settings">

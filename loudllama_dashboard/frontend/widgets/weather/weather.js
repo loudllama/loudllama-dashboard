@@ -462,7 +462,7 @@
         <div class="llw-weather__content">
           <div class="llw-weather__head">
             <span class="llw-weather__title">${t('weather', 'title')}</span>
-            <button class="llw-weather__gear" type="button">⚙</button>
+            <button class="llw-weather__gear" type="button">${LL.icons.gear()}</button>
           </div>
           <div class="llw-weather__state"></div>
         </div>
@@ -595,8 +595,8 @@
           </div>
         </div>
         <div class="llw-weather__meta">
-          ${attrs.humidity !== undefined ? `<span>💧 ${isCompact ? '' : `${t('weather', 'humidity')} `}${Math.round(attrs.humidity)}%</span>` : ''}
-          ${attrs.wind_speed !== undefined ? `<span>🌬 ${isCompact ? '' : `${t('weather', 'wind')} `}${Math.round(attrs.wind_speed)} ${attrs.wind_speed_unit || ''}</span>` : ''}
+          ${attrs.humidity !== undefined ? `<span><span class="llw-weather__meta-icon">${LL.icons.droplet()}</span>${isCompact ? '' : `${t('weather', 'humidity')} `}${Math.round(attrs.humidity)}%</span>` : ''}
+          ${attrs.wind_speed !== undefined ? `<span><span class="llw-weather__meta-icon">${LL.icons.windSwirl()}</span>${isCompact ? '' : `${t('weather', 'wind')} `}${Math.round(attrs.wind_speed)} ${attrs.wind_speed_unit || ''}</span>` : ''}
         </div>
         ${forecastHtml}
       `;

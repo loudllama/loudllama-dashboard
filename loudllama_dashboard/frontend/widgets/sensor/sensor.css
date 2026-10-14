@@ -63,6 +63,7 @@
   line-height: 1;
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.25));
 }
+.llw-sensor__icon svg { width: 2.4rem; height: 2.4rem; display: block; }
 
 .llw-sensor__reading {
   display: flex;

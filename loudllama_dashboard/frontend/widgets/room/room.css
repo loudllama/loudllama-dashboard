@@ -113,6 +113,7 @@ body.llw-edit-mode .llw-room__gear { display: inline-flex; }
   border-radius: 999px;
 }
 .llw-room__chip b { font-weight: 700; }
+.llw-room__chip svg { width: 0.9rem; height: 0.9rem; display: block; }
 
 .llw-room__hint {
   margin-top: auto;
@@ -409,12 +410,16 @@ body.llw-edit-mode .llw-room__gear { display: inline-flex; }
 }
 .llw-room__temp-select:disabled { opacity: 0.5; }
 .llw-room__editor-group-label {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
   font-size: 0.68rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   opacity: 0.6;
   margin-bottom: 0.25rem;
 }
+.llw-room__editor-group-label svg { width: 0.95rem; height: 0.95rem; display: block; }
 .llw-room__editor-row {
   display: flex;
   align-items: center;
@@ -630,6 +635,7 @@ body.llw-edit-mode .llw-room__gear { display: inline-flex; }
   align-items: center;
   gap: 0.4rem;
 }
+.llw-room-modal__group-label svg { width: 0.95rem; height: 0.95rem; display: block; }
 
 .llw-room__row {
   display: flex;

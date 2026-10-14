@@ -125,6 +125,11 @@
   justify-content: center;
   font-size: 1.3rem;
 }
+/* Sizes the hand-drawn SVG widget-icons.js now gives this 40x40 swatch -
+   see .llw-toolbar__icon in app.css for the same "svg needs an explicit box"
+   reasoning; this used to just hold a plain emoji character sized by the
+   font-size above. */
+.llw-store-item__icon svg { width: 26px; height: 26px; display: block; }
 
 .llw-store-item__text {
   flex: 1;

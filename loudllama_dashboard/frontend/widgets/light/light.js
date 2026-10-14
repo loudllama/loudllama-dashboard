@@ -35,7 +35,7 @@
       <div class="llw-light">
         <div class="llw-light__head">
           <span class="llw-light__name">${t('light', 'chooseEntity')}</span>
-          <button class="llw-light__gear" type="button" title="${t('light', 'chooseEntity')}">⚙</button>
+          <button class="llw-light__gear" type="button" title="${t('light', 'chooseEntity')}">${LL.icons.gear()}</button>
         </div>
         <div class="llw-light__body"></div>
         <div class="llw-light__settings">
@@ -120,7 +120,7 @@
       rootEl.classList.toggle('llw-light--on', isOn);
       bodyEl.innerHTML = `
         <button type="button" class="llw-light__toggle ${isOn ? 'is-on' : ''}" aria-label="${name}">
-          <span class="llw-light__bulb">💡</span>
+          <span class="llw-light__bulb">${LL.icons.widgetType('light')}</span>
         </button>
         ${hasBrightness ? `<input type="range" class="llw-light__slider" min="1" max="100" value="${pct}" ${isOn ? '' : 'disabled'} />` : ''}
       `;

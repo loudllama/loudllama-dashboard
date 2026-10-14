@@ -61,7 +61,7 @@
         <div class="llw-group__content">
           <div class="llw-group__head">
             <span class="llw-group__name"></span>
-            <button class="llw-group__gear" type="button">⚙</button>
+            <button class="llw-group__gear" type="button">${LL.icons.gear()}</button>
           </div>
           <div class="llw-group__glance"></div>
         </div>
@@ -121,14 +121,6 @@
       openEditor();
     });
 
-    // Small per-type glyph for the folder-stack preview - deliberately just
-    // a compact local lookup (not shared with store.js's own EMOJI map,
-    // which is private to that file) since this only ever needs to cover
-    // whatever a Group can actually contain, i.e. anything except itself.
-    const STACK_EMOJI = {
-      weather: '🌤️', frigate: '📷', room: '🚪', light: '💡', climate: '🌡️', media: '🔊',
-    };
-
     // --- Compact glance tile ------------------------------------------------
     // Renders like an iOS folder icon: a 2x2 stack of mini-tiles, one per
     // contained widget (up to 4, most-recently-added first), instead of a
@@ -144,7 +136,7 @@
       }
       const preview = cfg.widgets.slice(-4).reverse();
       const cells = preview
-        .map((w) => `<div class="llw-group__stack-cell">${STACK_EMOJI[w.type] || '🧩'}</div>`)
+        .map((w) => `<div class="llw-group__stack-cell">${LL.icons.widgetType(w.type) || LL.icons.puzzle()}</div>`)
         .join('');
       const overflow = cfg.widgets.length > 4 ? `<div class="llw-group__stack-more">+${cfg.widgets.length - 4}</div>` : '';
       glanceEl.innerHTML = `<div class="llw-group__stack">${cells}</div>${overflow}`;

@@ -21,7 +21,7 @@
   }
 
   function iconFor(entityId) {
-    return domainOf(entityId) === 'script' ? '▶️' : '🎬';
+    return LL.icons.shortcut(domainOf(entityId) === 'script');
   }
 
   function mount(el, { config, saveConfig }) {
@@ -35,7 +35,7 @@
       <div class="llw-shortcuts">
         <div class="llw-shortcuts__head">
           <span class="llw-shortcuts__name">${t('shortcuts', 'title')}</span>
-          <button class="llw-shortcuts__gear" type="button" title="${t('shortcuts', 'chooseItems')}">⚙</button>
+          <button class="llw-shortcuts__gear" type="button" title="${t('shortcuts', 'chooseItems')}">${LL.icons.gear()}</button>
         </div>
         <div class="llw-shortcuts__grid"></div>
         <div class="llw-shortcuts__settings">
@@ -84,7 +84,7 @@
             (e) => `
             <label>
               <input type="checkbox" value="${e.entity_id}" ${items.includes(e.entity_id) ? 'checked' : ''} />
-              ${iconFor(e.entity_id)} ${(e.attributes && e.attributes.friendly_name) || e.entity_id}
+              <span class="llw-shortcuts__list-icon">${iconFor(e.entity_id)}</span> ${(e.attributes && e.attributes.friendly_name) || e.entity_id}
             </label>`
           )
           .join('');

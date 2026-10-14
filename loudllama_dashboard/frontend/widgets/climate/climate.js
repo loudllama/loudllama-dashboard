@@ -33,7 +33,7 @@
       <div class="llw-climate">
         <div class="llw-climate__head">
           <span class="llw-climate__name">${t('climate', 'chooseEntity')}</span>
-          <button class="llw-climate__gear" type="button" title="${t('climate', 'chooseEntity')}">⚙</button>
+          <button class="llw-climate__gear" type="button" title="${t('climate', 'chooseEntity')}">${LL.icons.gear()}</button>
         </div>
         <div class="llw-climate__body"></div>
         <div class="llw-climate__settings">
@@ -116,7 +116,7 @@
         // small enough to misfire a +/- step on this tiny a tile would be
         // worse than not offering the control at all.
         bodyEl.innerHTML = `
-          <div class="llw-climate__compact-icon">🌡️</div>
+          <div class="llw-climate__compact-icon">${LL.icons.widgetType('climate')}</div>
           <div class="llw-climate__current">${current !== undefined && current !== null ? `${Math.round(current * 10) / 10}°` : '--'}</div>
         `;
         return;

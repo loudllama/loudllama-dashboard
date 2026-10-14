@@ -32,7 +32,7 @@
     if (isCompact) el.classList.add('llw-widget-clock--compact');
     el.innerHTML = `
       <div class="llw-clock">
-        <button class="llw-clock__gear" type="button" title="${t('clock', 'settings')}">⚙</button>
+        <button class="llw-clock__gear" type="button" title="${t('clock', 'settings')}">${LL.icons.gear()}</button>
         <div class="llw-clock__time"></div>
         <div class="llw-clock__date"></div>
         <div class="llw-clock__settings">
