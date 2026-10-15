@@ -1,25 +1,17 @@
 :root {
   --llw-radius: 22px;
   --llw-gap: 12px;
-  /* Caps how wide the actual widget grid gets to on a very wide screen (an
-     ultrawide monitor, a big wall-mounted panel) before extra space starts
-     being left as centering margin instead of just sitting empty down one
-     side. GridStack's own columnOpts (app.js's createPage) already caps out
-     at 12 columns around columnWidth:90px each - natural "full" grid width
-     lands well under this value - so on any ordinary laptop/tablet screen
-     this never engages at all (see the max(0px, ...) in .llw-page below);
-     it only starts pulling the grid inward once the page is wider than this.
-     Without it, a sparse dashboard (a handful of widgets, not yet enough to
-     fill 12 columns) on a 2000px+ wide browser window renders pinned to the
-     top-left with a large, lopsided empty area to the right - which reads
-     as a broken/cut-off layout even though every widget is actually exactly
-     where it was placed. This was being reported as a kiosk-mode bug, but
-     reproduces identically with kiosk mode off too (see fixIframeHeight's
-     own comment above applyKioskMode): GridStack was never stretching
-     widgets to fill unused columns to begin with, kiosk mode only ever
-     affected how much of Home Assistant's own chrome got hidden around the
-     page, not how the grid itself fills whatever space it's given. */
-  --llw-max-content-width: 1600px;
+  /* There used to be a --llw-max-content-width here (1600px), capping how
+     wide the grid got on a very wide screen and centering the leftover
+     space - see #llw-pages-viewport in this file for why it was removed
+     again in 0.10.014 (short version: that centering margin wasn't
+     actually part of the grid, so widgets dragged out into it on exactly
+     the wide/wall-mounted screens it targeted couldn't be dropped there at
+     all). Noting this here so a future "sparse dashboard looks pinned to
+     one side on a wide screen" report doesn't lead straight back to
+     reintroducing the same cap without first weighing it against this -
+     confirmed, directly with the person running a wall-mounted panel, as
+     the tradeoff they'd rather have. */
   /* The LoudLlama silhouette, shared by the background's hidden easter egg
      (#llw-background::before below) and the long-press-to-edit hint
      (#llw-longpress-hint below) - one data URI kept in one place so the two
@@ -502,26 +494,26 @@ body.llw-edit-mode #llw-toolbar {
   overflow: hidden;
   /* Lifted for the duration of an active widget drag - see
      body.llw-grid-dragging below, right after .llw-page, for why. */
-  /* Caps how wide the swipeable track (and therefore every .llw-page/
-     GridStack instance inside it - see createPage() in app.js, which reads
-     *this* element's rendered width indirectly through .llw-page's own
-     100%-of-parent width) gets to on a very wide screen, centering the
-     leftover space instead of leaving it all down the right side - see
-     --llw-max-content-width's own comment (:root, top of this file) for the
-     full story on why this is needed, and why it had to go here rather than
-     as padding on .llw-page itself: .llw-page's children are GridStack's
-     own position:absolute items, and percentage sizing on an absolutely
-     positioned element resolves against its containing block's *padding*
-     box, not its content box - so padding on .llw-page is invisible to
-     them and narrowing the width has to happen up here instead, on an
-     ordinary (non-abs-pos-parent) ancestor, where width really does mean
-     width. flex's own `stretch` default (body's align-items, unset =
-     stretch) is what makes this fill 100% of the toolbar's width normally;
-     max-width here simply clamps that, and margin:auto does the centering,
-     exactly like a plain centered page layout would. */
+  /* No max-width/centering here any more - see --llw-max-content-width's
+     own (now removed) comment, previously at the top of this file, for the
+     full history: 0.10.010 capped this at 1600px and centered the leftover
+     space on a very wide screen (an ultrawide monitor, a wall-mounted
+     panel) specifically so a sparse dashboard wouldn't render pinned to
+     the top-left with a large, lopsided empty area down one side. That
+     margin turned out to come with its own cost 0.10.010 didn't
+     anticipate: it isn't part of the GridStack grid at all (nothing past
+     this element's own edge is), so on exactly the wide screens that
+     margin was built for, a widget dragged out that far couldn't actually
+     be dropped there - it would just snap back to wherever it started,
+     confirmed directly by the person running one (a real wall-mounted
+     panel). Asked directly: use the full screen width as real, placeable
+     grid space, even if that means a sparse dashboard can once again render
+     pinned toward one side until there are enough widgets to fill it out -
+     confirmed as the preferred tradeoff over having unusable space at all.
+     flex's own `stretch` default (body's align-items, unset = stretch) is
+     what makes this fill 100% of the toolbar's width - plain width:100%,
+     nothing clamping it down from there any more. */
   width: 100%;
-  max-width: var(--llw-max-content-width);
-  margin: 0 auto;
 }
 #llw-pages-track {
   display: flex;
@@ -615,11 +607,18 @@ body.llw-edit-mode #llw-toolbar {
    overflow-x/-y, exactly like any ordinary descendant. On an ordinary
    laptop/phone screen that boundary sits right at the browser's own edge,
    where a real cursor can't go anyway, so it's invisible in practice - it
-   only becomes reachable once --llw-max-content-width's centering kicks in
-   on a wide screen (a wall-mounted panel, an ultrawide monitor - see that
-   variable's own comment), leaving a genuinely draggable-into margin
-   outside the clipped box, OR simply once there's free grid space next to
-   a screen edge for a cursor to drag past. Either way, the fix is narrow:
+   used to also become reachable once the old --llw-max-content-width cap
+   centered the grid on a wide screen (removed again in 0.10.014, right
+   after this element, for an unrelated reason - that margin wasn't real
+   grid space either, so a widget dragged into it could never actually be
+   dropped there), leaving a genuinely draggable-into margin outside the
+   clipped box. With that margin gone this element's own box now reaches
+   all the way to the real screen edge on every screen, same as an ordinary
+   laptop - but this clip still runs into the exact same problem vertically
+   (dragging a widget up past the top of a short page, or down past a tall
+   one) any time this element or .llw-page ends up narrower/shorter than
+   the viewport for some other reason, so the fix stays in place rather
+   than being undone along with that cap. Either way, the fix is narrow:
    suspend exactly the two overflow clips a drag could actually run into
    (this element's and .llw-page's) for as long as a drag is in progress -
    see wireGridEvents' dragstart/dragstop in app.js, which is the only
