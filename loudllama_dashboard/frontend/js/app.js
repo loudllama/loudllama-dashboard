@@ -1065,20 +1065,50 @@
         const rect = sidebar.getBoundingClientRect();
         const alreadyHandled = getComputedStyle(sidebar).display === 'none' || (rect.width < 8 && rect.height < 8);
         if (!alreadyHandled) {
+          const sidebarWidth = rect.width;
           hideAndReclaimSpace(sidebar);
+          // display:none on ha-sidebar only hides the content *slotted into*
+          // ha-drawer's own shadow DOM - it does nothing to the wrapper
+          // ha-drawer itself renders to HOLD that slot (Home Assistant's
+          // sidebar is built on a Material-style "drawer" component, whose
+          // shadow root keeps its own fixed-width host div for the sidebar
+          // *regardless* of whether the content inside it is visible). That
+          // wrapper keeps the hidden sidebar's exact width and its own
+          // right-hand border line, independent of ha-sidebar's own
+          // display - which is exactly the persistent hairline reported
+          // directly: "der er stadig den streg ned gennem, der hvor
+          // sidepanelet ville have gået", confirmed live by inspecting a
+          // real dashboard's DOM (HA 2025-era: home-assistant-main's shadow
+          // root > ha-drawer > (shadow root) > div.sidebar-shell, exactly
+          // sidebarWidth wide with `border-right: 1px solid ...`). The class
+          // name itself isn't assumed stable across HA releases, so this
+          // finds the wrapper by *geometry* instead, the same way
+          // hideAndReclaimSpace above finds a matching grid/flex track: any
+          // plain (non-custom-element) child, at any depth, inside
+          // ha-drawer's own shadow root whose rendered width lands within a
+          // few px of the sidebar's own just-hidden width.
+          deepQueryAll(topDoc, 'ha-drawer').forEach((drawer) => {
+            if (!drawer.shadowRoot) return;
+            drawer.shadowRoot.querySelectorAll('*').forEach((node) => {
+              if (node.shadowRoot) return; // only plain wrapper elements, never another custom element's own internals
+              const nr = node.getBoundingClientRect();
+              if (Math.abs(nr.width - sidebarWidth) < 6 && nr.height > 100) {
+                node.style.width = '0px';
+                node.style.minWidth = '0px';
+                node.style.borderRight = 'none';
+                node.style.overflow = 'hidden';
+              }
+            });
+          });
           // The thin vertical bar some Home Assistant frontend versions
           // render right next to the sidebar (to drag-resize it) is its OWN
-          // separate sibling element, not part of ha-sidebar itself - hiding
-          // the sidebar alone leaves this behind as a persistent hairline
-          // running down the screen exactly where the sidebar used to be,
-          // reported directly: "der er stadig den streg ned gennem, der hvor
-          // sidepanelet ville have gået". It has no stable, version-proof
-          // name to look for the way ha-sidebar/ha-menu-button do, so this
-          // finds it by *shape* instead, right where it would have to be
-          // (a sibling of the sidebar we just hid): unmistakably a thin
-          // vertical bar (narrow, but far taller than it is wide) rather
-          // than any real panel content, which nothing legitimate on this
-          // page should ever look like.
+          // separate sibling element in the LIGHT dom, not part of
+          // ha-sidebar itself or the shadow-DOM wrapper handled just above -
+          // a second, different possible source of the same kind of
+          // leftover hairline. Found by *shape*, right where it would have
+          // to be (a sibling of the sidebar we just hid): unmistakably a
+          // thin vertical bar (narrow, but far taller than it is wide)
+          // rather than any real panel content.
           siblingsOf(sidebar).forEach((sib) => {
             if (sib === sidebar) return;
             const sr = sib.getBoundingClientRect();
