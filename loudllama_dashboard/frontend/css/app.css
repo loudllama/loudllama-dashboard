@@ -161,6 +161,53 @@ body {
   background: rgba(10, 12, 16, 0.28);
 }
 
+/* "Aurora" background option, added in 0.10.017 - a from-scratch CSS
+   recreation of the look of a night sky with aurora bands over mountains
+   (the user asked for a style "à la" a reference wallpaper image they
+   shared, but that specific image is a well-known copyrighted Apple
+   wallpaper, so rather than use or copy their photo this is an original
+   gradient composition only inspired by its overall mood: dark sky,
+   bands of green/teal/violet light, a mountain silhouette along the
+   bottom edge). Entirely gradients + one clipped shape, same technique as
+   the standard background above and the rest of this codebase (there are
+   no bundled photo/image assets anywhere in frontend/) - just more bands
+   and a jagged ::after for the ridge line. Picked via the background menu
+   (buildBackgroundMenu() in app.js) and applied as a plain class toggle on
+   this same #llw-background element, same as .llw-has-image. */
+#llw-background.llw-bg-aurora {
+  background-color: #060810;
+  background-image:
+    radial-gradient(ellipse 65% 42% at 22% 12%, rgba(120, 255, 200, 0.4), transparent 62%),
+    radial-gradient(ellipse 75% 46% at 68% 6%, rgba(90, 200, 255, 0.3), transparent 60%),
+    radial-gradient(ellipse 80% 50% at 48% 22%, rgba(190, 130, 255, 0.32), transparent 65%),
+    radial-gradient(ellipse 60% 40% at 85% 30%, rgba(255, 150, 210, 0.16), transparent 60%),
+    linear-gradient(180deg, #050608 0%, #0a0e1a 28%, #121a2c 52%, #1a2338 72%, #222c44 100%);
+  background-size: cover;
+  background-position: center;
+}
+/* Mountain ridge silhouette along the bottom - a flat dark shape clipped to
+   a jagged polygon rather than any kind of photo/image asset. Uses ::after
+   (not ::before, which the easter-egg llama above already occupies on the
+   standard background) - harmless even though that selector only excludes
+   .llw-has-image, since .llw-bg-aurora's own ::before never gets styled,
+   so nothing shows there. */
+#llw-background.llw-bg-aurora::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 34%;
+  background: linear-gradient(180deg, rgba(5, 7, 12, 0) 0%, #06080f 55%, #050710 100%);
+  clip-path: polygon(
+    0% 100%, 0% 62%, 6% 70%, 13% 48%, 20% 66%, 27% 40%, 33% 58%,
+    40% 30%, 47% 52%, 55% 20%, 62% 46%, 70% 34%, 78% 56%,
+    85% 38%, 92% 60%, 100% 44%, 100% 100%
+  );
+  opacity: 0.97;
+  pointer-events: none;
+}
+
 #llw-toolbar {
   /* Was `position: sticky; top: 0` - meaningful when the *document* scrolled
      underneath it. Now the body is a non-scrolling flex column (see above)
@@ -319,8 +366,14 @@ body.llw-edit-mode #llw-toolbar {
 }
 .llw-toolbar__icon svg { width: 100%; height: 100%; display: block; }
 
-.llw-bg-upload input[type="file"] { display: none; }
+/* The file input used to live inside .llw-bg-upload itself (a <label>
+   wrapping it directly). Since 0.10.017 it's a standalone hidden element
+   elsewhere in the toolbar, only ever clicked programmatically from the
+   background picker menu - see the HTML comment above #llw-bg-file in
+   index.html and buildBackgroundMenu() in app.js. */
+#llw-bg-file { display: none; }
 
+.llw-bg-wrap,
 .llw-add-widget-wrap { position: relative; }
 .llw-menu {
   display: none;
@@ -461,6 +514,15 @@ body.llw-edit-mode #llw-toolbar {
 .llw-choice-picker__opt:hover {
   background: rgba(255, 255, 255, 0.1);
   border-color: rgba(255, 255, 255, 0.22);
+}
+/* Marks whichever option is currently active - used by the background
+   picker menu (buildBackgroundMenu() in app.js) to show which of
+   standard/aurora/your-photo is live right now. Not used by the plain
+   widget-setup choice picker above, which has no "currently selected"
+   concept (every choice there starts a fresh widget). */
+.llw-choice-picker__opt.llw-selected {
+  border-color: rgba(130, 170, 255, 0.55);
+  background: rgba(130, 170, 255, 0.14);
 }
 .llw-choice-picker__label {
   font-size: 0.8rem;

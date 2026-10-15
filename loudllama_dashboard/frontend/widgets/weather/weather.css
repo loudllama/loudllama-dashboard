@@ -49,6 +49,18 @@
   overflow: hidden;
   pointer-events: none;
 }
+/* Subtle vignette over the whole particle layer - added in 0.10.017 as part
+   of making the animation read as more photorealistic/cinematic rather than
+   flat iconography. On top of every condition's particles (shared by all of
+   them, rather than duplicated into each one's own gradient), but still well
+   under .llw-weather__content's z-index 2, so it never dims the actual
+   text/icon. */
+.llw-weather__fx::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0) 55%, rgba(0, 0, 0, 0.22) 100%);
+}
 
 .llw-weather__content {
   position: relative;
@@ -262,6 +274,36 @@ body.llw-edit-mode .llw-weather__gear { display: inline-flex; }
   0% { transform: scale(0.8); opacity: 0.7; }
   100% { transform: scale(1.8); opacity: 0; }
 }
+/* --- added in 0.10.017 for the more photorealistic animation pass ------- */
+@keyframes llw-sun-breathe {
+  0%, 100% { box-shadow: 0 0 30px 8px rgba(255, 216, 130, 0.5); }
+  50% { box-shadow: 0 0 44px 15px rgba(255, 216, 130, 0.65); }
+}
+@keyframes llw-flare-pulse {
+  0%, 100% { opacity: 0.55; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.1); }
+}
+@keyframes llw-moon-glow {
+  0%, 100% { box-shadow: 10px -4px 0 0 rgba(15, 33, 73, 1) inset, 0 0 20px 4px rgba(244, 241, 230, 0.35); }
+  50% { box-shadow: 10px -4px 0 0 rgba(15, 33, 73, 1) inset, 0 0 28px 7px rgba(244, 241, 230, 0.5); }
+}
+@keyframes llw-shoot {
+  0%, 8%, 100% { opacity: 0; transform: translate(0, 0); }
+  9% { opacity: 1; transform: translate(0, 0); }
+  22% { opacity: 0; transform: translate(150px, 75px); }
+}
+@keyframes llw-boltflicker {
+  0%, 90%, 100% { opacity: 0; }
+  91% { opacity: 1; }
+  92% { opacity: 0.15; }
+  93% { opacity: 0.9; }
+  94%, 97% { opacity: 0; }
+  95.5% { opacity: 0.55; }
+}
+@keyframes llw-splash {
+  0% { transform: scale(0.3); opacity: 0.6; }
+  80%, 100% { transform: scale(1.6); opacity: 0; }
+}
 
 .llw-drop {
   position: absolute;
@@ -270,8 +312,33 @@ body.llw-edit-mode .llw-weather__gear { display: inline-flex; }
   height: 16px;
   border-radius: 2px;
   background: linear-gradient(rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.75));
+  /* Slight motion blur reads as "falling fast" rather than "a static line
+     dropping" - a real falling raindrop photographed at any normal shutter
+     speed streaks, it doesn't stay crisp. */
+  filter: blur(0.3px);
   animation: llw-fall linear infinite;
   transform: rotate(12deg);
+}
+/* Depth layer for a few drops, mixed in among the regular ones (see
+   renderFx() in weather.js) - bigger and brighter, reading as "closer to
+   the camera" than the rest, the same near/far trick as .llw-cloud--near
+   below. */
+.llw-drop--near {
+  width: 3px;
+  height: 22px;
+  filter: blur(0.5px);
+}
+/* Faint ripple rings near the bottom edge, as if rain were hitting a
+   surface just out of frame - suggests more scene than the card actually
+   shows, the same trick real weather photography/footage backgrounds use. */
+.llw-splash {
+  position: absolute;
+  width: 10px;
+  height: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 50%;
+  opacity: 0;
+  animation: llw-splash ease-out infinite;
 }
 
 .llw-flake {
@@ -324,6 +391,17 @@ body.llw-edit-mode .llw-weather__gear { display: inline-flex; }
   top: -64%;
   right: 15%;
 }
+/* Depth layers mixed in among each other (see renderFx() in weather.js,
+   which alternates these on successive clouds) - distant clouds read as
+   smaller, flatter and hazier; near ones keep the base rule's full shadow
+   and crispness. Real parallax, not just "some clouds are more see-through
+   than others" at a single flat distance. */
+.llw-cloud--far {
+  box-shadow: none;
+}
+.llw-cloud--near {
+  box-shadow: 0 4px 11px rgba(8, 12, 20, 0.2);
+}
 
 .llw-star {
   position: absolute;
@@ -343,6 +421,21 @@ body.llw-edit-mode .llw-weather__gear { display: inline-flex; }
   border-radius: 50%;
   background: radial-gradient(circle, #fff6d8, #ffdb7a 60%, rgba(255, 219, 122, 0));
   box-shadow: 0 0 30px 8px rgba(255, 216, 130, 0.5);
+  /* Breathing glow instead of a static halo - real sunlight through any
+     amount of atmosphere flickers/shimmers very slightly; a perfectly
+     steady glow is what reads as a flat icon. */
+  animation: llw-sun-breathe 7s ease-in-out infinite;
+}
+/* A soft secondary halo ring outside the sun's own glow - a cheap, common
+   lens-flare cue in real photos of bright light sources, missing before
+   this since the sun was just one radial gradient with no ring around it. */
+.llw-sun::before {
+  content: '';
+  position: absolute;
+  inset: -60%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0) 55%, rgba(255, 235, 170, 0.22) 62%, rgba(255, 235, 170, 0) 72%);
+  animation: llw-flare-pulse 7s ease-in-out infinite;
 }
 .llw-sun-rays {
   position: absolute;
@@ -368,6 +461,50 @@ body.llw-edit-mode .llw-weather__gear { display: inline-flex; }
   border-radius: 50%;
   background: #f4f1e6;
   box-shadow: 10px -4px 0 0 rgba(15, 33, 73, 1) inset, 0 0 20px 4px rgba(244, 241, 230, 0.35);
+  /* Slowly breathing halo, same idea as the sun's llw-sun-breathe above -
+     a perfectly static glow is what read as flat/iconographic before. */
+  animation: llw-moon-glow 9s ease-in-out infinite;
+}
+/* A handful of soft crater shadows - small fixed-position radial gradients,
+   not randomized/generated (there's only ever one moon on screen, unlike
+   the stars/flakes/drops, so there's no need for renderFx() to vary this
+   per instance). Subtle on purpose: a moon with visible craters reads as a
+   photo of the moon, one with too many/too dark reads as a cartoon ball. */
+.llw-moon::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 30% 35%, rgba(150, 145, 120, 0.35) 0 6%, transparent 7%),
+    radial-gradient(circle at 60% 55%, rgba(150, 145, 120, 0.3) 0 9%, transparent 10%),
+    radial-gradient(circle at 42% 72%, rgba(150, 145, 120, 0.28) 0 5%, transparent 6%),
+    radial-gradient(circle at 72% 28%, rgba(150, 145, 120, 0.25) 0 4%, transparent 5%);
+}
+
+/* A single streak across the sky every so often, alongside the regular
+   twinkling stars - see the comment on this in renderFx() (weather.js) for
+   why one long, randomized infinite animation reads as "rare" rather than
+   a visible loop. */
+.llw-shootingstar {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  background: #fff;
+  border-radius: 50%;
+  box-shadow: 0 0 6px 1px rgba(255, 255, 255, 0.85);
+  opacity: 0;
+  animation: llw-shoot linear infinite;
+}
+.llw-shootingstar::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: 100%;
+  width: 46px;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.8));
+  transform: translateY(-50%);
 }
 
 .llw-fogband {
@@ -387,6 +524,18 @@ body.llw-edit-mode .llw-weather__gear { display: inline-flex; }
   animation: llw-drift linear infinite;
   transform: rotate(-6deg);
 }
+/* Small tumbling debris riding the same gust as the streaks above - see
+   renderFx()'s comment on why a streak alone doesn't read as "wind moving
+   something". Two animations at once: llw-drift carries it sideways across
+   the card exactly like a windstreak, llw-spin tumbles it as it goes. */
+.llw-debris {
+  position: absolute;
+  width: 6px;
+  height: 4px;
+  background: radial-gradient(circle, rgba(205, 175, 95, 0.9), rgba(140, 110, 50, 0.65));
+  border-radius: 50% 50% 50% 0;
+  animation: llw-drift linear infinite, llw-spin 1.6s linear infinite;
+}
 
 .llw-flash-overlay {
   position: absolute;
@@ -394,6 +543,24 @@ body.llw-edit-mode .llw-weather__gear { display: inline-flex; }
   background: #fff;
   opacity: 0;
   animation: llw-flash linear infinite;
+}
+/* An actual jagged bolt shape, not just the ambient brightness pulse above -
+   see the comment on this in renderFx() (weather.js). drop-shadow (not
+   box-shadow, which can't follow an SVG's own silhouette) gives it a glow
+   without needing a second blurred copy underneath. */
+.llw-bolt-flash {
+  position: absolute;
+  top: -5%;
+  width: 14%;
+  max-width: 40px;
+  opacity: 0;
+  filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.9));
+  animation: llw-boltflicker linear infinite;
+}
+.llw-bolt-flash svg {
+  width: 100%;
+  height: auto;
+  display: block;
 }
 
 .llw-alert-ring {

@@ -359,26 +359,77 @@
         const size = rand(1, 2.6);
         return `left:${rand(0, 100)}%; top:${rand(0, 65)}%; width:${size}px; height:${size}px; animation-duration:${rand(1.5, 4)}s; animation-delay:${rand(0, 3)}s;`;
       });
+      // Photorealistic touch, not an icon-style flourish: a real night sky
+      // occasionally has one streak across it. Long, randomized
+      // duration/delay on an infinitely-repeating animation is what keeps
+      // this reading as "rare and unpredictable" rather than a visible
+      // metronome, even though the animation itself technically loops.
+      const shoot = document.createElement('div');
+      shoot.className = 'llw-shootingstar';
+      shoot.style.top = `${rand(4, 38)}%`;
+      shoot.style.left = `${rand(0, 45)}%`;
+      shoot.style.animationDuration = `${rand(9, 16)}s`;
+      shoot.style.animationDelay = `${-rand(0, 12)}s`;
+      container.appendChild(shoot);
     }
 
     if (wantsClouds) {
-      addParticles(container, c === 'partlycloudy' ? 2 : 3, 'llw-cloud', (i) => {
-        const w = rand(38, 60);
-        return `top:${10 + i * 18}%; width:${w}%; height:${w * 0.32}px; opacity:${rand(0.5, 0.9)}; animation-duration:${rand(35, 70)}s; animation-delay:${-rand(0, 40)}s;`;
-      });
+      // Two depth layers instead of one flat set - distant clouds smaller,
+      // more blurred/translucent and drifting slower; near clouds bigger,
+      // sharper and faster. Real parallax (far things appear to move
+      // slower than near ones at the same actual speed) is what used to be
+      // missing here; a single uniform cloud layer read as a flat sticker
+      // no matter how puffy its CSS shape was.
+      const count = c === 'partlycloudy' ? 3 : 4;
+      for (let i = 0; i < count; i += 1) {
+        const far = i % 2 === 0;
+        const w = far ? rand(28, 44) : rand(46, 68);
+        const duration = far ? rand(58, 95) : rand(30, 52);
+        const el = document.createElement('div');
+        el.className = `llw-cloud ${far ? 'llw-cloud--far' : 'llw-cloud--near'}`;
+        el.setAttribute(
+          'style',
+          `top:${8 + i * 15 + rand(-4, 4)}%; width:${w}%; height:${w * 0.32}px; opacity:${far ? rand(0.32, 0.55) : rand(0.6, 0.92)}; filter: blur(${far ? rand(1.4, 2.6) : rand(0, 0.5)}px); animation-duration:${duration}s; animation-delay:${-rand(0, duration)}s;`
+        );
+        container.appendChild(el);
+      }
     }
 
     if (wantsRain) {
-      const count = c === 'pouring' ? 34 : 18;
-      addParticles(container, count, 'llw-drop', () => `left:${rand(0, 100)}%; animation-duration:${rand(0.5, 1)}s; animation-delay:${rand(0, 1.5)}s; opacity:${rand(0.4, 0.9)};`);
+      // Same near/far depth idea as the clouds above, plus a few faint
+      // "splash" rings near the bottom edge - rain hitting an unseen
+      // surface just out of frame, same trick real weather photography
+      // backgrounds use to suggest more scene than is actually visible.
+      const total = c === 'pouring' ? 42 : 22;
+      for (let i = 0; i < total; i += 1) {
+        const near = i % 3 === 0;
+        const el = document.createElement('div');
+        el.className = `llw-drop${near ? ' llw-drop--near' : ''}`;
+        el.setAttribute(
+          'style',
+          `left:${rand(0, 100)}%; animation-duration:${near ? rand(0.35, 0.55) : rand(0.6, 1.05)}s; animation-delay:${rand(0, 1.5)}s; opacity:${near ? rand(0.75, 1) : rand(0.3, 0.6)};`
+        );
+        container.appendChild(el);
+      }
+      addParticles(container, 6, 'llw-splash', () => `left:${rand(5, 95)}%; bottom:${rand(0, 6)}%; animation-duration:${rand(1.2, 2)}s; animation-delay:${rand(0, 2)}s;`);
     }
 
     if (wantsSnow) {
-      const count = c === 'snowy-rainy' ? 16 : 26;
-      addParticles(container, count, 'llw-flake', () => {
-        const size = rand(3, 7);
-        return `left:${rand(0, 100)}%; width:${size}px; height:${size}px; animation-duration:${rand(4, 9)}s; animation-delay:${rand(0, 6)}s; opacity:${rand(0.5, 1)};`;
-      });
+      // Depth-of-field: distant flakes smaller, dimmer, slightly blurred and
+      // falling slower; near ones bigger, sharp and faster - the same
+      // near/far split as clouds and rain above, applied to snow.
+      const count = c === 'snowy-rainy' ? 16 : 28;
+      for (let i = 0; i < count; i += 1) {
+        const far = Math.random() < 0.45;
+        const size = far ? rand(2, 4) : rand(5, 9);
+        const el = document.createElement('div');
+        el.className = 'llw-flake';
+        el.setAttribute(
+          'style',
+          `left:${rand(0, 100)}%; width:${size}px; height:${size}px; animation-duration:${far ? rand(7, 12) : rand(3.5, 6)}s; animation-delay:${rand(0, 8)}s; opacity:${far ? rand(0.3, 0.55) : rand(0.75, 1)}; filter: blur(${far ? rand(0.6, 1.2) : 0}px);`
+        );
+        container.appendChild(el);
+      }
       if (c === 'snowy-rainy') {
         addParticles(container, 10, 'llw-drop', () => `left:${rand(0, 100)}%; animation-duration:${rand(0.6, 1.1)}s; animation-delay:${rand(0, 1.5)}s; opacity:0.6;`);
       }
@@ -392,11 +443,18 @@
     }
 
     if (c === 'fog') {
-      addParticles(container, 5, 'llw-fogband', (i) => `top:${12 + i * 16}%; animation-duration:${rand(20, 34)}s; animation-delay:${-rand(0, 20)}s;`);
+      // Blurred, varying-height bands instead of uniform thin lines - real
+      // fog has volume and drifts in uneven layers, not neat parallel
+      // stripes.
+      addParticles(container, 6, 'llw-fogband', (i) => `top:${6 + i * 15 + rand(-3, 3)}%; height:${rand(10, 20)}%; opacity:${rand(0.4, 0.8)}; filter: blur(${rand(1, 3)}px); animation-duration:${rand(22, 38)}s; animation-delay:${-rand(0, 30)}s;`);
     }
 
     if (c === 'windy' || c === 'windy-variant') {
-      addParticles(container, 10, 'llw-windstreak', () => `top:${rand(5, 90)}%; animation-duration:${rand(1.4, 2.6)}s; animation-delay:${rand(0, 2)}s; opacity:${rand(0.3, 0.8)};`);
+      addParticles(container, 12, 'llw-windstreak', () => `top:${rand(5, 90)}%; animation-duration:${rand(1.1, 2.4)}s; animation-delay:${rand(0, 2)}s; opacity:${rand(0.3, 0.8)}; filter: blur(${rand(0, 0.8)}px);`);
+      // Small tumbling debris (a leaf, roughly) riding the same gust -
+      // streaks alone read as "fast lines", not "wind actually moving
+      // something" the way a bit of debris being carried along does.
+      addParticles(container, 5, 'llw-debris', () => `top:${rand(10, 85)}%; animation-duration:${rand(1.8, 3)}s; animation-delay:${rand(0, 2)}s;`);
     }
 
     if (c === 'lightning' || c === 'lightning-rainy') {
@@ -404,6 +462,19 @@
       flash.className = 'llw-flash-overlay';
       flash.style.animationDuration = `${rand(3.5, 6)}s`;
       container.appendChild(flash);
+
+      // The ambient screen-flash above reads as "brightness pulse", not
+      // "lightning" - real lightning is a visible branching bolt. This
+      // adds an actual jagged bolt shape at a random horizontal position,
+      // flickering irregularly (two quick flashes rather than one smooth
+      // fade, like real strikes do) independently of the ambient flash.
+      const bolt = document.createElement('div');
+      bolt.className = 'llw-bolt-flash';
+      bolt.style.left = `${rand(15, 75)}%`;
+      bolt.style.animationDuration = `${rand(4, 7)}s`;
+      bolt.style.animationDelay = `${-rand(0, 5)}s`;
+      bolt.innerHTML = '<svg viewBox="0 0 40 70" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M18 0 L4 38 L16 38 L8 70 L36 28 L22 28 L30 0 Z" fill="#fff"/></svg>';
+      container.appendChild(bolt);
     }
 
     if (c === 'exceptional') {

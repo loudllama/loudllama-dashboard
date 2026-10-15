@@ -1430,7 +1430,12 @@
   }
 
   LL.registerWidget('room', {
-    name: { en: 'Room', da: 'Værelse', de: 'Raum', sv: 'Rum', no: 'Rom' },
+    // Renamed from "Værelse" to "Rum" in 0.10.017 - see the matching comment
+    // on this same name object in backend/server.js's widget catalog, which
+    // has to be kept in sync with this one by hand (two independent
+    // hardcoded literals, not routed through i18n.js - see i18n.js's own
+    // room.* keys for the *in-widget* strings, which are separate again).
+    name: { en: 'Room', da: 'Rum', de: 'Raum', sv: 'Rum', no: 'Rom' },
     defaultSize: { w: 2, h: 2 },
     minSize: { w: 1, h: 1 },
     defaultConfig: () => ({ name: '', entities: [] }),

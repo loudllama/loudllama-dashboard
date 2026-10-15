@@ -12,18 +12,28 @@
 .llw-people__head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  /* Used to be space-between, balancing the (now-removed) title span on the
+     left against the gear button on the right - with just the gear button
+     left in here, flex-end is what keeps it sitting in its usual top-right
+     corner instead of sliding to the start (flex-start) edge the way a
+     single flex child otherwise would. */
+  justify-content: flex-end;
   gap: 0.4rem;
   margin-bottom: 0.3rem;
   /* Clears the outer "remove widget" (x) button - see the same note in
      weather.css. */
   padding-right: 30px;
 }
-.llw-people__name {
-  font-size: 0.78rem;
-  font-weight: 600;
-  opacity: 0.8;
-}
+/* llw-people__name (the "Hvem er hjemme"/"Who's home" title span) was
+   removed from the widget's own header in 0.10.017 - requested directly: a
+   wall dashboard already has very little doubt about what a list of
+   people's photos and home/away status is, so the label was pure clutter
+   eating into a card that's often sized compact. The i18n string itself
+   (people.title) is left in place in i18n.js rather than deleted outright -
+   it's still what names this widget *type* in the add-widget menu/dock
+   (see people.js's own registerWidget name, a separate hardcoded object,
+   not this key) and removing the key itself would be a breaking change for
+   anything else that might reference it later. */
 .llw-people__gear {
   flex-shrink: 0;
   width: 24px;

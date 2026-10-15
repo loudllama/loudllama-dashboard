@@ -171,6 +171,17 @@
   // kiosk toggle button. Defaults to true so a fresh install behaves exactly
   // like every version before this toggle existed.
   let kioskModeSetting = true;
+  // Which background is currently showing - 'standard', 'aurora', or
+  // 'photo' - kept here (not just read off the settings.json round trip)
+  // so buildBackgroundMenu() can highlight the active choice and the
+  // "Your photo" option can tell whether there's already an uploaded
+  // image to switch back to without re-opening the file picker. Mirrors
+  // backend/server.js's same-named settings.json field.
+  let backgroundStyleSetting = 'standard';
+  // The last known backgroundUrl from settings.json, kept even while a
+  // gradient style is active - see backgroundStyleSetting above and the
+  // matching back-compat comment on SETTINGS_DEFAULTS in server.js.
+  let lastBackgroundUrl = null;
 
   function scheduleSave() {
     clearTimeout(saveTimer);
@@ -1218,20 +1229,75 @@
 
   function applyBackground(settings) {
     const bg = document.getElementById('llw-background');
-    if (settings && settings.backgroundUrl) {
-      bg.style.backgroundImage = `url("${settings.backgroundUrl}")`;
+    if (settings && settings.backgroundUrl) lastBackgroundUrl = settings.backgroundUrl;
+    backgroundStyleSetting = (settings && settings.backgroundStyle) || 'standard';
+    bg.classList.remove('llw-bg-aurora');
+    if (backgroundStyleSetting === 'photo' && lastBackgroundUrl) {
+      bg.style.backgroundImage = `url("${lastBackgroundUrl}")`;
       bg.classList.add('llw-has-image');
     } else {
       bg.style.backgroundImage = '';
       bg.classList.remove('llw-has-image');
+      if (backgroundStyleSetting === 'aurora') bg.classList.add('llw-bg-aurora');
     }
+  }
+
+  // Small dropdown (reuses the same .llw-choice-picker__* markup/CSS as the
+  // widget-setup choice picker in showSetupChoicePicker, just rendered into
+  // its own #llw-bg-menu rather than the add-widget menu) letting the user
+  // switch between the standard gradient, the aurora gradient, or their own
+  // uploaded photo. Rebuilt on every open (cheap, three buttons) rather than
+  // kept in sync incrementally, so it always reflects the latest
+  // backgroundStyleSetting/lastBackgroundUrl without extra bookkeeping.
+  function buildBackgroundMenu() {
+    const menu = document.getElementById('llw-bg-menu');
+    const options = [
+      { value: 'standard', label: t('app', 'bgStandard'), desc: t('app', 'bgStandardDesc') },
+      { value: 'aurora', label: t('app', 'bgAurora'), desc: t('app', 'bgAuroraDesc') },
+      { value: 'photo', label: t('app', 'bgPhoto'), desc: t('app', 'bgPhotoDesc') },
+    ];
+    menu.innerHTML = `
+      <div class="llw-choice-picker__options">
+        ${options
+          .map(
+            (opt) => `
+            <button type="button" class="llw-choice-picker__opt${opt.value === backgroundStyleSetting ? ' llw-selected' : ''}" data-value="${opt.value}">
+              <span class="llw-choice-picker__label">${opt.label}</span>
+              <span class="llw-choice-picker__desc">${opt.desc}</span>
+            </button>`
+          )
+          .join('')}
+      </div>
+    `;
+    menu.querySelectorAll('.llw-choice-picker__opt').forEach((btn) => {
+      btn.addEventListener('click', async (ev) => {
+        ev.stopPropagation();
+        const value = btn.dataset.value;
+        menu.classList.remove('llw-open');
+        // Picking "Your photo" for the very first time (nothing uploaded
+        // yet) goes straight to the OS file picker instead of switching to
+        // an empty/missing image - applyBackground()/the settings POST
+        // below both happen once that upload actually completes (see the
+        // #llw-bg-file 'change' handler), not here.
+        if (value === 'photo' && !lastBackgroundUrl) {
+          document.getElementById('llw-bg-file').click();
+          return;
+        }
+        applyBackground({ backgroundUrl: lastBackgroundUrl, backgroundStyle: value });
+        try {
+          await LL.api.post('api/settings', { backgroundStyle: value });
+        } catch (err) {
+          console.warn('[loudllama] Could not save background style setting', err);
+        }
+      });
+    });
   }
 
   function localizeChrome() {
     document.getElementById('llw-edit-toggle').textContent = editMode ? t('app', 'done') : t('app', 'edit');
     document.getElementById('llw-add-widget').textContent = `+ ${t('app', 'addWidget')}`;
     document.getElementById('llw-bg-label').textContent = t('app', 'background');
-    document.getElementById('llw-bg-file').title = t('app', 'changeBackground');
+    document.getElementById('llw-bg-toggle').title = t('app', 'changeBackground');
     // Toolbar icon() helper: wraps one of widget-icons.js's hand-drawn SVGs
     // in a small sizing span - these buttons used to just be
     // `${emoji} ${label}` plain text (textContent), which doesn't work for
@@ -1467,6 +1533,23 @@
 
     // 4. Chrome interactions.
     document.getElementById('llw-edit-toggle').addEventListener('click', () => setEditMode(!editMode));
+
+    const bgToggleBtn = document.getElementById('llw-bg-toggle');
+    const bgMenu = document.getElementById('llw-bg-menu');
+    const bgWrap = bgToggleBtn.closest('.llw-bg-wrap');
+    bgToggleBtn.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      const opening = !bgMenu.classList.contains('llw-open');
+      // Rebuilt fresh on every open, not just once at startup like the
+      // add-widget menu below - unlike that menu, this one's content
+      // (which option is highlighted, whether "Your photo" has anything to
+      // switch back to) can change from other actions in between opens.
+      if (opening) buildBackgroundMenu();
+      bgMenu.classList.toggle('llw-open');
+    });
+    document.addEventListener('click', (ev) => {
+      if (!ev.composedPath().includes(bgWrap)) bgMenu.classList.remove('llw-open');
+    });
 
     const addMenuBtn = document.getElementById('llw-add-widget');
     const addMenu = document.getElementById('llw-add-widget-menu');

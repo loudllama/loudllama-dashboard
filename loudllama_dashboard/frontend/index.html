@@ -75,10 +75,23 @@
   <header id="llw-toolbar">
     <div class="llw-toolbar__brand">LoudLlama Dashboard</div>
     <div class="llw-toolbar__actions">
-      <label class="llw-bg-upload" id="llw-bg-label-wrap">
-        <span id="llw-bg-label">Background</span>
-        <input type="file" id="llw-bg-file" accept="image/*" />
-      </label>
+      <!--
+        Used to be a <label> directly wrapping the file input, so clicking
+        it jumped straight to the OS file picker. Since 0.10.017 there's
+        more than one background to choose between (the standard gradient,
+        the new aurora gradient, or your own photo), so this button now
+        opens a small picker menu instead (see buildBackgroundMenu() in
+        app.js) - the actual file input moved out to its own hidden
+        element below, only clicked programmatically once "Your photo" is
+        chosen from that menu.
+      -->
+      <div class="llw-bg-wrap">
+        <button type="button" class="llw-bg-upload" id="llw-bg-toggle">
+          <span id="llw-bg-label">Background</span>
+        </button>
+        <div id="llw-bg-menu" class="llw-menu"></div>
+      </div>
+      <input type="file" id="llw-bg-file" accept="image/*" />
       <div class="llw-add-widget-wrap">
         <button id="llw-add-widget" type="button">+ Add widget</button>
         <div id="llw-add-widget-menu" class="llw-menu"></div>

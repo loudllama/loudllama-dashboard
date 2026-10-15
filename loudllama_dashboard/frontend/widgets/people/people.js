@@ -46,7 +46,6 @@
     el.innerHTML = `
       <div class="llw-people">
         <div class="llw-people__head">
-          <span class="llw-people__name">${t('people', 'title')}</span>
           <button class="llw-people__gear" type="button" title="${t('people', 'chooseVisible')}">${LL.icons.gear()}</button>
         </div>
         <div class="llw-people__list"></div>

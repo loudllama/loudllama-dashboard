@@ -331,14 +331,17 @@ const WIDGETS = [
     defaultSize: { w: 3, h: 3 },
     minSize: { w: 2, h: 2 },
     name: {
-      da: 'Værelse',
+      // Renamed from "Værelse" to "Rum" in 0.10.017, requested directly -
+      // "rum" reads more naturally for non-bedroom spaces (kitchen, hallway,
+      // garage, etc.) that this widget is equally meant to cover.
+      da: 'Rum',
       en: 'Room',
       de: 'Raum',
       sv: 'Rum',
       no: 'Rom',
     },
     description: {
-      da: 'Et værelse ad gangen: vælg entiteter, de grupperes automatisk (lys, stikkontakter, klima, sensorer, sikkerhed, medier, m.m.). Klik for fuldskærmsstyring. Lys/klima/medie-entiteter vises som deres egne widgets inde i værelset.',
+      da: 'Ét rum ad gangen: vælg entiteter, de grupperes automatisk (lys, stikkontakter, klima, sensorer, sikkerhed, medier, m.m.). Klik for fuldskærmsstyring. Lys/klima/medie-entiteter vises som deres egne widgets inde i rummet.',
       en: 'One room at a time: pick entities and they are auto-grouped (lights, switches, climate, sensors, security, media, etc). Click for fullscreen control. Light/climate/media entities show up as their own widgets inside the room.',
       de: 'Ein Zimmer nach dem anderen: Wähle Entitäten aus, sie werden automatisch gruppiert (Licht, Steckdosen, Klima, Sensoren, Sicherheit, Medien usw.). Klick für die Vollbild-Steuerung. Licht-/Klima-/Media-Entitäten erscheinen als eigene Widgets innerhalb des Zimmers.',
       sv: 'Ett rum i taget: välj enheter så grupperas de automatiskt (belysning, uttag, klimat, sensorer, säkerhet, media m.m.). Klicka för styrning i helskärm. Ljus-/klimat-/media-entiteter visas som egna widgets inuti rummet.',
@@ -359,7 +362,7 @@ const WIDGETS = [
       no: 'Lys',
     },
     description: {
-      da: 'Tænd/sluk og dæmp ét lys. Kan stå for sig selv på dashboardet, eller dukker automatisk op inde i en Værelse-widget når du tilføjer et lys der.',
+      da: 'Tænd/sluk og dæmp ét lys. Kan stå for sig selv på dashboardet, eller dukker automatisk op inde i en Rum-widget når du tilføjer et lys der.',
       en: 'On/off and dimming for one light. Works standalone on the dashboard, or shows up automatically inside a Room widget once you add a light to that room.',
       de: 'Ein/Aus und Dimmen für ein Licht. Funktioniert eigenständig auf dem Dashboard oder erscheint automatisch in einem Zimmer-Widget, sobald du diesem Zimmer ein Licht hinzufügst.',
       sv: 'Av/på och dimning för en lampa. Fungerar fristående på instrumentpanelen, eller dyker automatiskt upp inuti en Rum-widget när du lägger till en lampa i det rummet.',
@@ -380,7 +383,7 @@ const WIDGETS = [
       no: 'Termostat',
     },
     description: {
-      da: 'Aktuel temperatur og en +/- måltemperatur for én termostat (Tado og de fleste andre virker, da de eksponeres som almindelige climate-entiteter i HA). Dukker automatisk op inde i en Værelse-widget.',
+      da: 'Aktuel temperatur og en +/- måltemperatur for én termostat (Tado og de fleste andre virker, da de eksponeres som almindelige climate-entiteter i HA). Dukker automatisk op inde i en Rum-widget.',
       en: 'Current temperature and a +/- target for one thermostat (Tado and most others work, since they show up as regular HA climate entities). Shows up automatically inside a Room widget.',
       de: 'Aktuelle Temperatur und ein +/- Zielwert für ein Thermostat (Tado und die meisten anderen funktionieren, da sie als normale HA-Climate-Entitäten erscheinen). Erscheint automatisch in einem Zimmer-Widget.',
       sv: 'Aktuell temperatur och ett +/- målvärde för en termostat (Tado och de flesta andra fungerar, eftersom de visas som vanliga HA climate-entiteter). Dyker automatiskt upp inuti en Rum-widget.',
@@ -422,7 +425,7 @@ const WIDGETS = [
       no: 'Høyttaler',
     },
     description: {
-      da: 'Afspil/pause, lydstyrke og aktuelt nummer for én medieafspiller (Sonos og de fleste andre virker, da de eksponeres som almindelige media_player-entiteter i HA). Dukker automatisk op inde i en Værelse-widget.',
+      da: 'Afspil/pause, lydstyrke og aktuelt nummer for én medieafspiller (Sonos og de fleste andre virker, da de eksponeres som almindelige media_player-entiteter i HA). Dukker automatisk op inde i en Rum-widget.',
       en: 'Play/pause, volume, and the current track for one media player (Sonos and most others work, since they show up as regular HA media_player entities). Shows up automatically inside a Room widget.',
       de: 'Play/Pause, Lautstärke und aktueller Titel für einen Media Player (Sonos und die meisten anderen funktionieren, da sie als normale HA-media_player-Entitäten erscheinen). Erscheint automatisch in einem Zimmer-Widget.',
       sv: 'Play/paus, volym och aktuellt spår för en mediaspelare (Sonos och de flesta andra fungerar, eftersom de visas som vanliga HA media_player-entiteter). Dyker automatiskt upp inuti en Rum-widget.',
@@ -777,13 +780,31 @@ app.delete('/api/layout/widgets/:id', (req, res) => {
 // written by an older version of this add-on (before a given field existed -
 // e.g. every settings.json saved before kioskMode was added below) still
 // comes back with a sensible value for the new field instead of `undefined`.
-const SETTINGS_DEFAULTS = { backgroundUrl: null, kioskMode: true };
+// backgroundStyle picks which of the dashboard's background options is
+// shown - 'standard' (the original soft gradient mesh), 'aurora' (the new
+// aurora-over-mountains gradient added in 0.10.017), or 'photo' (whatever
+// image backgroundUrl below points at). backgroundUrl itself is kept even
+// while a gradient style is active, so switching back to 'photo' later
+// restores the uploaded image without asking the user to upload it again.
+const SETTINGS_DEFAULTS = { backgroundUrl: null, backgroundStyle: 'standard', kioskMode: true };
 
 function readSettings() {
   if (fs.existsSync(SETTINGS_FILE)) {
     try {
       const saved = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'));
-      return { ...SETTINGS_DEFAULTS, ...saved };
+      const merged = { ...SETTINGS_DEFAULTS, ...saved };
+      // Back-compat: a settings.json saved before backgroundStyle existed
+      // (anything from before 0.10.017) has a backgroundUrl but never
+      // mentions backgroundStyle at all - falling through to this
+      // version's actual default ('standard') would silently hide a
+      // photo someone had already uploaded the moment this update
+      // installs. Only a *missing* key counts, not an explicit 'standard'/
+      // 'aurora' saved later by this same version choosing to switch away
+      // from their photo.
+      if (saved.backgroundUrl && saved.backgroundStyle === undefined) {
+        merged.backgroundStyle = 'photo';
+      }
+      return merged;
     } catch {
       /* fall through to default */
     }
@@ -800,16 +821,18 @@ app.get('/api/settings', (req, res) => {
 });
 
 // Generic partial-update endpoint for simple on/off style settings (kiosk
-// mode today, anything similar later) - unlike /api/background below, there's
-// no file upload involved, just a small JSON merge onto whatever's already
-// saved. Only fields this endpoint explicitly recognizes are ever accepted,
-// so a stray/garbled request body can't silently inject arbitrary keys into
-// settings.json.
+// mode, which background style is active, anything similar later) - unlike
+// /api/background below, there's no file upload involved, just a small JSON
+// merge onto whatever's already saved. Only fields this endpoint explicitly
+// recognizes are ever accepted, so a stray/garbled request body can't
+// silently inject arbitrary keys into settings.json.
+const BACKGROUND_STYLES = ['standard', 'aurora', 'photo'];
 app.post('/api/settings', (req, res) => {
   try {
     const settings = readSettings();
     const body = req.body || {};
     if (typeof body.kioskMode === 'boolean') settings.kioskMode = body.kioskMode;
+    if (BACKGROUND_STYLES.includes(body.backgroundStyle)) settings.backgroundStyle = body.backgroundStyle;
     writeSettings(settings);
     res.json(settings);
   } catch (err) {
@@ -836,6 +859,11 @@ app.post('/api/background', upload.single('background'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'no_image' });
   const settings = readSettings();
   settings.backgroundUrl = `media/${req.file.filename}?t=${Date.now()}`;
+  // Uploading a photo is itself the "use my photo" choice - switch to it
+  // right away rather than leaving whichever gradient style was active
+  // still showing until the user also remembers to pick "Your photo" from
+  // the background menu separately.
+  settings.backgroundStyle = 'photo';
   writeSettings(settings);
   res.json(settings);
 });
