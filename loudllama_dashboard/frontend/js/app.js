@@ -550,14 +550,33 @@
         // Column count adapts to screen width instead of staying fixed at
         // 12, picking whatever count keeps each column close to
         // columnWidth's 90px (matching cellHeight above, so a cell stays
-        // roughly square on any device - a phone lands around 4 columns,
-        // a tablet/desktop around 12). Without this, a fixed 12-column
-        // grid on a ~390px phone gives ~30px columns - too thin for even a
-        // compact 1x1 tile to read as a square icon. 'compact' re-packs
-        // widgets tightly whenever the column count itself changes (e.g.
-        // rotating the device), same spirit as this grid's own float
+        // roughly square on any device - a phone lands around 4 columns, an
+        // ordinary laptop/tablet around 12-16). Without this, a fixed
+        // 12-column grid on a ~390px phone gives ~30px columns - too thin
+        // for even a compact 1x1 tile to read as a square icon. 'compact'
+        // re-packs widgets tightly whenever the column count itself changes
+        // (e.g. rotating the device), same spirit as this grid's own float
         // packing, instead of leaving gaps or overflowing.
-        columnOpts: { columnWidth: 90, columnMax: 12, layout: 'compact' },
+        // columnMax used to be 12 - that was never "a tablet/desktop
+        // naturally lands around 12 anyway", it was a hard ceiling nothing
+        // past it could ever cross, so a screen wider than 12*90=1080px
+        // just had its existing 12 columns stretched wider instead of
+        // gaining more of them - invisible as long as --llw-max-content-
+        // width (removed in 0.10.015) was separately capping the grid's own
+        // width to roughly that same ballpark anyway. Once that cap was
+        // gone so widgets could actually reach a wide/wall-mounted screen's
+        // real edges, the stretching became obvious instead - a 2x2 widget
+        // sized for ~180px square cells was visibly wider than tall,
+        // confirmed directly from a screenshot of exactly that. Raised to
+        // 40 (covers up to 3600px screens at a true ~90px column before it
+        // has to clamp the same way 12 used to) - see
+        // frontend/css/gridstack-wide.css, loaded from index.html right
+        // after GridStack's own gridstack-extra.min.css, for the actual
+        // per-column-count width/position CSS rules a column count beyond
+        // 12 needs to render at all (GridStack has no rule for a column
+        // count that file doesn't define - every item in that grid would
+        // render at 0 width, not just look stretched).
+        columnOpts: { columnWidth: 90, columnMax: 40, layout: 'compact' },
         // Free-form resizing is gone entirely (was 'e, s, w' edge handles,
         // snapping to a tier on resizestop - see wireGridEvents' git history
         // for that code). A widget's size is now a deliberate choice made

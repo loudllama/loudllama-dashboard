@@ -24,6 +24,16 @@
     See https://github.com/gridstack/gridstack.js#change-grid-columns
   -->
   <link rel="stylesheet" href="vendor/gridstack/gridstack-extra.min.css" />
+  <!--
+    gridstack-extra.min.css above only covers 2-11 columns (plus 12 from
+    gridstack.min.css itself) - this extends that same per-column-count
+    width/position CSS up through 40, auto-generated (see its own top
+    comment), needed since 0.10.016 raised columnOpts.columnMax from 12 to
+    40 in app.js (see that option's own comment for why) so a wide/wall-
+    mounted screen gets more ~90px columns instead of its original 12
+    stretched wider to fill the space.
+  -->
+  <link rel="stylesheet" href="css/gridstack-wide.css" />
   <link rel="stylesheet" href="css/app.css" />
   <link rel="stylesheet" href="css/store.css" />
   <!--
