@@ -585,8 +585,26 @@
   // happens once per page, right when that page is created. (Used to also
   // snap a free resize to the nearest size tier on 'resizestop' - gone along
   // with free resizing itself, see createPage's resizable:false.)
+  //
+  // dragstart/dragstop toggle body.llw-grid-dragging, which lifts
+  // #llw-pages-viewport's and .llw-page's overflow clipping for exactly as
+  // long as a drag is in progress - see that class's own comment in
+  // app.css (right after .llw-page) for the full story: GridStack drags a
+  // tile with `position: fixed`, which #llw-pages-track's own (always-on)
+  // transform quietly turns into "fixed to this ancestor's box" instead of
+  // "fixed to the real viewport", making the drag ghost clip away into
+  // nothing - i.e. into the plain background behind everything else - the
+  // moment it's dragged past that box's edge. resizestart/resizestop get
+  // the same treatment even though resizable is false (createPage above) -
+  // free resizing is gone today, but there's no reason a future resize
+  // handle should have to rediscover this same clipping bug. GridStack
+  // still clamps the actual drop position to a real cell regardless - this
+  // only keeps the ghost visibly following the cursor while it's out past
+  // the normal content box, same as anywhere else on the grid.
   function wireGridEvents(g) {
     g.on('change', scheduleSave);
+    g.on('dragstart resizestart', () => document.body.classList.add('llw-grid-dragging'));
+    g.on('dragstop resizestop', () => document.body.classList.remove('llw-grid-dragging'));
   }
 
   // Grows the page list up to (at least) minCount pages. Never shrinks -

@@ -500,6 +500,8 @@ body.llw-edit-mode #llw-toolbar {
   min-height: 0;
   position: relative;
   overflow: hidden;
+  /* Lifted for the duration of an active widget drag - see
+     body.llw-grid-dragging below, right after .llw-page, for why. */
   /* Caps how wide the swipeable track (and therefore every .llw-page/
      GridStack instance inside it - see createPage() in app.js, which reads
      *this* element's rendered width indirectly through .llw-page's own
@@ -592,6 +594,45 @@ body.llw-edit-mode #llw-toolbar {
      showing (see body.llw-has-dock/llw-multi-page, toggled from app.js). */
   transition: padding-bottom 0.2s ease;
 }
+/* Confirmed live (both on the user's real Home Assistant instance and in an
+   isolated local reproduction) as the actual cause of "I can't drag a
+   widget further left/up than wherever the nearest occupied cell already
+   is - it just vanishes into the background": GridStack's own native drag
+   implementation moves the tile being dragged with `position: fixed` (plus
+   inline pixel left/top and a very high z-index) while the drag is in
+   progress - normally that would make it track the real browser viewport
+   and nothing could ever clip it. But goToPage() above always keeps a live
+   `transform: translateX(...)` on #llw-pages-track (even "translateX(-0%)"
+   on page 0 - it's unconditional, not just applied while actually
+   swiping), and a `transform` other than `none` on an ancestor is exactly
+   what makes a browser re-home position:fixed descendants to THAT
+   ancestor's own box instead of the real viewport (same rule a `transform`
+   has always had for position:absolute children - CSS extended it to
+   position:fixed too). Once that happens, the dragged tile is no longer
+   actually exempt from ancestors' overflow clipping the way a genuinely
+   viewport-fixed element would be - it gets clipped by #llw-pages-viewport
+   (overflow:hidden, directly above) and by this element's own
+   overflow-x/-y, exactly like any ordinary descendant. On an ordinary
+   laptop/phone screen that boundary sits right at the browser's own edge,
+   where a real cursor can't go anyway, so it's invisible in practice - it
+   only becomes reachable once --llw-max-content-width's centering kicks in
+   on a wide screen (a wall-mounted panel, an ultrawide monitor - see that
+   variable's own comment), leaving a genuinely draggable-into margin
+   outside the clipped box, OR simply once there's free grid space next to
+   a screen edge for a cursor to drag past. Either way, the fix is narrow:
+   suspend exactly the two overflow clips a drag could actually run into
+   (this element's and .llw-page's) for as long as a drag is in progress -
+   see wireGridEvents' dragstart/dragstop in app.js, which is the only
+   place this class gets toggled. GridStack itself still clamps the
+   widget's final *grid* position to real, valid cells on drop regardless -
+   this only stops the live drag ghost from being clipped away while the
+   cursor is still out past the normal content box, same as it visibly
+   isn't while dragging anywhere else on the grid. */
+body.llw-grid-dragging #llw-pages-viewport,
+body.llw-grid-dragging .llw-page {
+  overflow: visible;
+}
+
 body.llw-multi-page .llw-page {
   padding-bottom: 44px;
 }
