@@ -71,6 +71,7 @@
   const ROOM_TYPES = [
     'koekken', 'stue', 'spisestue', 'bryggers', 'gang', 'vaerelse',
     'sovevaerelse', 'entre', 'badevaerelse', 'baghave', 'garage', 'carport',
+    'kontor',
   ];
   function roomBgUrl(type, photo) {
     return `assets/backgrounds/rooms/${type}-${photo || 1}.jpg`;
