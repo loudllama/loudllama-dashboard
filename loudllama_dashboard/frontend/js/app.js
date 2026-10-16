@@ -565,30 +565,44 @@
         // ordinary laptop/tablet around 12-16). Without this, a fixed
         // 12-column grid on a ~390px phone gives ~30px columns - too thin
         // for even a compact 1x1 tile to read as a square icon.
-        // layout: 'moveScale' (not 'compact', which this used to be) -
-        // changed after "widgets move after updates" was reported directly.
-        // Root cause had two parts, found by reading GridStack's own column-
-        // change code end to end: applyKioskMode() (hiding Home Assistant's
+        // layout: 'none' - went through two other values before landing
+        // here, both reported directly as still wrong. First 'compact'
+        // (what this used to be): applyKioskMode() (hiding Home Assistant's
         // sidebar, forcing our <iframe> full-bleed) used to run *after* the
-        // saved layout was already mounted onto the grid - that width change
-        // is exactly what columnOpts watches for via its ResizeObserver, so
-        // it was re-triggering a *live* column-count change on a grid that
-        // already had real widgets sitting on it (moved earlier in init(),
-        // see that comment, so this mostly doesn't fire there any more) -
-        // but Home Assistant's own UI can still be slow to render (same
-        // reason applyKioskMode() retries its sweep several times over the
+        // saved layout was already mounted onto the grid - that width
+        // change is exactly what columnOpts watches for via its
+        // ResizeObserver, so it was re-triggering a *live* column-count
+        // change on a grid that already had real widgets on it (moved
+        // earlier in init(), see that comment, so this fires far less
+        // often now) - and 'compact''s whole job is to re-*pack* widgets
+        // to fill space, which can freely reorder/relocate everything:
+        // "widgets move after updates". Switched to 'moveScale' next
+        // (GridStack's own default) to at least stop the reordering - but
+        // Home Assistant's own UI can still be slow to render (same reason
+        // applyKioskMode() retries its sweep several times over the
         // following 5s instead of just once), so a late sidebar-hide can
-        // still land after the grid is already populated. 'compact' doesn't
-        // just rescale existing widgets when that happens - its whole job is
-        // to re-*pack* them, which can freely reorder/relocate everything to
-        // fill space, i.e. exactly "my widgets moved". 'moveScale' is
-        // GridStack's own default column-change strategy for a reason: it
-        // scales every widget's x/y/w/h by the same ratio instead, keeping
-        // each one's position and neighbours recognizably the same, just
-        // proportionally resized - the right trade-off for a kiosk display
-        // where an occasional late column-count change (device rotation, a
-        // slow-rendering HA sidebar) should never reshuffle the whole
-        // dashboard, even if it does still resize it.
+        // still land after the grid is already populated, and 'moveScale'
+        // turned out to have its own problem: reported directly again,
+        // this time a widget coming back a different *size*. Root cause is
+        // specific to how this grid's own column count works - columnWidth
+        // above means a cell is ~90px *regardless* of how many columns
+        // there are (more columns just means more of them fit on a wider
+        // screen, not narrower ones) - so a widget's width in grid cells
+        // should never need to change when the column count does, the way
+        // it would in a grid where column count stays fixed and cells
+        // simply stretch. 'moveScale' doesn't know that: it unconditionally
+        // scales every node's `w` by (newColumn / oldColumn) to try to keep
+        // it the same fraction of the grid's total width - exactly wrong
+        // here, since cell width is already constant and nothing needed
+        // rescaling in the first place. 'none' is GridStack's literal
+        // "don't touch existing widgets at all" mode - a genuine column
+        // count change still updates the grid's own CSS column class (so
+        // anything *added* afterward sizes correctly), it just leaves
+        // every already-placed widget's x/y/w/h exactly as saved, which is
+        // what this app actually wants in every column-change case it
+        // hits: the harmless birth-time kiosk-mode resize most loads never
+        // even reach any more, a slow-sidebar one that still does, or a
+        // real device rotation.
         // columnMax used to be 12 - that was never "a tablet/desktop
         // naturally lands around 12 anyway", it was a hard ceiling nothing
         // past it could ever cross, so a screen wider than 12*90=1080px
@@ -608,7 +622,7 @@
         // 12 needs to render at all (GridStack has no rule for a column
         // count that file doesn't define - every item in that grid would
         // render at 0 width, not just look stretched).
-        columnOpts: { columnWidth: 90, columnMax: 40, layout: 'moveScale' },
+        columnOpts: { columnWidth: 90, columnMax: 40, layout: 'none' },
         // Free-form resizing is gone entirely (was 'e, s, w' edge handles,
         // snapping to a tier on resizestop - see wireGridEvents' git history
         // for that code). A widget's size is now a deliberate choice made

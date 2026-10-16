@@ -201,6 +201,9 @@
         hourFormat24: '24-hour',
         hourFormat12: '12-hour',
         showSeconds: 'Show seconds',
+        clockStyleLabel: 'Clock face',
+        clockStyleDigital: 'Digital',
+        clockStyleAnalog: 'Analog',
         settings: 'Clock settings',
       },
       shortcuts: {
@@ -453,6 +456,9 @@
         hourFormat24: '24-timers',
         hourFormat12: '12-timers',
         showSeconds: 'Vis sekunder',
+        clockStyleLabel: 'Urskive',
+        clockStyleDigital: 'Digital',
+        clockStyleAnalog: 'Analog',
         settings: 'Klokke-indstillinger',
       },
       shortcuts: {
@@ -705,6 +711,9 @@
         hourFormat24: '24-Stunden',
         hourFormat12: '12-Stunden',
         showSeconds: 'Sekunden anzeigen',
+        clockStyleLabel: 'Zifferblatt',
+        clockStyleDigital: 'Digital',
+        clockStyleAnalog: 'Analog',
         settings: 'Uhr-Einstellungen',
       },
       shortcuts: {
@@ -957,6 +966,9 @@
         hourFormat24: '24-timmars',
         hourFormat12: '12-timmars',
         showSeconds: 'Visa sekunder',
+        clockStyleLabel: 'Urtavla',
+        clockStyleDigital: 'Digital',
+        clockStyleAnalog: 'Analog',
         settings: 'Klockinställningar',
       },
       shortcuts: {
@@ -1209,6 +1221,9 @@
         hourFormat24: '24-timers',
         hourFormat12: '12-timers',
         showSeconds: 'Vis sekunder',
+        clockStyleLabel: 'Urskive',
+        clockStyleDigital: 'Digital',
+        clockStyleAnalog: 'Analog',
         settings: 'Klokkeinnstillinger',
       },
       shortcuts: {

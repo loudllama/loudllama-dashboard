@@ -1,3 +1,20 @@
+/* container-type: size (not just inline-size) because the digital time's
+   own font-size below is driven off `cqmin` - the smaller of the
+   container's own width/height - so a short-but-wide tile and a
+   narrow-but-tall one both still get text that actually fits, not just
+   text that scales with width alone. .llw-widget-clock is the element
+   widget mount() is actually handed (`el` in clock.js) - already sized to
+   100% of its real GridStack tile by .llw-body/.llw-widget in app.css, so
+   by the time layout settles this has a real pixel box to query against.
+   This is what makes the clock "adapt to whatever box I make it"
+   (requested directly) instead of jumping between two hardcoded font
+   sizes for just the two size-variant presets - any box size works, not
+   only Full/Icon. */
+.llw-widget-clock {
+  container-type: size;
+  container-name: llw-clock-box;
+}
+
 .llw-clock {
   position: relative;
   width: 100%;
@@ -12,6 +29,14 @@
   padding: 0.6rem;
   text-align: center;
 }
+
+/* Analog/digital toggle (config.clockStyle, see clock.js) - both markups
+   always exist in the DOM, this just swaps which one is visible, same
+   pattern as the compact/full variants below. */
+.llw-clock__analog-face { display: none; }
+.llw-clock--analog .llw-clock__time,
+.llw-clock--analog .llw-clock__date { display: none; }
+.llw-clock--analog .llw-clock__analog-face { display: block; }
 
 .llw-clock__gear {
   position: absolute;
@@ -32,8 +57,20 @@
 }
 .llw-clock__gear:hover { background: rgba(255, 255, 255, 0.18); }
 
+/* Fluid, not just two fixed sizes for Full/Icon: 22cqmin means "22% of
+   whichever of this tile's own width/height is smaller", so a 1x1 compact
+   tile and a 2x2 full tile both get type sized to actually fill the space
+   (clamped so an absurdly large or tiny tile - a 1-row-tall "wide" variant
+   if one's ever added, say - still gets something readable rather than
+   something enormous or microscopic). The plain 2.4rem declared first is
+   a fallback, not dead code: a browser that doesn't understand `cqmin`
+   treats the whole `clamp(...)` value as invalid and ignores just that
+   one declaration, leaving the fixed size above in effect instead of no
+   font-size at all - every evergreen browser has supported this since
+   2023, but a kiosk device running something older still gets a clock. */
 .llw-clock__time {
   font-size: 2.4rem;
+  font-size: clamp(1rem, 22cqmin, 4.5rem);
   font-weight: 700;
   letter-spacing: 0.01em;
   line-height: 1;
@@ -43,16 +80,65 @@
 
 .llw-clock__date {
   font-size: 0.85rem;
+  font-size: clamp(0.65rem, 7cqmin, 1.15rem);
   opacity: 0.75;
   text-transform: capitalize;
 }
 
-/* Compact (1x1): just a big time, no date - same "icon tile" spirit as
-   Light/Climate/Media's own compact size (see app.css's squircle rule,
-   which only targets THOSE four's own --compact class, not this one - a
-   clock face reads fine as a plain rounded square, not an app-icon shape). */
-.llw-widget-clock--compact .llw-clock__time { font-size: 1.5rem; }
+/* Compact (1x1) hides the date line entirely (no room for it, same as
+   before) - the time's own size no longer needs a separate override here,
+   the cqmin sizing above already shrinks it to fit a small tile on its
+   own. */
 .llw-widget-clock--compact .llw-clock__date { display: none; }
+
+/* --- Analog face ----------------------------------------------------------
+   An SVG with a viewBox scales to fill its container for free - no cqmin
+   math needed here at all, unlike the digital text above. */
+.llw-clock__analog-face {
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  /* Keeps the face a true circle instead of an ellipse inside a non-square
+     tile (a "wide" variant, say) - centers the largest square that fits. */
+  aspect-ratio: 1;
+  margin: auto;
+}
+.llw-clock__tick {
+  stroke: rgba(255, 255, 255, 0.45);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+}
+.llw-clock__tick--major {
+  stroke: rgba(255, 255, 255, 0.85);
+  stroke-width: 2.2;
+}
+.llw-clock__hand {
+  stroke: #fff;
+  stroke-linecap: round;
+  transform-origin: 50px 50px;
+  transition: transform 0.25s cubic-bezier(0.4, 2.2, 0.4, 1);
+}
+.llw-clock__hand--hour {
+  stroke-width: 4.5;
+}
+.llw-clock__hand--minute {
+  stroke-width: 3;
+  opacity: 0.92;
+}
+.llw-clock__hand--second {
+  stroke: #ffd166;
+  stroke-width: 1.4;
+  /* No easing on the second hand - a smooth glide looks wrong on a clock
+     where every other hand "ticks"; a plain snap each second reads as a
+     normal analog movement instead. */
+  transition: none;
+}
+.llw-clock__hand-pin {
+  fill: #ffd166;
+  stroke: rgba(0, 0, 0, 0.25);
+  stroke-width: 0.5;
+}
 
 .llw-clock__settings {
   position: absolute;
@@ -70,7 +156,12 @@
 .llw-clock__settings.llw-open { display: flex; }
 .llw-clock__settings label { font-size: 0.72rem; opacity: 0.7; }
 .llw-clock__format-row { display: flex; gap: 0.4rem; }
-.llw-clock__format-opt {
+/* The style row (digital/analog) reuses this same look - one flat row of
+   equal-width pill buttons, just a different data attribute/class driving
+   which one is selected (see clock.js). */
+.llw-clock__hourformat-group { display: flex; flex-direction: column; gap: 0.3rem; }
+.llw-clock__format-opt,
+.llw-clock__style-opt {
   flex: 1;
   padding: 0.4rem 0.3rem;
   border-radius: 6px;
@@ -80,7 +171,8 @@
   cursor: pointer;
   font-size: 0.75rem;
 }
-.llw-clock__format-opt.is-active {
+.llw-clock__format-opt.is-active,
+.llw-clock__style-opt.is-active {
   border-color: #ffd166;
   background: rgba(255, 209, 102, 0.22);
 }
