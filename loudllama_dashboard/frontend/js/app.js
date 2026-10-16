@@ -564,10 +564,31 @@
         // roughly square on any device - a phone lands around 4 columns, an
         // ordinary laptop/tablet around 12-16). Without this, a fixed
         // 12-column grid on a ~390px phone gives ~30px columns - too thin
-        // for even a compact 1x1 tile to read as a square icon. 'compact'
-        // re-packs widgets tightly whenever the column count itself changes
-        // (e.g. rotating the device), same spirit as this grid's own float
-        // packing, instead of leaving gaps or overflowing.
+        // for even a compact 1x1 tile to read as a square icon.
+        // layout: 'moveScale' (not 'compact', which this used to be) -
+        // changed after "widgets move after updates" was reported directly.
+        // Root cause had two parts, found by reading GridStack's own column-
+        // change code end to end: applyKioskMode() (hiding Home Assistant's
+        // sidebar, forcing our <iframe> full-bleed) used to run *after* the
+        // saved layout was already mounted onto the grid - that width change
+        // is exactly what columnOpts watches for via its ResizeObserver, so
+        // it was re-triggering a *live* column-count change on a grid that
+        // already had real widgets sitting on it (moved earlier in init(),
+        // see that comment, so this mostly doesn't fire there any more) -
+        // but Home Assistant's own UI can still be slow to render (same
+        // reason applyKioskMode() retries its sweep several times over the
+        // following 5s instead of just once), so a late sidebar-hide can
+        // still land after the grid is already populated. 'compact' doesn't
+        // just rescale existing widgets when that happens - its whole job is
+        // to re-*pack* them, which can freely reorder/relocate everything to
+        // fill space, i.e. exactly "my widgets moved". 'moveScale' is
+        // GridStack's own default column-change strategy for a reason: it
+        // scales every widget's x/y/w/h by the same ratio instead, keeping
+        // each one's position and neighbours recognizably the same, just
+        // proportionally resized - the right trade-off for a kiosk display
+        // where an occasional late column-count change (device rotation, a
+        // slow-rendering HA sidebar) should never reshuffle the whole
+        // dashboard, even if it does still resize it.
         // columnMax used to be 12 - that was never "a tablet/desktop
         // naturally lands around 12 anyway", it was a hard ceiling nothing
         // past it could ever cross, so a screen wider than 12*90=1080px
@@ -587,7 +608,7 @@
         // 12 needs to render at all (GridStack has no rule for a column
         // count that file doesn't define - every item in that grid would
         // render at 0 width, not just look stretched).
-        columnOpts: { columnWidth: 90, columnMax: 40, layout: 'compact' },
+        columnOpts: { columnWidth: 90, columnMax: 40, layout: 'moveScale' },
         // Free-form resizing is gone entirely (was 'e, s, w' edge handles,
         // snapping to a tier on resizestop - see wireGridEvents' git history
         // for that code). A widget's size is now a deliberate choice made
@@ -1504,6 +1525,31 @@
       console.warn('[loudllama] Could not load settings', err);
     }
     updateKioskToggleButton();
+    // Applied here - before any grid/page exists yet - rather than after the
+    // saved layout loads, which is where this used to run (right at the end
+    // of this function). applyKioskMode() hides Home Assistant's sidebar and
+    // forces our own <iframe> full-bleed, both on window.top - which widens
+    // the box our own page (and therefore every GridStack grid in it) has to
+    // lay out in. GridStack's columnOpts picks its column count from that
+    // width exactly once, harmlessly, while a grid is still empty during
+    // GridStack.init() (checkDynamicColumn() in its constructor, before
+    // this.engine even exists yet) - but running kiosk mode *after* a grid
+    // already has its saved layout mounted meant the sidebar-hide's resize
+    // was instead caught by the grid's live ResizeObserver once it already
+    // had items on it, which re-triggers that same column-count check for
+    // real this time (ResizeObserver -> onResize -> checkDynamicColumn),
+    // and a real column-count change reflows + **re-packs** every widget
+    // already on the grid (columnOpts' `layout: 'compact'` - see createPage)
+    // instead of leaving them exactly where they were saved. That's what was
+    // reported as "widgets move" - reliably, on basically every single page
+    // load with kiosk mode on (the default), since the sidebar-hide always
+    // happened after the grid was already populated. Moving this one call
+    // earlier means the grid never sees a column count change at all - it's
+    // simply born at the right (post-kiosk-mode) width from the start, with
+    // nothing live on it yet to reflow. See CHANGELOG.md for how this was
+    // verified (a synthetic Home Assistant shell + sidebar inside a real
+    // iframe, comparing widget positions before vs after this reorder).
+    applyKioskMode();
 
     // 2b. Widget store: load the catalog + which widgets are installed, and
     //     fetch the JS/CSS for the installed ones. Must happen before the
@@ -1529,7 +1575,6 @@
     syncPageCount();
     setupPagesSwipe();
     setupLongPressToEdit();
-    applyKioskMode();
 
     // 4. Chrome interactions.
     document.getElementById('llw-edit-toggle').addEventListener('click', () => setEditMode(!editMode));
