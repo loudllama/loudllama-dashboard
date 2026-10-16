@@ -58,6 +58,24 @@
   // shaded, dimensional look.
   const ROOM_ICONS = ['🏠', '🛋️', '🛏️', '🍳', '🚿', '💻', '🚗', '🌳', '🧺', '🎮', '📺', '🍽️', '🚪'];
 
+  // --- Background photo picker (full/wide size only - compact has no room
+  // for a photo, same reasoning as the icon picker above) ------------------
+  // 12 room types, 3 real photos each, bundled under
+  // frontend/assets/backgrounds/rooms/<slug>-<1|2|3>.jpg - the slugs match
+  // i18n.js's room.roomTypes keys 1:1. Unlike the Aurora background (see
+  // app.css), these aren't a one-off exception: the user supplied all 36
+  // specifically for this feature, so the whole set is bundled the same
+  // way. A room with no type picked (the default, cfg.roomType === '')
+  // keeps the original hashHue() gradient look exactly as before - this is
+  // purely additive.
+  const ROOM_TYPES = [
+    'koekken', 'stue', 'spisestue', 'bryggers', 'gang', 'vaerelse',
+    'sovevaerelse', 'entre', 'badevaerelse', 'baghave', 'garage', 'carport',
+  ];
+  function roomBgUrl(type, photo) {
+    return `assets/backgrounds/rooms/${type}-${photo || 1}.jpg`;
+  }
+
   // --- Icons (compact 1x1 size) ---------------------------------------------
   let roomIconUid = 0;
   function nextRoomIconUid() {
@@ -424,6 +442,12 @@
       // back to the first entry (the plain house) rather than showing
       // nothing.
       icon: config.icon || '',
+      // Background photo (see ROOM_TYPES above). '' (the default, and
+      // every room saved before this existed) means no photo - keep the
+      // original hue-gradient look. A non-empty value is one of
+      // ROOM_TYPES; bgPhoto picks which of that type's 3 bundled photos.
+      roomType: ROOM_TYPES.includes(config.roomType) ? config.roomType : '',
+      bgPhoto: [1, 2, 3].includes(config.bgPhoto) ? config.bgPhoto : 1,
     };
     let liveEntities = {}; // entity_id -> live HA entity
     let pollTimer = null;
@@ -440,6 +464,8 @@
     let editorDraftTempEntity = '';
     let editorDraftEntityLabels = {};
     let editorDraftIcon = '';
+    let editorDraftRoomType = '';
+    let editorDraftBgPhoto = 1;
 
     function scheduleSaveRoom() {
       clearTimeout(saveTimer);
@@ -512,6 +538,7 @@
     `;
 
     const roomEl = el.querySelector('.llw-room');
+    const bgEl = el.querySelector('.llw-room__bg');
     const nameEl = el.querySelector('.llw-room__name');
     const glanceEl = el.querySelector('.llw-room__glance');
     const compactIconEl = el.querySelector('.llw-room__compact-icon');
@@ -536,6 +563,8 @@
       editorDraftTempEntity = cfg.tempEntityId || '';
       editorDraftEntityLabels = { ...cfg.entityLabels };
       editorDraftIcon = cfg.icon || '';
+      editorDraftRoomType = cfg.roomType || '';
+      editorDraftBgPhoto = cfg.bgPhoto || 1;
 
       const modal = document.createElement('div');
       modal.className = 'llw-room-editor-modal';
@@ -590,6 +619,25 @@
               (icon) => `<button type="button" class="llw-room__icon-opt ${(editorDraftIcon || ROOM_ICONS[0]) === icon ? 'is-selected' : ''}" data-icon="${icon}" aria-label="${icon}">${roomIconSvg(icon)}</button>`
             ).join('')}
           </div>` : ''}
+        <label class="llw-room__editor-label">${t('room', 'chooseBgTitle')}</label>
+        <div class="llw-room__bg-types">
+          <button type="button" class="llw-room__bg-type-opt llw-room__bg-type-opt--none ${!editorDraftRoomType ? 'is-selected' : ''}" data-type="">
+            <span class="llw-room__bg-type-thumb llw-room__bg-type-thumb--none">⌀</span>
+            <span class="llw-room__bg-type-label">${t('room', 'bgNone')}</span>
+          </button>
+          ${ROOM_TYPES.map(
+            (type) => `
+            <button type="button" class="llw-room__bg-type-opt ${editorDraftRoomType === type ? 'is-selected' : ''}" data-type="${type}">
+              <span class="llw-room__bg-type-thumb" style="background-image:url('${roomBgUrl(type, 1)}')"></span>
+              <span class="llw-room__bg-type-label">${escapeHtml(t('room', `roomTypes.${type}`))}</span>
+            </button>`
+          ).join('')}
+        </div>
+        <div class="llw-room__bg-photos" ${editorDraftRoomType ? '' : 'hidden'}>
+          ${[1, 2, 3].map(
+            (n) => `<button type="button" class="llw-room__bg-photo-opt ${editorDraftBgPhoto === n ? 'is-selected' : ''}" data-photo="${n}" style="background-image:url('${roomBgUrl(editorDraftRoomType || ROOM_TYPES[0], n)}')" aria-label="${n}"></button>`
+          ).join('')}
+        </div>
         <div class="llw-room__editor-actions">
           <button type="button" class="llw-room__next">${t('room', 'next')}</button>
         </div>
@@ -603,6 +651,30 @@
           });
         });
       }
+      const bgPhotosEl = editorBodyEl.querySelector('.llw-room__bg-photos');
+      function refreshBgPhotos() {
+        const type = editorDraftRoomType || ROOM_TYPES[0];
+        bgPhotosEl.hidden = !editorDraftRoomType;
+        bgPhotosEl.querySelectorAll('.llw-room__bg-photo-opt').forEach((btn, i) => {
+          const n = i + 1;
+          btn.style.backgroundImage = `url('${roomBgUrl(type, n)}')`;
+          btn.classList.toggle('is-selected', editorDraftBgPhoto === n);
+        });
+      }
+      editorBodyEl.querySelectorAll('.llw-room__bg-type-opt').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          editorDraftRoomType = btn.dataset.type;
+          if (editorDraftRoomType) editorDraftBgPhoto = 1;
+          editorBodyEl.querySelectorAll('.llw-room__bg-type-opt').forEach((b) => b.classList.toggle('is-selected', b === btn));
+          refreshBgPhotos();
+        });
+      });
+      bgPhotosEl.querySelectorAll('.llw-room__bg-photo-opt').forEach((btn, i) => {
+        btn.addEventListener('click', () => {
+          editorDraftBgPhoto = i + 1;
+          bgPhotosEl.querySelectorAll('.llw-room__bg-photo-opt').forEach((b) => b.classList.toggle('is-selected', b === btn));
+        });
+      });
       const goNext = () => {
         const val = input.value.trim();
         if (!val) {
@@ -806,6 +878,8 @@
           entityLabels,
           sizeVariant: cfg.sizeVariant,
           icon: (cfg.sizeVariant === 'compact' || cfg.sizeVariant === 'wide') ? (editorDraftIcon || ROOM_ICONS[0]) : cfg.icon,
+          roomType: editorDraftRoomType,
+          bgPhoto: editorDraftBgPhoto,
         };
         syncSubWidgets();
         ensureSubWidgetTypesLoaded().then(() => saveConfig(cfg));
@@ -933,6 +1007,16 @@
     function renderCompact() {
       nameEl.textContent = cfg.name;
       roomEl.style.setProperty('--room-hue', String(hashHue(cfg.name || 'room')));
+      // Photo background (see ROOM_TYPES above) replaces the plain
+      // hue-gradient .llw-room__bg div entirely when a type is chosen -
+      // llw-room--photo-bg (room.css) swaps in a dim overlay tuned for a
+      // real photo instead of the gradient's own built-in darkness.
+      if (cfg.roomType) {
+        bgEl.style.backgroundImage = `url("${roomBgUrl(cfg.roomType, cfg.bgPhoto)}")`;
+      } else {
+        bgEl.style.backgroundImage = '';
+      }
+      roomEl.classList.toggle('llw-room--photo-bg', !!cfg.roomType);
       roomEl.classList.toggle('llw-room--lit', anyLightOn());
       roomEl.classList.toggle('llw-room--clickable', cfg.entities.length > 0);
       roomEl.classList.toggle('llw-room--compact', cfg.sizeVariant === 'compact');

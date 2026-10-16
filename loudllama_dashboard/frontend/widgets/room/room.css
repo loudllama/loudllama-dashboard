@@ -28,6 +28,30 @@
   background: radial-gradient(120% 100% at 25% 0%, hsl(var(--room-hue) 72% 32%), hsl(var(--room-hue) 50% 9%) 70%);
 }
 
+/* Photo background (room.js's cfg.roomType) replaces the hue-gradient
+   above with one of the 36 bundled room photos (frontend/assets/
+   backgrounds/rooms/) - background-image is set inline per-room in
+   renderCompact(), this just switches the sizing/opacity/overlay to suit
+   a real photo instead of a gradient that's already tuned dark on its
+   own. The ::after gradient keeps the header/glance text readable over a
+   bright photo the same way app.css's #llw-background::after does for
+   the page background. */
+.llw-room--photo-bg .llw-room__bg {
+  opacity: 1;
+  background-size: cover;
+  background-position: center;
+  background-color: #1a1c20;
+}
+.llw-room--photo-bg .llw-room__bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(8, 10, 14, 0.18) 0%, rgba(8, 10, 14, 0.58) 100%);
+}
+.llw-room--photo-bg.llw-room--lit .llw-room__bg::after {
+  background: linear-gradient(180deg, rgba(8, 10, 14, 0.08) 0%, rgba(8, 10, 14, 0.42) 100%);
+}
+
 .llw-room__content {
   position: relative;
   z-index: 1;
@@ -282,6 +306,74 @@ body.llw-edit-mode .llw-room__gear { display: inline-flex; }
   border-color: #ffd166;
   background: rgba(255, 209, 102, 0.18);
 }
+
+/* --- Background photo picker (step 1, below the icon picker) ------------
+   Two levels: a grid of the 12 room types (thumbnail = that type's first
+   photo, plus a "none" tile that keeps the plain hue-gradient look), then
+   - once a type is chosen - a row of its 3 actual photos to pick from.
+   See ROOM_TYPES/roomBgUrl in room.js. */
+.llw-room__bg-types {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.5rem;
+  max-height: 230px;
+  overflow-y: auto;
+  padding: 2px;
+}
+.llw-room__bg-type-opt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.28rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+.llw-room__bg-type-thumb {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 10px;
+  background-size: cover;
+  background-position: center;
+  background-color: rgba(255, 255, 255, 0.08);
+  border: 2px solid rgba(255, 255, 255, 0.16);
+  transition: border-color 0.15s ease;
+}
+.llw-room__bg-type-thumb--none {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+  opacity: 0.55;
+}
+.llw-room__bg-type-opt:hover .llw-room__bg-type-thumb { border-color: rgba(255, 255, 255, 0.35); }
+.llw-room__bg-type-opt.is-selected .llw-room__bg-type-thumb { border-color: #ffd166; }
+.llw-room__bg-type-label {
+  font-size: 0.64rem;
+  text-align: center;
+  opacity: 0.85;
+  line-height: 1.15;
+}
+.llw-room__bg-photos {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+}
+.llw-room__bg-photos[hidden] { display: none; }
+.llw-room__bg-photo-opt {
+  aspect-ratio: 16 / 9;
+  border-radius: 8px;
+  background-size: cover;
+  background-position: center;
+  background-color: rgba(255, 255, 255, 0.08);
+  border: 2px solid rgba(255, 255, 255, 0.16);
+  cursor: pointer;
+  padding: 0;
+  transition: border-color 0.15s ease;
+}
+.llw-room__bg-photo-opt:hover { border-color: rgba(255, 255, 255, 0.35); }
+.llw-room__bg-photo-opt.is-selected { border-color: #ffd166; }
 
 /* --- Setup / edit popup (name + entity picker) --------------------------
    A true fullscreen popup appended to document.body (same pattern as
